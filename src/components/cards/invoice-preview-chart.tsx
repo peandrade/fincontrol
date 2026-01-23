@@ -19,7 +19,7 @@ const cardStyle = {
   borderColor: "var(--border-color)"
 };
 
-export function InvoicePreviewChart({ data, cardColor = "#8B5CF6", title = "Previsão de Faturas" }: InvoicePreviewChartProps) {
+export function InvoicePreviewChart({ data, title = "Previsão de Faturas" }: InvoicePreviewChartProps) {
   const { theme } = useTheme();
 
   // Cores baseadas no tema

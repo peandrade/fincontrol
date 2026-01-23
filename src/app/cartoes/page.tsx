@@ -45,7 +45,6 @@ function CartoesContent() {
     getCardSummary,
     getInvoicePreview,
     getAllCardsInvoicePreview,
-    getCurrentInvoice,
     getCardInvoices,
   } = useCardStore();
 

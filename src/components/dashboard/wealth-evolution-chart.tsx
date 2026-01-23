@@ -60,7 +60,6 @@ interface TooltipPayload {
 function ChartTooltip({
   active,
   payload,
-  label,
 }: {
   active?: boolean;
   payload?: TooltipPayload[];
@@ -136,7 +135,6 @@ export function WealthEvolutionChart() {
   }, [fetchData]);
 
   const axisTickColor = theme === "dark" ? "#9CA3AF" : "#4B5563";
-  const currentPeriodLabel = PERIOD_OPTIONS.find((p) => p.value === period)?.label || "1 Ano";
 
   const summary = data?.summary || {
     currentWealth: 0,

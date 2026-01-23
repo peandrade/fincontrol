@@ -9,7 +9,6 @@ import {
   Target,
   ArrowUpRight,
   ArrowDownRight,
-  RefreshCw,
   ChevronRight,
   PiggyBank,
 } from "lucide-react";

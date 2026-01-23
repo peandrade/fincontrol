@@ -53,7 +53,7 @@ export function InvoiceSelector({
       </button>
 
       <div className="flex gap-1">
-        {sortedInvoices.map((invoice, index) => {
+        {sortedInvoices.map((invoice) => {
           const isSelected = selectedInvoice?.id === invoice.id;
           const hasValue = invoice.total > 0;
 

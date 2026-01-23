@@ -29,7 +29,7 @@ interface UserProfile {
 }
 
 export default function PerfilPage() {
-  const { data: session, update: updateSession } = useSession();
+  const { update: updateSession } = useSession();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -57,7 +57,6 @@ export default function PerfilPage() {
 
   // Categories
   const {
-    categories,
     isLoading: isCategoriesLoading,
     fetchCategories,
     addCategory,

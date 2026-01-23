@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Search, Filter, X, ChevronDown, ChevronUp } from "lucide-react";
-import { useTransactionStore, type TransactionFilters as Filters, defaultFilters } from "@/store/transaction-store";
+import { useTransactionStore } from "@/store/transaction-store";
 import { useCategoryStore } from "@/store/category-store";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import type { TransactionType } from "@/types";

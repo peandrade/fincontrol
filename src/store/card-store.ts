@@ -343,8 +343,8 @@ export const useCardStore = create<CardStore>((set, get) => ({
 
     // Para visão consolidada, começa no mês atual
     // As faturas agora são identificadas pelo mês do VENCIMENTO
-    let startMonth = currentMonth;
-    let startYear = currentYear;
+    const startMonth = currentMonth;
+    const startYear = currentYear;
 
     for (let i = 0; i < months; i++) {
       let month = startMonth + i;

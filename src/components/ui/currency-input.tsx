@@ -18,7 +18,7 @@ interface CurrencyInputProps {
  */
 function formatToCurrency(value: string): string {
   // Remove tudo que não é número
-  let numbers = value.replace(/\D/g, "");
+  const numbers = value.replace(/\D/g, "");
 
   if (!numbers) return "";
 
