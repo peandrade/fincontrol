@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar, Footer } from "@/components/layout";
-import { ThemeProvider, UserProvider, AppearanceProvider, GeneralSettingsProvider } from "@/contexts";
+import { ThemeProvider, UserProvider, AppearanceProvider } from "@/contexts";
 import { SessionProvider } from "@/components/providers/session-provider";
 
 export const metadata: Metadata = {
@@ -22,15 +22,13 @@ export default function RootLayout({
       <body className="antialiased min-h-screen flex flex-col">
         <SessionProvider>
           <UserProvider>
-            <GeneralSettingsProvider>
-              <AppearanceProvider>
-                <ThemeProvider>
-                  <Navbar />
-                  <main className="flex-1">{children}</main>
-                  <Footer />
-                </ThemeProvider>
-              </AppearanceProvider>
-            </GeneralSettingsProvider>
+            <AppearanceProvider>
+              <ThemeProvider>
+                <Navbar />
+                <main className="flex-1">{children}</main>
+                <Footer />
+              </ThemeProvider>
+            </AppearanceProvider>
           </UserProvider>
         </SessionProvider>
       </body>

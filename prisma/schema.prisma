@@ -13,14 +13,13 @@ datasource db {
 // ============================================
 
 model User {
-  id              String   @id @default(cuid())
-  name            String?
-  email           String   @unique
-  password        String
-  image           String?  // URL da foto de perfil
-  generalSettings Json?    // Configurações gerais do usuário (moeda, formato, etc.)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String
+  image     String?  // URL da foto de perfil
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   transactions         Transaction[]
   investments          Investment[]

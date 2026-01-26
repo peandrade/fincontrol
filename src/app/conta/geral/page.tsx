@@ -1,56 +1,95 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
   ArrowLeft,
-  Settings,
-  DollarSign,
+  Sliders,
+  Home,
   Calendar,
-  RotateCcw,
+  List,
+  AlertTriangle,
   Check,
 } from "lucide-react";
-import {
-  useGeneralSettings,
-  currencies,
-  numberFormats,
-  dateFormats,
-  weekStartDays,
-  commonTimezones,
-  type Currency,
-  type NumberFormat,
-  type DateFormat,
-  type WeekStartDay,
-} from "@/contexts";
+
+interface GeneralPreferences {
+  defaultPage: string;
+  defaultPeriod: string;
+  defaultSort: string;
+  confirmBeforeDelete: boolean;
+}
+
+const defaultPreferences: GeneralPreferences = {
+  defaultPage: "dashboard",
+  defaultPeriod: "month",
+  defaultSort: "recent",
+  confirmBeforeDelete: true,
+};
+
+const pages = [
+  { id: "dashboard", name: "Dashboard", icon: Home },
+  { id: "transactions", name: "Transações", icon: List },
+  { id: "investments", name: "Investimentos", icon: Calendar },
+];
+
+const periods = [
+  { id: "week", name: "Última semana" },
+  { id: "month", name: "Este mês" },
+  { id: "quarter", name: "Últimos 3 meses" },
+  { id: "year", name: "Este ano" },
+];
+
+const sortOptions = [
+  { id: "recent", name: "Mais recente" },
+  { id: "oldest", name: "Mais antigo" },
+  { id: "highest", name: "Maior valor" },
+  { id: "lowest", name: "Menor valor" },
+];
 
 export default function GeralPage() {
   const router = useRouter();
-  const { settings, updateSettings, resetSettings } = useGeneralSettings();
+  const [preferences, setPreferences] = useState<GeneralPreferences>(defaultPreferences);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  const currencyEntries = Object.entries(currencies) as [Currency, typeof currencies[Currency]][];
-  const numberFormatEntries = Object.entries(numberFormats) as [NumberFormat, typeof numberFormats[NumberFormat]][];
-  const dateFormatEntries = Object.entries(dateFormats) as [DateFormat, typeof dateFormats[DateFormat]][];
-  const weekStartDayEntries = Object.entries(weekStartDays) as [WeekStartDay, typeof weekStartDays[WeekStartDay]][];
+  useEffect(() => {
+    const saved = localStorage.getItem("fincontrol-general-preferences");
+    if (saved) {
+      setPreferences({ ...defaultPreferences, ...JSON.parse(saved) });
+    }
+    setIsLoaded(true);
+  }, []);
+
+  const updatePreference = <K extends keyof GeneralPreferences>(key: K, value: GeneralPreferences[K]) => {
+    const newPrefs = { ...preferences, [key]: value };
+    setPreferences(newPrefs);
+    localStorage.setItem("fincontrol-general-preferences", JSON.stringify(newPrefs));
+  };
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--bg-primary)" }}>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div
       className="min-h-screen transition-colors duration-300"
       style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}
     >
-      {/* Background decorativo */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div
-          className="absolute -top-40 -right-40 w-80 h-80 rounded-full blur-3xl transition-colors duration-500"
+          className="absolute -top-40 -right-40 w-80 h-80 rounded-full blur-3xl"
           style={{ backgroundColor: "rgba(59, 130, 246, 0.2)" }}
         />
         <div
-          className="absolute top-1/2 -left-40 w-80 h-80 rounded-full blur-3xl transition-colors duration-500"
+          className="absolute top-1/2 -left-40 w-80 h-80 rounded-full blur-3xl"
           style={{ backgroundColor: "rgba(59, 130, 246, 0.1)" }}
         />
       </div>
 
-      {/* Conteúdo */}
       <div className="relative max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Botão Voltar */}
         <button
           onClick={() => router.push("/conta")}
           className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-6"
@@ -59,260 +98,147 @@ export default function GeralPage() {
           <span>Voltar</span>
         </button>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
-              Geral
-            </h1>
-            <p className="text-[var(--text-dimmed)] mt-1">
-              Configurações financeiras e preferências de exibição
-            </p>
-          </div>
-          <button
-            onClick={resetSettings}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-xl transition-all"
-            title="Restaurar padrões"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span className="hidden sm:inline">Restaurar</span>
-          </button>
+        <div className="mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
+            Geral
+          </h1>
+          <p className="text-[var(--text-dimmed)] mt-1">
+            Preferências gerais do sistema
+          </p>
         </div>
 
         <div className="space-y-6">
-          {/* Configurações Financeiras */}
+          {/* Página Inicial */}
           <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
-            <div className="flex items-center gap-3 mb-6">
+            <div className="flex items-center gap-3 mb-4">
               <div className="p-3 rounded-xl bg-blue-500/10">
-                <DollarSign className="w-5 h-5 text-blue-400" />
+                <Home className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-                  Configurações Financeiras
-                </h2>
-                <p className="text-sm text-[var(--text-dimmed)]">
-                  Moeda, formato de valores e ciclo mensal
-                </p>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Página Inicial</h2>
+                <p className="text-sm text-[var(--text-dimmed)]">Qual página abrir ao entrar no app</p>
               </div>
             </div>
 
-            {/* Moeda Padrão */}
-            <div className="mb-6">
-              <p className="text-sm text-[var(--text-muted)] mb-3">Moeda Padrão</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {currencyEntries.map(([key, currency]) => (
+            <div className="grid grid-cols-3 gap-3">
+              {pages.map((page) => {
+                const Icon = page.icon;
+                const isSelected = preferences.defaultPage === page.id;
+                return (
                   <button
-                    key={key}
-                    onClick={() => updateSettings({ currency: key })}
+                    key={page.id}
+                    onClick={() => updatePreference("defaultPage", page.id)}
                     className={`p-4 rounded-xl border-2 transition-all text-center ${
-                      settings.currency === key
+                      isSelected
                         ? "border-blue-500 bg-blue-500/10"
                         : "border-[var(--border-color)] hover:border-[var(--border-color-strong)]"
                     }`}
                   >
-                    <span className="text-xl font-bold text-[var(--text-primary)]">
-                      {currency.symbol}
-                    </span>
-                    <p className="text-xs text-[var(--text-dimmed)] mt-1">{key}</p>
-                    {settings.currency === key && (
-                      <div className="flex justify-center mt-2">
-                        <Check className="w-4 h-4 text-blue-400" />
-                      </div>
+                    <Icon className={`w-5 h-5 mx-auto ${isSelected ? "text-blue-400" : "text-[var(--text-muted)]"}`} />
+                    <p className="text-sm text-[var(--text-primary)] mt-2">{page.name}</p>
+                    {isSelected && (
+                      <Check className="w-4 h-4 text-blue-400 mx-auto mt-2" />
                     )}
                   </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Formato de Valores */}
-            <div className="mb-6">
-              <p className="text-sm text-[var(--text-muted)] mb-3">Formato de Valores</p>
-              <div className="grid grid-cols-2 gap-3">
-                {numberFormatEntries.map(([key, format]) => (
-                  <button
-                    key={key}
-                    onClick={() => updateSettings({ numberFormat: key })}
-                    className={`p-4 rounded-xl border-2 transition-all text-center ${
-                      settings.numberFormat === key
-                        ? "border-blue-500 bg-blue-500/10"
-                        : "border-[var(--border-color)] hover:border-[var(--border-color-strong)]"
-                    }`}
-                  >
-                    <span className="text-lg font-semibold text-[var(--text-primary)]">
-                      {format.example}
-                    </span>
-                    <p className="text-xs text-[var(--text-dimmed)] mt-1">{format.name}</p>
-                    {settings.numberFormat === key && (
-                      <div className="flex justify-center mt-2">
-                        <Check className="w-4 h-4 text-blue-400" />
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Primeiro Dia do Mês Financeiro */}
-            <div>
-              <p className="text-sm text-[var(--text-muted)] mb-3">Primeiro Dia do Mês Financeiro</p>
-              <p className="text-xs text-[var(--text-dimmed)] mb-3">
-                Para quem recebe salário em dias específicos
-              </p>
-              <select
-                value={settings.financialMonthStartDay}
-                onChange={(e) => updateSettings({ financialMonthStartDay: Number(e.target.value) })}
-                className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
-              >
-                {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
-                  <option key={day} value={day} className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">
-                    Dia {day}
-                  </option>
-                ))}
-              </select>
+                );
+              })}
             </div>
           </div>
 
-          {/* Preferências de Exibição */}
+          {/* Período Padrão */}
           <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
-            <div className="flex items-center gap-3 mb-6">
+            <div className="flex items-center gap-3 mb-4">
               <div className="p-3 rounded-xl bg-emerald-500/10">
                 <Calendar className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-                  Preferências de Exibição
-                </h2>
-                <p className="text-sm text-[var(--text-dimmed)]">
-                  Data, semana e fuso horário
-                </p>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Período Padrão</h2>
+                <p className="text-sm text-[var(--text-dimmed)]">Período inicial dos relatórios e gráficos</p>
               </div>
             </div>
 
-            {/* Formato de Data */}
-            <div className="mb-6">
-              <p className="text-sm text-[var(--text-muted)] mb-3">Formato de Data</p>
-              <div className="grid grid-cols-3 gap-3">
-                {dateFormatEntries.map(([key, format]) => (
+            <div className="grid grid-cols-2 gap-3">
+              {periods.map((period) => {
+                const isSelected = preferences.defaultPeriod === period.id;
+                return (
                   <button
-                    key={key}
-                    onClick={() => updateSettings({ dateFormat: key })}
+                    key={period.id}
+                    onClick={() => updatePreference("defaultPeriod", period.id)}
                     className={`p-4 rounded-xl border-2 transition-all text-center ${
-                      settings.dateFormat === key
+                      isSelected
                         ? "border-emerald-500 bg-emerald-500/10"
                         : "border-[var(--border-color)] hover:border-[var(--border-color-strong)]"
                     }`}
                   >
-                    <span className="text-sm font-semibold text-[var(--text-primary)]">
-                      {format.name}
-                    </span>
-                    <p className="text-xs text-[var(--text-dimmed)] mt-1">{format.example}</p>
-                    {settings.dateFormat === key && (
-                      <div className="flex justify-center mt-2">
-                        <Check className="w-4 h-4 text-emerald-400" />
-                      </div>
+                    <p className="text-sm text-[var(--text-primary)]">{period.name}</p>
+                    {isSelected && (
+                      <Check className="w-4 h-4 text-emerald-400 mx-auto mt-2" />
                     )}
                   </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Primeiro Dia da Semana */}
-            <div className="mb-6">
-              <p className="text-sm text-[var(--text-muted)] mb-3">Primeiro Dia da Semana</p>
-              <div className="grid grid-cols-2 gap-3">
-                {weekStartDayEntries.map(([key, day]) => (
-                  <button
-                    key={key}
-                    onClick={() => updateSettings({ weekStartDay: key })}
-                    className={`p-4 rounded-xl border-2 transition-all text-center ${
-                      settings.weekStartDay === key
-                        ? "border-emerald-500 bg-emerald-500/10"
-                        : "border-[var(--border-color)] hover:border-[var(--border-color-strong)]"
-                    }`}
-                  >
-                    <span className="text-sm font-semibold text-[var(--text-primary)]">
-                      {day.name}
-                    </span>
-                    {settings.weekStartDay === key && (
-                      <div className="flex justify-center mt-2">
-                        <Check className="w-4 h-4 text-emerald-400" />
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Fuso Horário */}
-            <div>
-              <p className="text-sm text-[var(--text-muted)] mb-3">Fuso Horário</p>
-              <select
-                value={settings.timezone}
-                onChange={(e) => updateSettings({ timezone: e.target.value })}
-                className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all cursor-pointer"
-              >
-                {commonTimezones.map(({ value, label }) => (
-                  <option key={value} value={value} className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">
-                    {label}
-                  </option>
-                ))}
-              </select>
+                );
+              })}
             </div>
           </div>
 
-          {/* Card de Resumo */}
+          {/* Ordenação Padrão */}
           <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 rounded-xl bg-violet-500/10">
-                <Settings className="w-5 h-5 text-violet-400" />
+                <List className="w-5 h-5 text-violet-400" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-                  Configurações Atuais
-                </h2>
-                <p className="text-sm text-[var(--text-dimmed)]">
-                  Resumo das suas preferências
-                </p>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Ordenação Padrão</h2>
+                <p className="text-sm text-[var(--text-dimmed)]">Como ordenar listas e transações</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 rounded-xl bg-[var(--bg-hover)]">
-                <p className="text-xs text-[var(--text-dimmed)]">Moeda</p>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
-                  {currencies[settings.currency].symbol} ({settings.currency})
-                </p>
+            <div className="grid grid-cols-2 gap-3">
+              {sortOptions.map((option) => {
+                const isSelected = preferences.defaultSort === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => updatePreference("defaultSort", option.id)}
+                    className={`p-4 rounded-xl border-2 transition-all text-center ${
+                      isSelected
+                        ? "border-violet-500 bg-violet-500/10"
+                        : "border-[var(--border-color)] hover:border-[var(--border-color-strong)]"
+                    }`}
+                  >
+                    <p className="text-sm text-[var(--text-primary)]">{option.name}</p>
+                    {isSelected && (
+                      <Check className="w-4 h-4 text-violet-400 mx-auto mt-2" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Confirmação antes de excluir */}
+          <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-amber-500/10">
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-[var(--text-primary)]">Confirmar Exclusão</h2>
+                  <p className="text-sm text-[var(--text-dimmed)]">Pedir confirmação antes de excluir itens</p>
+                </div>
               </div>
-              <div className="p-3 rounded-xl bg-[var(--bg-hover)]">
-                <p className="text-xs text-[var(--text-dimmed)]">Valores</p>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
-                  {numberFormats[settings.numberFormat].example}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-[var(--bg-hover)]">
-                <p className="text-xs text-[var(--text-dimmed)]">Mês Financeiro</p>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
-                  Dia {settings.financialMonthStartDay}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-[var(--bg-hover)]">
-                <p className="text-xs text-[var(--text-dimmed)]">Data</p>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
-                  {dateFormats[settings.dateFormat].name}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-[var(--bg-hover)]">
-                <p className="text-xs text-[var(--text-dimmed)]">Semana</p>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
-                  {weekStartDays[settings.weekStartDay].name}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-[var(--bg-hover)]">
-                <p className="text-xs text-[var(--text-dimmed)]">Fuso</p>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
-                  {settings.timezone === "auto" ? "Auto" : settings.timezone.split("/")[1]?.replace("_", " ") || settings.timezone}
-                </p>
-              </div>
+              <button
+                onClick={() => updatePreference("confirmBeforeDelete", !preferences.confirmBeforeDelete)}
+                className={`relative w-14 h-8 rounded-full transition-colors ${
+                  preferences.confirmBeforeDelete ? "bg-amber-500" : "bg-[var(--bg-hover)]"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
+                    preferences.confirmBeforeDelete ? "translate-x-7" : "translate-x-1"
+                  }`}
+                />
+              </button>
             </div>
           </div>
         </div>
