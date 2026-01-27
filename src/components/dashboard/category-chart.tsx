@@ -32,7 +32,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
 
   return (
     <div
-      className="backdrop-blur rounded-2xl p-6 transition-colors duration-300"
+      className="backdrop-blur rounded-2xl p-6 transition-colors duration-300 h-full"
       style={{
         backgroundColor: "var(--card-bg)",
         borderWidth: "1px",

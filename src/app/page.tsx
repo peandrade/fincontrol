@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Calendar, Activity, TrendingUp, PieChart, Target, CreditCard, Repeat, LayoutList } from "lucide-react";
+import { Calendar, CalendarDays, Target, LayoutList, X } from "lucide-react";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useFeedback } from "@/hooks/use-feedback";
 import { useTemplateStore } from "@/store/template-store";
 import { getMonthYearLabel } from "@/lib/constants";
 import { SummaryCards, MonthlyChart, CategoryChart, TransactionList, WealthEvolutionChart, QuickStats } from "@/components/dashboard";
 import { FinancialHealthScore } from "@/components/dashboard/financial-health-score";
-import { BudgetAlerts } from "@/components/dashboard/budget-alerts";
 import { BillsCalendar } from "@/components/dashboard/bills-calendar";
 import { TransactionModal } from "@/components/forms/transaction-modal";
 import { BudgetSection } from "@/components/budget/budget-section";
@@ -24,6 +23,7 @@ export default function DashboardPage() {
   const [evolutionPeriod, setEvolutionPeriod] = useState<EvolutionPeriod>("6m");
   const [budgetRefreshTrigger, setBudgetRefreshTrigger] = useState(0);
 
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TransactionTemplate | null>(null);
   const [isTemplateSubmitting, setIsTemplateSubmitting] = useState(false);
@@ -181,7 +181,7 @@ export default function DashboardPage() {
       </div>
 
       {}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {}
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
@@ -194,15 +194,11 @@ export default function DashboardPage() {
             </p>
           </div>
           <button
-            onClick={() => {
-              setSelectedTemplate(null);
-              setInitialTransactionType(undefined);
-              setIsModalOpen(true);
-            }}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-primary-gradient rounded-xl font-medium transition-all shadow-lg shadow-primary text-white"
+            onClick={() => setIsCalendarOpen(true)}
+            className="flex items-center justify-center p-3 rounded-xl border border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-all"
+            title="Calendário de Contas"
           >
-            <Plus className="w-5 h-5" />
-            Nova Transação
+            <CalendarDays className="w-5 h-5 text-blue-400" />
           </button>
         </header>
 
@@ -212,41 +208,25 @@ export default function DashboardPage() {
         {/* Summary Cards - Always visible */}
         <SummaryCards summary={summary} />
 
-        {/* Section: Saúde Financeira */}
-        <CollapsibleSection
-          id="financial-health"
-          title="Saúde Financeira"
-          icon={<Activity className="w-5 h-5 text-primary-color" />}
-          defaultExpanded={true}
-        >
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Charts - Below summary cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <div className="lg:col-span-2">
+            <MonthlyChart
+              data={monthlyData}
+              period={evolutionPeriod}
+              onPeriodChange={setEvolutionPeriod}
+            />
+          </div>
+          <div className="h-full">
+            <CategoryChart data={categoryData} />
+          </div>
+          <div className="lg:col-span-2">
+            <WealthEvolutionChart />
+          </div>
+          <div className="h-full">
             <FinancialHealthScore />
-            <BudgetAlerts />
-            <BillsCalendar />
           </div>
-        </CollapsibleSection>
-
-        {/* Section: Análises e Gráficos */}
-        <CollapsibleSection
-          id="analytics"
-          title="Análises e Gráficos"
-          icon={<TrendingUp className="w-5 h-5 text-primary-color" />}
-          defaultExpanded={true}
-        >
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div className="lg:col-span-2">
-              <MonthlyChart
-                data={monthlyData}
-                period={evolutionPeriod}
-                onPeriodChange={setEvolutionPeriod}
-              />
-            </div>
-            <div>
-              <CategoryChart data={categoryData} />
-            </div>
-          </div>
-          <WealthEvolutionChart />
-        </CollapsibleSection>
+        </div>
 
         {/* Section: Planejamento */}
         <CollapsibleSection
@@ -306,6 +286,25 @@ export default function DashboardPage() {
         initialType={initialTransactionType}
         template={selectedTemplate}
       />
+
+      {/* Calendar Modal */}
+      {isCalendarOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setIsCalendarOpen(false)}
+          />
+          <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl">
+            <button
+              onClick={() => setIsCalendarOpen(false)}
+              className="absolute top-4 right-4 z-10 p-1.5 rounded-lg bg-[var(--bg-hover)] hover:bg-[var(--bg-primary)] transition-colors"
+            >
+              <X className="w-4 h-4 text-[var(--text-muted)]" />
+            </button>
+            <BillsCalendar />
+          </div>
+        </div>
+      )}
 
       {}
       <TemplateModal

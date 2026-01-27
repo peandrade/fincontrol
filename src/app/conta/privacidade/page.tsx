@@ -10,7 +10,9 @@ import {
   Key,
   Trash2,
   AlertTriangle,
-  Shield,
+  AlertCircle,
+  CheckCircle,
+  Loader2,
 } from "lucide-react";
 import { usePreferences } from "@/contexts";
 
@@ -19,6 +21,91 @@ export default function PrivacidadePage() {
   const { privacy, updatePrivacy, isLoading, isSaving } = usePreferences();
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+
+  // Change password state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Password strength
+  const getPasswordStrength = (pass: string) => {
+    let strength = 0;
+    if (pass.length >= 6) strength++;
+    if (pass.length >= 8) strength++;
+    if (/[a-z]/.test(pass) && /[A-Z]/.test(pass)) strength++;
+    if (/\d/.test(pass)) strength++;
+    if (/[^a-zA-Z0-9]/.test(pass)) strength++;
+    return strength;
+  };
+
+  const passwordStrength = getPasswordStrength(newPassword);
+  const strengthLabels = ["Muito fraca", "Fraca", "Média", "Forte", "Muito forte"];
+  const strengthColors = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#10b981"];
+
+  const handleChangePassword = async () => {
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (!currentPassword) {
+      setPasswordError("Digite a senha atual");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError("A nova senha deve ter no mínimo 6 caracteres");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("As senhas não coincidem");
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      const res = await fetch("/api/user/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPasswordError(data.error || "Erro ao alterar senha");
+        return;
+      }
+
+      setPasswordSuccess("Senha alterada com sucesso!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => {
+        setShowChangePassword(false);
+        setPasswordSuccess("");
+      }, 2000);
+    } catch {
+      setPasswordError("Erro ao alterar senha. Tente novamente.");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const resetPasswordForm = () => {
+    setShowChangePassword(false);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordError("");
+    setPasswordSuccess("");
+  };
 
   if (isLoading) {
     return (
@@ -158,33 +245,6 @@ export default function PrivacidadePage() {
             )}
           </div>
 
-          {/* Exigir Autenticação */}
-          <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-emerald-500/10">
-                  <Shield className="w-5 h-5 text-emerald-400" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-[var(--text-primary)]">Exigir Autenticação</h2>
-                  <p className="text-sm text-[var(--text-dimmed)]">Biometria ou senha para abrir o app</p>
-                </div>
-              </div>
-              <button
-                onClick={() => updatePrivacy({ requireAuth: !privacy.requireAuth })}
-                className={`relative w-14 h-8 rounded-full transition-colors ${
-                  privacy.requireAuth ? "bg-emerald-500" : "bg-[var(--bg-hover)]"
-                }`}
-              >
-                <div
-                  className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
-                    privacy.requireAuth ? "translate-x-7" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-
           {/* Alterar Senha */}
           <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
             <div className="flex items-center gap-3 mb-4">
@@ -206,36 +266,132 @@ export default function PrivacidadePage() {
               </button>
             ) : (
               <div className="space-y-3">
-                <input
-                  type="password"
-                  placeholder="Senha atual"
-                  className="w-full p-4 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:border-blue-500"
-                />
-                <input
-                  type="password"
-                  placeholder="Nova senha"
-                  className="w-full p-4 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:border-blue-500"
-                />
-                <input
-                  type="password"
-                  placeholder="Confirmar nova senha"
-                  className="w-full p-4 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:border-blue-500"
-                />
+                {/* Feedback messages */}
+                {passwordError && (
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                    <span className="text-red-500 text-sm">{passwordError}</span>
+                  </div>
+                )}
+                {passwordSuccess && (
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span className="text-emerald-500 text-sm">{passwordSuccess}</span>
+                  </div>
+                )}
+
+                {/* Current password */}
+                <div className="relative">
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    placeholder="Senha atual"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full p-4 pr-12 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:opacity-80"
+                  >
+                    {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+
+                {/* New password */}
+                <div>
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      placeholder="Nova senha"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full p-4 pr-12 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:opacity-80"
+                    >
+                      {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+
+                  {/* Password strength indicator */}
+                  {newPassword && (
+                    <div className="mt-3">
+                      <div className="flex gap-1 mb-1">
+                        {[...Array(5)].map((_, i) => (
+                          <div
+                            key={i}
+                            className="h-1.5 flex-1 rounded-full transition-colors"
+                            style={{
+                              backgroundColor: i < passwordStrength ? strengthColors[passwordStrength - 1] : "var(--border-color)",
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <p
+                        className="text-xs"
+                        style={{ color: passwordStrength > 0 ? strengthColors[passwordStrength - 1] : "var(--text-muted)" }}
+                      >
+                        {passwordStrength > 0 ? strengthLabels[passwordStrength - 1] : "Digite uma senha"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Confirm new password */}
+                <div>
+                  <div className="relative">
+                    <input
+                      type={showConfirmNewPassword ? "text" : "password"}
+                      placeholder="Confirmar nova senha"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full p-4 pr-12 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:opacity-80"
+                    >
+                      {showConfirmNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+
+                  {confirmPassword && (
+                    <p
+                      className="text-xs mt-2"
+                      style={{ color: newPassword === confirmPassword ? "#22c55e" : "#ef4444" }}
+                    >
+                      {newPassword === confirmPassword ? "Senhas coincidem" : "Senhas não coincidem"}
+                    </p>
+                  )}
+                </div>
+
+                {/* Actions */}
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => setShowChangePassword(false)}
-                    className="p-3 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all"
+                    onClick={resetPasswordForm}
+                    disabled={isChangingPassword}
+                    className="p-3 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all disabled:opacity-50"
                   >
                     Cancelar
                   </button>
                   <button
-                    onClick={() => {
-                      // TODO: Implementar alteração de senha
-                      setShowChangePassword(false);
-                    }}
-                    className="p-3 rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-all"
+                    onClick={handleChangePassword}
+                    disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
+                    className="p-3 rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Salvar
+                    {isChangingPassword ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      "Salvar"
+                    )}
                   </button>
                 </div>
               </div>

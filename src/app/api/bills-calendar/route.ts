@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { addMonths, startOfMonth, endOfMonth, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export interface BillEvent {
   id: string;
@@ -36,7 +37,7 @@ export interface CashFlowProjection {
   netFlow: number;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
@@ -46,12 +47,23 @@ export async function GET() {
 
     const userId = session.user.id;
     const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const today = now.getDate();
+    const todayDate = now.getDate();
+    const todayMonth = now.getMonth();
+    const todayYear = now.getFullYear();
 
-    const startDate = startOfMonth(now);
-    const endDate = endOfMonth(now);
+    // Accept month/year query params for navigation
+    const searchParams = request.nextUrl.searchParams;
+    const reqMonth = parseInt(searchParams.get("month") || String(todayMonth + 1));
+    const reqYear = parseInt(searchParams.get("year") || String(todayYear));
+
+    // Target date for the requested month
+    const targetDate = new Date(reqYear, reqMonth - 1, 1);
+    const targetMonth = targetDate.getMonth(); // 0-based
+    const targetYear = targetDate.getFullYear();
+
+    const isCurrentMonth = targetMonth === todayMonth && targetYear === todayYear;
+
+    const endDate = endOfMonth(targetDate);
 
     // Get recurring expenses
     const recurringExpenses = await prisma.recurringExpense.findMany({
@@ -61,7 +73,7 @@ export async function GET() {
       },
     });
 
-    // Get credit cards with unpaid/current invoices
+    // Get credit cards with invoices for the target month and surrounding months
     const creditCards = await prisma.creditCard.findMany({
       where: {
         userId,
@@ -74,8 +86,8 @@ export async function GET() {
               { status: "open" },
               { status: "closed" },
               {
-                month: currentMonth + 1,
-                year: currentYear,
+                month: reqMonth,
+                year: reqYear,
               },
             ],
           },
@@ -83,7 +95,7 @@ export async function GET() {
       },
     });
 
-    // Build bill events for the current month
+    // Build bill events for the requested month
     const billEvents: BillEvent[] = [];
 
     // Add recurring expenses
@@ -92,9 +104,17 @@ export async function GET() {
         ? new Date(expense.lastLaunchedAt)
         : null;
       const isLaunchedThisMonth = lastLaunched
-        ? lastLaunched.getMonth() === currentMonth &&
-          lastLaunched.getFullYear() === currentYear
+        ? lastLaunched.getMonth() === targetMonth &&
+          lastLaunched.getFullYear() === targetYear
         : false;
+
+      // Past due only makes sense for the current month
+      const isPastDue = isCurrentMonth
+        ? todayDate > expense.dueDay && !isLaunchedThisMonth
+        : false;
+
+      // For future months, nothing is paid yet
+      const isPaid = isCurrentMonth ? isLaunchedThisMonth : false;
 
       billEvents.push({
         id: expense.id,
@@ -102,32 +122,51 @@ export async function GET() {
         description: expense.description,
         value: expense.value,
         category: expense.category,
-        dueDate: new Date(currentYear, currentMonth, expense.dueDay).toISOString(),
+        dueDate: new Date(targetYear, targetMonth, expense.dueDay).toISOString(),
         day: expense.dueDay,
-        isPaid: isLaunchedThisMonth,
-        isPastDue: today > expense.dueDay && !isLaunchedThisMonth,
+        isPaid,
+        isPastDue,
       });
     }
 
     // Add credit card invoices
     for (const card of creditCards) {
-      const currentInvoice = card.invoices.find(
-        (inv) => inv.month === currentMonth + 1 && inv.year === currentYear
+      const invoice = card.invoices.find(
+        (inv) => inv.month === reqMonth && inv.year === reqYear
       );
 
-      if (currentInvoice && currentInvoice.total > 0) {
-        const isPaid = currentInvoice.status === "paid" || currentInvoice.paidAmount >= currentInvoice.total;
+      if (invoice && invoice.total > 0) {
+        const isPaid = invoice.status === "paid" || invoice.paidAmount >= invoice.total;
+        const isPastDue = isCurrentMonth
+          ? todayDate > card.dueDay && !isPaid
+          : false;
 
         billEvents.push({
-          id: currentInvoice.id,
+          id: invoice.id,
           type: "invoice",
           description: `Fatura ${card.name}`,
-          value: currentInvoice.total - currentInvoice.paidAmount,
+          value: invoice.total - invoice.paidAmount,
           category: "Fatura Cartão",
-          dueDate: currentInvoice.dueDate.toISOString(),
+          dueDate: invoice.dueDate.toISOString(),
           day: card.dueDay,
           isPaid,
-          isPastDue: today > card.dueDay && !isPaid,
+          isPastDue,
+          cardName: card.name,
+          cardColor: card.color,
+        });
+      } else if (!invoice) {
+        // For future months without an invoice yet, show with estimated value 0
+        // but still mark the due day on the calendar
+        billEvents.push({
+          id: `${card.id}-${reqMonth}-${reqYear}`,
+          type: "invoice",
+          description: `Fatura ${card.name}`,
+          value: 0,
+          category: "Fatura Cartão",
+          dueDate: new Date(targetYear, targetMonth, card.dueDay).toISOString(),
+          day: card.dueDay,
+          isPaid: false,
+          isPastDue: false,
           cardName: card.name,
           cardColor: card.color,
         });
@@ -140,22 +179,21 @@ export async function GET() {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dayBills = billEvents.filter((bill) => bill.day === day);
-      const dayDate = new Date(currentYear, currentMonth, day);
+      const dayDate = new Date(targetYear, targetMonth, day);
 
       calendar.push({
         day,
         date: dayDate.toISOString(),
         bills: dayBills,
         total: dayBills.reduce((sum, bill) => sum + bill.value, 0),
-        isToday: day === today,
-        isPast: day < today,
+        isToday: isCurrentMonth && day === todayDate,
+        isPast: isCurrentMonth ? day < todayDate : targetDate < now,
       });
     }
 
-    // Calculate cash flow projection for next 3 months
+    // Calculate cash flow projection for next 3 months (from current date)
     const cashFlowProjection: CashFlowProjection[] = [];
 
-    // Get average income from last 3 months
     const threeMonthsAgo = addMonths(now, -3);
     const incomeTransactions = await prisma.transaction.findMany({
       where: {
@@ -168,7 +206,6 @@ export async function GET() {
       ? incomeTransactions.reduce((sum, t) => sum + t.value, 0) / 3
       : 0;
 
-    // Get average expenses from last 3 months
     const expenseTransactions = await prisma.transaction.findMany({
       where: {
         userId,
@@ -181,31 +218,28 @@ export async function GET() {
       ? expenseTransactions.reduce((sum, t) => sum + t.value, 0) / 3
       : 0;
 
-    // Calculate recurring expenses total
     const totalRecurring = recurringExpenses.reduce((sum, e) => sum + e.value, 0);
 
-    // Project next 3 months
     for (let i = 0; i < 3; i++) {
       const projectionDate = addMonths(now, i);
       const projectionMonth = projectionDate.getMonth() + 1;
       const projectionYear = projectionDate.getFullYear();
 
-      // Get card invoices for this month
       let cardTotal = 0;
       for (const card of creditCards) {
-        const invoice = card.invoices.find(
+        const inv = card.invoices.find(
           (inv) => inv.month === projectionMonth && inv.year === projectionYear
         );
-        if (invoice) {
-          cardTotal += invoice.total - invoice.paidAmount;
+        if (inv) {
+          cardTotal += inv.total - inv.paidAmount;
         }
       }
 
-      const expectedExpenses = (i === 0 ? avgExpenses : avgExpenses) + totalRecurring + cardTotal;
+      const expectedExpenses = avgExpenses + totalRecurring + cardTotal;
 
       cashFlowProjection.push({
         month: format(projectionDate, "yyyy-MM"),
-        monthLabel: format(projectionDate, "MMM yyyy", { locale: require("date-fns/locale/pt-BR").ptBR }),
+        monthLabel: format(projectionDate, "MMM yyyy", { locale: ptBR }),
         expectedIncome: avgIncome,
         expectedExpenses,
         recurringExpenses: totalRecurring,
@@ -218,7 +252,15 @@ export async function GET() {
     const totalPendingBills = billEvents.filter((b) => !b.isPaid).reduce((sum, b) => sum + b.value, 0);
     const totalPaidBills = billEvents.filter((b) => b.isPaid).reduce((sum, b) => sum + b.value, 0);
     const overdueBills = billEvents.filter((b) => b.isPastDue);
-    const upcomingBills = billEvents.filter((b) => !b.isPaid && !b.isPastDue && b.day >= today);
+
+    // Upcoming: not paid, not overdue, and (future day in current month OR future month)
+    const upcomingBills = isCurrentMonth
+      ? billEvents.filter((b) => !b.isPaid && !b.isPastDue && b.day >= todayDate)
+      : billEvents.filter((b) => !b.isPaid);
+
+    // Invoice summary: total of all card invoices for the month
+    const invoiceBills = billEvents.filter((b) => b.type === "invoice");
+    const totalInvoices = invoiceBills.reduce((sum, b) => sum + b.value, 0);
 
     return NextResponse.json({
       calendar,
@@ -233,12 +275,14 @@ export async function GET() {
         overdueValue: overdueBills.reduce((sum, b) => sum + b.value, 0),
         upcomingCount: upcomingBills.length,
         upcomingValue: upcomingBills.reduce((sum, b) => sum + b.value, 0),
+        totalInvoices,
+        invoiceCount: invoiceBills.length,
         nextDue: upcomingBills.length > 0
           ? upcomingBills.sort((a, b) => a.day - b.day)[0]
           : null,
       },
-      currentMonth: currentMonth + 1,
-      currentYear,
+      currentMonth: reqMonth,
+      currentYear: reqYear,
     });
   } catch (error) {
     console.error("Erro ao buscar calendário de contas:", error);

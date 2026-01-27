@@ -14,7 +14,7 @@ import { ChevronDown, TrendingUp, TrendingDown, Wallet, RefreshCw } from "lucide
 import { formatCurrency } from "@/lib/utils";
 import { useTheme } from "@/contexts";
 
-type WealthPeriod = "6m" | "1y" | "2y" | "all";
+type WealthPeriod = "3m" | "6m" | "1y" | "2y" | "all";
 
 interface WealthDataPoint {
   month: string;
@@ -43,6 +43,7 @@ interface WealthData {
 }
 
 const PERIOD_OPTIONS: { value: WealthPeriod; label: string }[] = [
+  { value: "3m", label: "3 Meses" },
   { value: "6m", label: "6 Meses" },
   { value: "1y", label: "1 Ano" },
   { value: "2y", label: "2 Anos" },
@@ -150,7 +151,7 @@ export function WealthEvolutionChart() {
 
   return (
     <div
-      className="backdrop-blur rounded-2xl p-4 sm:p-6 transition-colors duration-300"
+      className="backdrop-blur rounded-2xl p-4 sm:p-6 transition-colors duration-300 h-full"
       style={{
         backgroundColor: "var(--card-bg)",
         borderWidth: "1px",
@@ -248,7 +249,7 @@ export function WealthEvolutionChart() {
       </div>
 
       {}
-      <div className="h-56">
+      <div className="h-72">
         {isLoading ? (
           <div className="h-full flex items-center justify-center">
             <RefreshCw className="w-6 h-6 text-[var(--text-dimmed)] animate-spin" />
@@ -260,6 +261,22 @@ export function WealthEvolutionChart() {
                 <linearGradient id="colorWealth" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.4} />
                   <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorInvestment" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorGoals" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorDebt" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#EF4444" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <XAxis
@@ -280,6 +297,42 @@ export function WealthEvolutionChart() {
               />
               <Tooltip content={<ChartTooltip />} />
               <ReferenceLine y={0} stroke="#6B7280" strokeDasharray="3 3" />
+              <Area
+                type="monotone"
+                dataKey="transactionBalance"
+                name="Saldo"
+                stroke="#10B981"
+                strokeWidth={1.5}
+                fillOpacity={1}
+                fill="url(#colorBalance)"
+              />
+              <Area
+                type="monotone"
+                dataKey="investmentValue"
+                name="Investido"
+                stroke="#3B82F6"
+                strokeWidth={1.5}
+                fillOpacity={1}
+                fill="url(#colorInvestment)"
+              />
+              <Area
+                type="monotone"
+                dataKey="goalsSaved"
+                name="Metas"
+                stroke="#F59E0B"
+                strokeWidth={1.5}
+                fillOpacity={1}
+                fill="url(#colorGoals)"
+              />
+              <Area
+                type="monotone"
+                dataKey="cardDebt"
+                name="Dívida"
+                stroke="#EF4444"
+                strokeWidth={1.5}
+                fillOpacity={1}
+                fill="url(#colorDebt)"
+              />
               <Area
                 type="monotone"
                 dataKey="totalWealth"

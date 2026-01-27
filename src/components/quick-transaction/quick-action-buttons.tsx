@@ -21,7 +21,7 @@ export function QuickActionButtons({ onQuickAdd }: QuickActionButtonsProps) {
   };
 
   return (
-    <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-30">
+    <div className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-30">
       {}
       <div
         className={`absolute bottom-16 right-0 flex flex-col gap-2 sm:gap-3 transition-all duration-300 ${

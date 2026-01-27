@@ -24,7 +24,6 @@ const defaultPrivacy = {
   hideValues: false,
   autoLock: false,
   autoLockTime: 5,
-  requireAuth: false,
 };
 
 export async function GET() {

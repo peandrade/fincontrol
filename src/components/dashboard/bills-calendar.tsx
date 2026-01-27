@@ -1,18 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   CalendarDays,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
   CreditCard,
-  Repeat,
   AlertTriangle,
   CheckCircle,
   Clock,
   TrendingUp,
-  TrendingDown,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { usePreferences } from "@/contexts";
@@ -64,6 +62,8 @@ interface BillsCalendarData {
     overdueValue: number;
     upcomingCount: number;
     upcomingValue: number;
+    totalInvoices: number;
+    invoiceCount: number;
     nextDue: BillEvent | null;
   };
   currentMonth: number;
@@ -78,19 +78,21 @@ const monthNames = [
 const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export function BillsCalendar() {
+  const now = new Date();
   const [data, setData] = useState<BillsCalendarData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<DayBills | null>(null);
   const [showCashFlow, setShowCashFlow] = useState(false);
+  const [viewMonth, setViewMonth] = useState(now.getMonth() + 1);
+  const [viewYear, setViewYear] = useState(now.getFullYear());
   const { privacy, notifications } = usePreferences();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const isCurrentMonth = viewMonth === now.getMonth() + 1 && viewYear === now.getFullYear();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (month: number, year: number) => {
+    setIsLoading(true);
     try {
-      const response = await fetch("/api/bills-calendar");
+      const response = await fetch(`/api/bills-calendar?month=${month}&year=${year}`);
       if (response.ok) {
         const result = await response.json();
         setData(result);
@@ -100,9 +102,39 @@ export function BillsCalendar() {
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchData(viewMonth, viewYear);
+  }, [viewMonth, viewYear, fetchData]);
+
+  const goToPrevMonth = () => {
+    setSelectedDay(null);
+    if (viewMonth === 1) {
+      setViewMonth(12);
+      setViewYear(viewYear - 1);
+    } else {
+      setViewMonth(viewMonth - 1);
+    }
   };
 
-  if (isLoading) {
+  const goToNextMonth = () => {
+    setSelectedDay(null);
+    if (viewMonth === 12) {
+      setViewMonth(1);
+      setViewYear(viewYear + 1);
+    } else {
+      setViewMonth(viewMonth + 1);
+    }
+  };
+
+  const goToToday = () => {
+    setSelectedDay(null);
+    setViewMonth(now.getMonth() + 1);
+    setViewYear(now.getFullYear());
+  };
+
+  if (isLoading && !data) {
     return (
       <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] p-4 sm:p-6">
         <div className="flex items-center justify-center py-8">
@@ -114,13 +146,15 @@ export function BillsCalendar() {
 
   if (!notifications.billReminders || !data) return null;
 
-  // Calculate first day of month offset
   const firstDayOfMonth = new Date(data.currentYear, data.currentMonth - 1, 1).getDay();
+
+  // Separate invoice bills for the faturas section
+  const invoiceBills = data.bills.filter((b) => b.type === "invoice" && b.value > 0);
 
   return (
     <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden h-full flex flex-col">
       {/* Header */}
-      <div className="p-4 sm:p-6 border-b border-[var(--border-color)]">
+      <div className="pt-10 px-4 pb-4 sm:pt-12 sm:px-6 sm:pb-6 border-b border-[var(--border-color)]">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="p-1.5 sm:p-2 bg-blue-500/10 rounded-lg">
@@ -130,9 +164,6 @@ export function BillsCalendar() {
               <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)]">
                 Calendário de Contas
               </h3>
-              <p className="text-xs sm:text-sm text-[var(--text-dimmed)]">
-                {monthNames[data.currentMonth - 1]} {data.currentYear}
-              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -148,17 +179,39 @@ export function BillsCalendar() {
               <TrendingUp className="w-4 h-4 sm:hidden" />
             </button>
             <button
-              onClick={fetchData}
+              onClick={() => fetchData(viewMonth, viewYear)}
               className="p-2 hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
             >
-              <RefreshCw className="w-4 h-4 text-[var(--text-muted)]" />
+              <RefreshCw className={`w-4 h-4 text-[var(--text-muted)] ${isLoading ? "animate-spin" : ""}`} />
             </button>
           </div>
         </div>
 
+        {/* Month Navigation */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={goToPrevMonth}
+            className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
+          </button>
+          <button
+            onClick={goToToday}
+            className="flex items-center gap-1 text-sm font-medium text-[var(--text-primary)] hover:text-blue-400 transition-colors"
+          >
+            <span>{monthNames[data.currentMonth - 1]} {data.currentYear}</span>
+          </button>
+          <button
+            onClick={goToNextMonth}
+            className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
+          >
+            <ChevronRight className="w-4 h-4 text-[var(--text-muted)]" />
+          </button>
+        </div>
+
         {/* Summary Stats */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          {data.summary.overdueCount > 0 && (
+          {data.summary.overdueCount > 0 ? (
             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-2 sm:p-3 text-center">
               <AlertTriangle className="w-4 h-4 text-red-400 mx-auto mb-1" />
               <p className="text-[10px] sm:text-xs text-red-400">Atrasadas</p>
@@ -166,8 +219,16 @@ export function BillsCalendar() {
                 {privacy.hideValues ? "•••••" : formatCurrency(data.summary.overdueValue)}
               </p>
             </div>
+          ) : (
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-2 sm:p-3 text-center">
+              <CreditCard className="w-4 h-4 text-blue-400 mx-auto mb-1" />
+              <p className="text-[10px] sm:text-xs text-blue-400">Faturas</p>
+              <p className="text-xs sm:text-sm font-bold text-blue-400">
+                {privacy.hideValues ? "•••••" : formatCurrency(data.summary.totalInvoices)}
+              </p>
+            </div>
           )}
-          <div className={`bg-amber-500/10 border border-amber-500/30 rounded-lg p-2 sm:p-3 text-center ${data.summary.overdueCount > 0 ? "" : "col-span-1"}`}>
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-2 sm:p-3 text-center">
             <Clock className="w-4 h-4 text-amber-400 mx-auto mb-1" />
             <p className="text-[10px] sm:text-xs text-amber-400">A vencer</p>
             <p className="text-xs sm:text-sm font-bold text-amber-400">
@@ -230,7 +291,7 @@ export function BillsCalendar() {
                     style={{
                       width: `${Math.min(
                         (projection.expectedIncome /
-                          (projection.expectedIncome + projection.expectedExpenses)) *
+                          (projection.expectedIncome + projection.expectedExpenses || 1)) *
                           100,
                         100
                       )}%`,
@@ -241,7 +302,7 @@ export function BillsCalendar() {
                     style={{
                       width: `${Math.min(
                         (projection.expectedExpenses /
-                          (projection.expectedIncome + projection.expectedExpenses)) *
+                          (projection.expectedIncome + projection.expectedExpenses || 1)) *
                           100,
                         100
                       )}%`,
@@ -280,13 +341,14 @@ export function BillsCalendar() {
                 const hasBills = day.bills.length > 0;
                 const hasOverdue = day.bills.some((b) => b.isPastDue);
                 const allPaid = hasBills && day.bills.every((b) => b.isPaid);
+                const hasInvoice = day.bills.some((b) => b.type === "invoice");
 
                 return (
                   <button
                     key={day.day}
                     onClick={() => setSelectedDay(day.bills.length > 0 ? day : null)}
                     className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs sm:text-sm transition-all relative ${
-                      day.isToday
+                      day.isToday && isCurrentMonth
                         ? "bg-primary-gradient text-white font-bold"
                         : hasBills
                         ? hasOverdue
@@ -306,7 +368,9 @@ export function BillsCalendar() {
                           <div
                             key={i}
                             className={`w-1 h-1 rounded-full ${
-                              bill.isPastDue
+                              bill.type === "invoice"
+                                ? "bg-blue-400"
+                                : bill.isPastDue
                                 ? "bg-red-400"
                                 : bill.isPaid
                                 ? "bg-emerald-400"
@@ -315,6 +379,10 @@ export function BillsCalendar() {
                           />
                         ))}
                       </div>
+                    )}
+                    {/* Credit card indicator */}
+                    {hasInvoice && !(day.isToday && isCurrentMonth) && (
+                      <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400" />
                     )}
                   </button>
                 );
@@ -345,6 +413,8 @@ export function BillsCalendar() {
                         ? "bg-red-500/10 border border-red-500/30"
                         : bill.isPaid
                         ? "bg-emerald-500/10 border border-emerald-500/30"
+                        : bill.type === "invoice"
+                        ? "bg-blue-500/10 border border-blue-500/30"
                         : "bg-amber-500/10 border border-amber-500/30"
                     }`}
                   >
@@ -379,18 +449,32 @@ export function BillsCalendar() {
                           ? "text-red-400"
                           : bill.isPaid
                           ? "text-emerald-400"
+                          : bill.type === "invoice"
+                          ? "text-blue-400"
                           : "text-amber-400"
                       }`}>
-                        {privacy.hideValues ? "•••••" : formatCurrency(bill.value)}
+                        {bill.value === 0
+                          ? "—"
+                          : privacy.hideValues
+                          ? "•••••"
+                          : formatCurrency(bill.value)}
                       </p>
                       <p className={`text-[10px] ${
                         bill.isPastDue
                           ? "text-red-400"
                           : bill.isPaid
                           ? "text-emerald-400"
+                          : bill.type === "invoice"
+                          ? "text-blue-400"
                           : "text-amber-400"
                       }`}>
-                        {bill.isPastDue ? "Atrasada" : bill.isPaid ? "Paga" : "Pendente"}
+                        {bill.isPastDue
+                          ? "Atrasada"
+                          : bill.isPaid
+                          ? "Paga"
+                          : bill.value === 0
+                          ? "Sem fatura"
+                          : "Pendente"}
                       </p>
                     </div>
                   </div>
@@ -399,9 +483,54 @@ export function BillsCalendar() {
             </div>
           )}
 
-          {/* Next Due Alert — only show if within reminderDays window */}
-          {data.summary.nextDue && !selectedDay && (() => {
-            const today = new Date().getDate();
+          {/* Invoices Summary */}
+          {invoiceBills.length > 0 && !selectedDay && (
+            <div className="p-4 sm:p-6 border-t border-[var(--border-color)]">
+              <p className="text-xs font-medium text-[var(--text-muted)] mb-2">
+                Faturas do mês
+              </p>
+              <div className="space-y-2">
+                {invoiceBills.map((bill) => (
+                  <div
+                    key={bill.id}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-5 h-5 rounded flex items-center justify-center"
+                        style={{ backgroundColor: bill.cardColor || "#8B5CF6" }}
+                      >
+                        <CreditCard className="w-3 h-3 text-white" />
+                      </div>
+                      <span className="text-xs text-[var(--text-primary)]">
+                        {bill.cardName}
+                      </span>
+                      <span className="text-[10px] text-[var(--text-dimmed)]">
+                        dia {bill.day}
+                      </span>
+                    </div>
+                    <span className={`text-xs font-bold ${
+                      bill.isPaid ? "text-emerald-400" : bill.isPastDue ? "text-red-400" : "text-blue-400"
+                    }`}>
+                      {privacy.hideValues ? "•••••" : formatCurrency(bill.value)}
+                    </span>
+                  </div>
+                ))}
+                {invoiceBills.length > 1 && (
+                  <div className="flex items-center justify-between pt-2 border-t border-[var(--border-color)]">
+                    <span className="text-xs font-medium text-[var(--text-muted)]">Total faturas</span>
+                    <span className="text-xs font-bold text-blue-400">
+                      {privacy.hideValues ? "•••••" : formatCurrency(data.summary.totalInvoices)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Next Due Alert */}
+          {data.summary.nextDue && !selectedDay && isCurrentMonth && (() => {
+            const today = now.getDate();
             const daysUntilDue = data.summary.nextDue!.day - today;
             const withinWindow = daysUntilDue >= 0 && daysUntilDue <= notifications.reminderDays;
             if (!withinWindow) return null;

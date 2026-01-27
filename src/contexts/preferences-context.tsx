@@ -25,7 +25,6 @@ export interface PrivacyPreferences {
   hideValues: boolean;
   autoLock: boolean;
   autoLockTime: number;
-  requireAuth: boolean;
 }
 
 interface PreferencesContextType {
@@ -61,7 +60,6 @@ const defaultPrivacy: PrivacyPreferences = {
   hideValues: false,
   autoLock: false,
   autoLockTime: 5,
-  requireAuth: false,
 };
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined);

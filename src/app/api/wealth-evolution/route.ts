@@ -26,6 +26,9 @@ export async function GET(request: NextRequest) {
     let startDate: Date;
 
     switch (period) {
+      case "3m":
+        startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+        break;
       case "6m":
         startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
         break;

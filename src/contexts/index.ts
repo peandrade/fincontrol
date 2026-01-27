@@ -4,3 +4,4 @@ export { AppearanceProvider, useAppearance, colorPalettes, fontWeights, fontSize
 export type { ColorPalette, FontWeight, FontSize } from "./appearance-context";
 export { PreferencesProvider, usePreferences } from "./preferences-context";
 export type { GeneralPreferences, NotificationPreferences, PrivacyPreferences } from "./preferences-context";
+export { SidebarProvider, useSidebar } from "./sidebar-context";

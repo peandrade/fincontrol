@@ -120,7 +120,7 @@ export function FinancialHealthScore() {
   const scorePercentage = (data.score / 1000) * 100;
 
   return (
-    <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden h-full">
+    <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden">
       {/* Header with Score */}
       <div className={`bg-gradient-to-br ${colors.bg} p-4 sm:p-6`}>
         <div className="flex items-center justify-between mb-4">
@@ -144,7 +144,7 @@ export function FinancialHealthScore() {
         {/* Score Circle */}
         <div className="flex items-center justify-center">
           <div className="relative">
-            <svg className="w-32 h-32 sm:w-40 sm:h-40 transform -rotate-90">
+            <svg className="w-24 h-24 sm:w-32 sm:h-32 transform -rotate-90">
               <circle
                 cx="50%"
                 cy="50%"
@@ -166,8 +166,8 @@ export function FinancialHealthScore() {
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-3xl sm:text-4xl font-bold text-white">{data.score}</span>
-              <span className="text-xs sm:text-sm text-white/80">de 1000</span>
+              <span className="text-2xl sm:text-3xl font-bold text-white">{data.score}</span>
+              <span className="text-[10px] sm:text-xs text-white/80">de 1000</span>
             </div>
           </div>
         </div>
