@@ -10,9 +10,11 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { ChevronDown, TrendingUp, TrendingDown, Wallet, RefreshCw } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Wallet, RefreshCw, EyeOff } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useTheme, usePreferences } from "@/contexts";
+
+const HIDDEN = "•••••";
 
 type WealthPeriod = "1w" | "1m" | "3m" | "6m" | "1y";
 
@@ -72,14 +74,17 @@ interface TooltipPayload {
 function ChartTooltip({
   active,
   payload,
+  hideValues,
 }: {
   active?: boolean;
   payload?: TooltipPayload[];
   label?: string;
+  hideValues?: boolean;
 }) {
   if (active && payload && payload.length) {
     const data = payload[0]?.payload as WealthDataPoint;
     if (!data) return null;
+    const fmt = (v: number) => (hideValues ? HIDDEN : formatCurrency(v));
 
     return (
       <div
@@ -96,22 +101,22 @@ function ChartTooltip({
         </p>
         <div className="space-y-1 text-xs">
           <p style={{ color: "#8B5CF6" }}>
-            Patrimônio: <span className="font-medium">{formatCurrency(data.totalWealth)}</span>
+            Patrimônio: <span className="font-medium">{fmt(data.totalWealth)}</span>
           </p>
           <p style={{ color: "#10B981" }}>
-            Saldo: <span className="font-medium">{formatCurrency(data.transactionBalance)}</span>
+            Saldo: <span className="font-medium">{fmt(data.transactionBalance)}</span>
           </p>
           <p style={{ color: "#3B82F6" }}>
-            Investido: <span className="font-medium">{formatCurrency(data.investmentValue)}</span>
+            Investido: <span className="font-medium">{fmt(data.investmentValue)}</span>
           </p>
           {data.goalsSaved > 0 && (
             <p style={{ color: "#F59E0B" }}>
-              Metas: <span className="font-medium">{formatCurrency(data.goalsSaved)}</span>
+              Metas: <span className="font-medium">{fmt(data.goalsSaved)}</span>
             </p>
           )}
           {data.cardDebt > 0 && (
             <p style={{ color: "#EF4444" }}>
-              Dívida: <span className="font-medium">-{formatCurrency(data.cardDebt)}</span>
+              Dívida: <span className="font-medium">-{fmt(data.cardDebt)}</span>
             </p>
           )}
         </div>
@@ -123,7 +128,7 @@ function ChartTooltip({
 
 export function WealthEvolutionChart() {
   const { theme } = useTheme();
-  const { general } = usePreferences();
+  const { general, privacy } = usePreferences();
   const [period, setPeriod] = useState<WealthPeriod>(() =>
     mapDefaultPeriodToWealth(general.defaultPeriod)
   );
@@ -244,26 +249,35 @@ export function WealthEvolutionChart() {
       <div className="flex items-center gap-4 mb-4">
         <div>
           <p className="text-xl sm:text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-            {formatCurrency(summary.currentWealth)}
+            {privacy.hideValues ? HIDDEN : formatCurrency(summary.currentWealth)}
           </p>
-          <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1">
-            {isPositiveChange ? (
-              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-400" />
-            ) : (
-              <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 text-red-400" />
-            )}
-            <span
-              className={`text-xs sm:text-sm font-medium ${
-                isPositiveChange ? "text-emerald-400" : "text-red-400"
-              }`}
-            >
-              {isPositiveChange ? "+" : ""}
-              {formatCurrency(summary.wealthChange)} ({summary.wealthChangePercent.toFixed(1)}%)
-            </span>
-            <span className="text-[10px] sm:text-xs" style={{ color: "var(--text-dimmed)" }}>
-              vs mês anterior
-            </span>
-          </div>
+          {privacy.hideValues ? (
+            <div className="flex items-center gap-1 mt-1">
+              <EyeOff className="w-3 h-3 sm:w-4 sm:h-4 text-[var(--text-dimmed)]" />
+              <span className="text-[10px] sm:text-xs" style={{ color: "var(--text-dimmed)" }}>
+                Modo discreto ativo
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1">
+              {isPositiveChange ? (
+                <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-400" />
+              ) : (
+                <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 text-red-400" />
+              )}
+              <span
+                className={`text-xs sm:text-sm font-medium ${
+                  isPositiveChange ? "text-emerald-400" : "text-red-400"
+                }`}
+              >
+                {isPositiveChange ? "+" : ""}
+                {formatCurrency(summary.wealthChange)} ({summary.wealthChangePercent.toFixed(1)}%)
+              </span>
+              <span className="text-[10px] sm:text-xs" style={{ color: "var(--text-dimmed)" }}>
+                vs mês anterior
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -310,11 +324,13 @@ export function WealthEvolutionChart() {
                 tickLine={false}
                 tick={{ fill: axisTickColor, fontSize: 11 }}
                 tickFormatter={(value) =>
-                  value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()
+                  privacy.hideValues
+                    ? "•••"
+                    : value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()
                 }
                 width={50}
               />
-              <Tooltip content={<ChartTooltip />} />
+              <Tooltip content={<ChartTooltip hideValues={privacy.hideValues} />} />
               <ReferenceLine y={0} stroke="#6B7280" strokeDasharray="3 3" />
               <Area
                 type="monotone"
@@ -382,7 +398,7 @@ export function WealthEvolutionChart() {
             </span>
           </div>
           <p className="text-xs sm:text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-            {formatCurrency(summary.transactionBalance)}
+            {privacy.hideValues ? HIDDEN : formatCurrency(summary.transactionBalance)}
           </p>
         </div>
         <div className="text-center">
@@ -393,7 +409,7 @@ export function WealthEvolutionChart() {
             </span>
           </div>
           <p className="text-xs sm:text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-            {formatCurrency(summary.investmentValue)}
+            {privacy.hideValues ? HIDDEN : formatCurrency(summary.investmentValue)}
           </p>
         </div>
         <div className="text-center">
@@ -404,7 +420,7 @@ export function WealthEvolutionChart() {
             </span>
           </div>
           <p className="text-xs sm:text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-            {formatCurrency(summary.goalsSaved)}
+            {privacy.hideValues ? HIDDEN : formatCurrency(summary.goalsSaved)}
           </p>
         </div>
         <div className="text-center">
@@ -415,7 +431,7 @@ export function WealthEvolutionChart() {
             </span>
           </div>
           <p className="text-xs sm:text-sm font-medium text-red-400">
-            -{formatCurrency(summary.cardDebt)}
+            {privacy.hideValues ? HIDDEN : `-${formatCurrency(summary.cardDebt)}`}
           </p>
         </div>
       </div>

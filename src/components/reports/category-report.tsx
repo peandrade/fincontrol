@@ -3,7 +3,10 @@
 import { useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { formatCurrency } from "@/lib/utils";
+import { usePreferences } from "@/contexts";
 import { DynamicIcon } from "@/components/categories/icon-picker";
+
+const HIDDEN = "•••••";
 import type { Transaction } from "@/types";
 import type { Category } from "@/store/category-store";
 
@@ -23,6 +26,8 @@ interface CategoryData {
 }
 
 export function CategoryReport({ transactions, categories, type }: CategoryReportProps) {
+  const { privacy } = usePreferences();
+  const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
   const categoryData = useMemo(() => {
 
     const filtered = transactions.filter((t) => {
@@ -80,7 +85,7 @@ export function CategoryReport({ transactions, categories, type }: CategoryRepor
             <span className="font-medium text-[var(--text-primary)]">{data.name}</span>
           </div>
           <p className="text-sm text-[var(--text-muted)]">
-            {formatCurrency(data.value)} ({data.percentage.toFixed(1)}%)
+            {fmt(data.value)} ({data.percentage.toFixed(1)}%)
           </p>
           <p className="text-xs text-[var(--text-dimmed)]">
             {data.count} {data.count === 1 ? "transação" : "transações"}
@@ -126,7 +131,7 @@ export function CategoryReport({ transactions, categories, type }: CategoryRepor
         <div className="text-center mt-4">
           <p className="text-sm text-[var(--text-dimmed)]">Total</p>
           <p className="text-2xl font-bold text-[var(--text-primary)]">
-            {formatCurrency(categoryData.total)}
+            {fmt(categoryData.total)}
           </p>
         </div>
       </div>
@@ -155,7 +160,7 @@ export function CategoryReport({ transactions, categories, type }: CategoryRepor
             </div>
             <div className="text-right">
               <p className="font-semibold text-[var(--text-primary)]">
-                {formatCurrency(item.value)}
+                {fmt(item.value)}
               </p>
               <p className="text-xs text-[var(--text-dimmed)]">
                 {item.percentage.toFixed(1)}%

@@ -16,6 +16,9 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { usePreferences } from "@/contexts";
+
+const HIDDEN = "•••••";
 
 interface FinancialHealthData {
   score: number;
@@ -84,6 +87,8 @@ export function FinancialHealthScore() {
   const [data, setData] = useState<FinancialHealthData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
+  const { privacy } = usePreferences();
+  const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
   useEffect(() => {
     fetchData();
@@ -189,19 +194,19 @@ export function FinancialHealthScore() {
           <div className="bg-[var(--bg-hover)] rounded-lg p-2">
             <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)]">Receitas</p>
             <p className="text-xs sm:text-sm font-semibold text-emerald-400">
-              {formatCurrency(data.details.savingsRate.monthly.income)}
+              {fmt(data.details.savingsRate.monthly.income)}
             </p>
           </div>
           <div className="bg-[var(--bg-hover)] rounded-lg p-2">
             <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)]">Despesas</p>
             <p className="text-xs sm:text-sm font-semibold text-red-400">
-              {formatCurrency(data.details.savingsRate.monthly.expenses)}
+              {fmt(data.details.savingsRate.monthly.expenses)}
             </p>
           </div>
           <div className="bg-[var(--bg-hover)] rounded-lg p-2">
             <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)]">Poupado</p>
             <p className={`text-xs sm:text-sm font-semibold ${data.details.savingsRate.monthly.savings >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-              {formatCurrency(data.details.savingsRate.monthly.savings)}
+              {fmt(data.details.savingsRate.monthly.savings)}
             </p>
           </div>
         </div>

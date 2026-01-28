@@ -9,7 +9,6 @@ import { getGoalCategoryLabel, getGoalCategoryColor, getGoalCategoryIcon, type G
 import { GoalModal } from "./goal-modal";
 import { EditGoalModal } from "./edit-goal-modal";
 import { GoalCard } from "./goal-card";
-import { ContributeModal } from "./contribute-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { GoalWithProgress } from "@/app/api/goals/route";
 
@@ -26,14 +25,14 @@ interface GoalData {
 
 interface GoalSectionProps {
   onGoalUpdated?: () => void;
+  headerExtra?: React.ReactNode;
 }
 
-export function GoalSection({ onGoalUpdated }: GoalSectionProps) {
+export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
   const [data, setData] = useState<GoalData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editGoalId, setEditGoalId] = useState<string | null>(null);
-  const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
   const [deleteGoalId, setDeleteGoalId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -129,29 +128,6 @@ export function GoalSection({ onGoalUpdated }: GoalSectionProps) {
     }
   };
 
-  const handleContribute = async (value: number, notes?: string) => {
-    if (!contributeGoalId) return;
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(`/api/goals/${contributeGoalId}/contribute`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ value, notes }),
-      });
-
-      if (response.ok) {
-        feedback.success();
-        await fetchGoals();
-        setContributeGoalId(null);
-        onGoalUpdated?.();
-      }
-    } catch (error) {
-      console.error("Erro ao contribuir:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleEdit = async (goalData: {
     name: string;
     description?: string;
@@ -201,14 +177,13 @@ export function GoalSection({ onGoalUpdated }: GoalSectionProps) {
 
   const activeGoals = data?.goals.filter((g) => !g.isCompleted) || [];
   const completedGoals = data?.goals.filter((g) => g.isCompleted) || [];
-  const contributeGoal = data?.goals.find((g) => g.id === contributeGoalId);
   const editGoal = data?.goals.find((g) => g.id === editGoalId);
 
   return (
     <>
-      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden">
+      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden h-full flex flex-col">
         {}
-        <div className="p-4 sm:p-6 border-b border-[var(--border-color)]">
+        <div className="p-4 sm:p-6 border-b border-[var(--border-color)] flex-shrink-0">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="p-1.5 sm:p-2 bg-primary-soft rounded-lg">
@@ -225,13 +200,16 @@ export function GoalSection({ onGoalUpdated }: GoalSectionProps) {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary text-xs sm:text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Nova</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {headerExtra}
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary text-xs sm:text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Nova</span>
+              </button>
+            </div>
           </div>
 
           {}
@@ -272,7 +250,7 @@ export function GoalSection({ onGoalUpdated }: GoalSectionProps) {
         </div>
 
         {}
-        <div className="p-3 sm:p-4 space-y-2 sm:space-y-3 max-h-[350px] sm:max-h-[500px] overflow-y-auto">
+        <div className="p-3 sm:p-4 space-y-2 sm:space-y-3 overflow-y-auto flex-1 min-h-0 max-h-[400px] lg:max-h-none">
           {data?.goals.length === 0 ? (
             <div className="text-center py-4 sm:py-6">
               <Target className="w-8 h-8 sm:w-10 sm:h-10 text-[var(--text-dimmed)] mx-auto mb-2" />
@@ -294,7 +272,6 @@ export function GoalSection({ onGoalUpdated }: GoalSectionProps) {
                     <GoalCard
                       key={goal.id}
                       goal={goal}
-                      onContribute={() => setContributeGoalId(goal.id)}
                       onEdit={() => setEditGoalId(goal.id)}
                       onDelete={() => handleDeleteGoal(goal.id)}
                     />
@@ -330,17 +307,6 @@ export function GoalSection({ onGoalUpdated }: GoalSectionProps) {
         onSave={handleSave}
         isSubmitting={isSubmitting}
       />
-
-      {contributeGoal && (
-        <ContributeModal
-          isOpen={!!contributeGoalId}
-          onClose={() => setContributeGoalId(null)}
-          onSave={handleContribute}
-          isSubmitting={isSubmitting}
-          goalName={contributeGoal.name}
-          remaining={contributeGoal.remaining}
-        />
-      )}
 
       <EditGoalModal
         isOpen={!!editGoalId}

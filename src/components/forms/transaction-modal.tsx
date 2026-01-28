@@ -5,7 +5,7 @@ import { X, Bookmark } from "lucide-react";
 import { formatDateForInput } from "@/lib/utils";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { useCategoryStore } from "@/store/category-store";
-import type { CreateTransactionInput, TransactionType, TransactionTemplate } from "@/types";
+import type { CreateTransactionInput, Transaction, TransactionType, TransactionTemplate } from "@/types";
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -14,6 +14,7 @@ interface TransactionModalProps {
   isSubmitting: boolean;
   initialType?: TransactionType;
   template?: TransactionTemplate | null;
+  editTransaction?: Transaction | null;
 }
 
 export function TransactionModal({
@@ -23,7 +24,9 @@ export function TransactionModal({
   isSubmitting,
   initialType,
   template,
+  editTransaction,
 }: TransactionModalProps) {
+  const isEditing = !!editTransaction;
   const [type, setType] = useState<TransactionType>("expense");
   const [value, setValue] = useState("");
   const [category, setCategory] = useState("");
@@ -40,7 +43,15 @@ export function TransactionModal({
 
   useEffect(() => {
     if (isOpen) {
-      if (template) {
+      if (editTransaction) {
+        setType(editTransaction.type);
+        setCategory(editTransaction.category);
+        setDescription(editTransaction.description || "");
+        setValue(editTransaction.value?.toString() || "");
+        setDate(formatDateForInput(new Date(editTransaction.date)));
+        setSaveAsTemplate(false);
+        setTemplateName("");
+      } else if (template) {
         setType(template.type);
         setCategory(template.category);
         setDescription(template.description || "");
@@ -58,7 +69,7 @@ export function TransactionModal({
         setTemplateName("");
       }
     }
-  }, [isOpen, template, initialType]);
+  }, [isOpen, template, initialType, editTransaction]);
 
   const categoryList = type === "income" ? getIncomeCategories() : getExpenseCategories();
 
@@ -98,7 +109,7 @@ export function TransactionModal({
       <div className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp">
         {}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)]">
-          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Nova Transação</h2>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">{isEditing ? "Editar Transação" : "Nova Transação"}</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -249,7 +260,7 @@ export function TransactionModal({
               disabled={isSubmitting}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary disabled:opacity-50"
             >
-              {isSubmitting ? "Salvando..." : "Adicionar"}
+              {isSubmitting ? "Salvando..." : isEditing ? "Salvar" : "Adicionar"}
             </button>
           </div>
         </form>

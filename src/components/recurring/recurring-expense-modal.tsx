@@ -16,6 +16,13 @@ interface RecurringExpenseModalProps {
     notes?: string;
   }) => Promise<void>;
   isSubmitting: boolean;
+  initialData?: {
+    description: string;
+    value: number;
+    category: string;
+    dueDay: number;
+    notes?: string | null;
+  } | null;
 }
 
 export function RecurringExpenseModal({
@@ -23,18 +30,36 @@ export function RecurringExpenseModal({
   onClose,
   onSave,
   isSubmitting,
+  initialData,
 }: RecurringExpenseModalProps) {
   const [description, setDescription] = useState("");
   const [value, setValue] = useState("");
   const [category, setCategory] = useState("");
   const [dueDay, setDueDay] = useState("1");
   const [notes, setNotes] = useState("");
+  const isEditing = !!initialData;
 
   const { fetchCategories, getExpenseCategories } = useCategoryStore();
 
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
+
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setDescription(initialData.description);
+      setValue(initialData.value.toString());
+      setCategory(initialData.category);
+      setDueDay(initialData.dueDay.toString());
+      setNotes(initialData.notes || "");
+    } else if (isOpen && !initialData) {
+      setDescription("");
+      setValue("");
+      setCategory("");
+      setDueDay("1");
+      setNotes("");
+    }
+  }, [isOpen, initialData]);
 
   const expenseCategories = getExpenseCategories();
 
@@ -71,10 +96,10 @@ export function RecurringExpenseModal({
             </div>
             <div>
               <h2 className="text-xl font-semibold text-[var(--text-primary)]">
-                Nova Despesa Recorrente
+                {isEditing ? "Editar Despesa Recorrente" : "Nova Despesa Recorrente"}
               </h2>
               <p className="text-[var(--text-dimmed)] text-sm">
-                Lançada automaticamente todo mês
+                {isEditing ? "Altere os dados da despesa" : "Lançada automaticamente todo mês"}
               </p>
             </div>
           </div>
@@ -202,7 +227,7 @@ export function RecurringExpenseModal({
               disabled={isSubmitting || !description || !value || !category}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/25 disabled:opacity-50"
             >
-              {isSubmitting ? "Salvando..." : "Criar Despesa"}
+              {isSubmitting ? "Salvando..." : isEditing ? "Salvar" : "Criar Despesa"}
             </button>
           </div>
         </form>

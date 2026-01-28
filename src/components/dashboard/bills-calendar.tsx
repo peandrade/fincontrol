@@ -154,7 +154,7 @@ export function BillsCalendar() {
   return (
     <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden h-full flex flex-col">
       {/* Header */}
-      <div className="pt-10 px-4 pb-4 sm:pt-12 sm:px-6 sm:pb-6 border-b border-[var(--border-color)]">
+      <div className="pt-4 px-4 pb-4 sm:pt-5 sm:px-6 sm:pb-5 border-b border-[var(--border-color)]">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="p-1.5 sm:p-2 bg-blue-500/10 rounded-lg">

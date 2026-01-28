@@ -9,14 +9,14 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-interface GoalInsight {
+export interface GoalInsight {
   type: "positive" | "negative" | "neutral" | "achievement";
   title: string;
   description: string;
   goalName?: string;
 }
 
-interface GoalsAnalyticsData {
+export interface GoalsAnalyticsData {
   insights: GoalInsight[];
   summary: {
     totalGoals: number;
@@ -132,6 +132,73 @@ export function GoalsAnalytics() {
         </div>
       )}
 
+    </div>
+  );
+}
+
+// --- Pure render component (accepts data as props, no fetching) ---
+
+export function GoalInsights({ insights }: { insights: GoalInsight[] }) {
+  if (insights.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {insights.map((insight, index) => (
+        <div
+          key={index}
+          className={`p-3 sm:p-4 rounded-xl border ${
+            insight.type === "achievement"
+              ? "bg-amber-500/10 border-amber-500/30"
+              : insight.type === "positive"
+              ? "bg-emerald-500/10 border-emerald-500/30"
+              : insight.type === "negative"
+              ? "bg-red-500/10 border-red-500/30"
+              : "bg-blue-500/10 border-blue-500/30"
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className={`p-1.5 rounded-lg ${
+                insight.type === "achievement"
+                  ? "bg-amber-500/20"
+                  : insight.type === "positive"
+                  ? "bg-emerald-500/20"
+                  : insight.type === "negative"
+                  ? "bg-red-500/20"
+                  : "bg-blue-500/20"
+              }`}
+            >
+              {insight.type === "achievement" ? (
+                <Trophy className="w-4 h-4 text-amber-400" />
+              ) : insight.type === "positive" ? (
+                <CheckCircle className="w-4 h-4 text-emerald-400" />
+              ) : insight.type === "negative" ? (
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+              ) : (
+                <Lightbulb className="w-4 h-4 text-blue-400" />
+              )}
+            </div>
+            <div>
+              <p
+                className={`text-sm font-medium ${
+                  insight.type === "achievement"
+                    ? "text-amber-400"
+                    : insight.type === "positive"
+                    ? "text-emerald-400"
+                    : insight.type === "negative"
+                    ? "text-red-400"
+                    : "text-blue-400"
+                }`}
+              >
+                {insight.title}
+              </p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">
+                {insight.description}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

@@ -200,6 +200,31 @@ Calcula evolucao patrimonial ao longo do tempo.
 }
 ```
 
+## Tasks Pendentes
+
+### [IDEA] Exigir senha para desativar modo discreto
+
+**Objetivo:** Ao desabilitar `hideValues` em `/conta/privacidade`, exigir a senha da conta para confirmar. Isso impede que outra pessoa com acesso ao dispositivo revele os valores financeiros.
+
+**Fluxo proposto:**
+1. Usuario clica no toggle para desativar o modo discreto
+2. Abre um mini modal pedindo a senha da conta
+3. Frontend envia `POST /api/auth/verify-password` com `{ password }`
+4. API valida o hash com `bcrypt.compare()` contra `user.password` no banco
+5. Se valido: desativa `hideValues` e fecha o modal
+6. Se invalido: exibe erro "Senha incorreta" e mantem o modo discreto ativo
+
+**Arquivos envolvidos:**
+- `src/app/conta/privacidade/page.tsx` — adicionar modal de confirmacao no toggle de hideValues
+- `src/app/api/auth/verify-password/route.ts` — nova API route (POST) que recebe `{ password }`, busca o usuario autenticado via `auth()`, compara com `bcrypt.compare()` e retorna `{ valid: boolean }`
+- `src/components/ui/` — possivel componente `PasswordConfirmModal` reutilizavel
+
+**Detalhes tecnicos:**
+- Usar `bcrypt.compare(password, user.password)` server-side (nunca client-side)
+- O modal deve ter input type="password", botao confirmar e botao cancelar
+- Rate limiting opcional para evitar brute force (ex: max 5 tentativas por minuto)
+- O desbloqueio desativa hideValues normalmente via `updatePrivacy()` — sem necessidade de estado de sessao, pois o usuario pode reativar manualmente quando quiser
+
 ## Comandos
 
 ```bash

@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getCategoryColor } from "@/lib/constants";
+import { usePreferences } from "@/contexts";
+
+const HIDDEN = "•••••";
 
 interface CardSpendingByCategory {
   category: string;
@@ -59,6 +62,8 @@ interface CardAnalyticsData {
 export function CardAnalytics() {
   const [data, setData] = useState<CardAnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { privacy } = usePreferences();
+  const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
   useEffect(() => {
     fetchData();
@@ -146,7 +151,7 @@ export function CardAnalytics() {
                       alert.type === "payment_due" ? "text-red-400" : "text-orange-400"
                     }`}
                   >
-                    {formatCurrency(alert.value)}
+                    {fmt(alert.value)}
                   </span>
                 )}
                 {alert.type === "payment_due" || alert.type === "closing_soon" ? (
@@ -179,13 +184,13 @@ export function CardAnalytics() {
           <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
             <p className="text-xs text-[var(--text-dimmed)]">Limite Total</p>
             <p className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
-              {formatCurrency(data.summary.totalLimit)}
+              {fmt(data.summary.totalLimit)}
             </p>
           </div>
           <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
             <p className="text-xs text-[var(--text-dimmed)]">Usado</p>
             <p className="text-base sm:text-lg font-bold text-red-400">
-              {formatCurrency(data.summary.totalUsed)}
+              {fmt(data.summary.totalUsed)}
             </p>
           </div>
           <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
@@ -205,7 +210,7 @@ export function CardAnalytics() {
           <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
             <p className="text-xs text-[var(--text-dimmed)]">Média Mensal</p>
             <p className="text-base sm:text-lg font-bold text-primary-color">
-              {formatCurrency(data.summary.averageMonthlySpending)}
+              {fmt(data.summary.averageMonthlySpending)}
             </p>
           </div>
         </div>
@@ -223,7 +228,7 @@ export function CardAnalytics() {
                   : "text-emerald-400"
               }
             >
-              {formatCurrency(data.summary.totalUsed)} / {formatCurrency(data.summary.totalLimit)}
+              {fmt(data.summary.totalUsed)} / {fmt(data.summary.totalLimit)}
             </span>
           </div>
           <div className="h-2 bg-[var(--bg-hover)] rounded-full overflow-hidden">
@@ -268,7 +273,7 @@ export function CardAnalytics() {
                 {month.monthLabel}
               </span>
               <span className="text-[10px] text-[var(--text-muted)] hidden sm:block">
-                {formatCurrency(month.total)}
+                {fmt(month.total)}
               </span>
             </div>
           ))}
@@ -302,7 +307,7 @@ export function CardAnalytics() {
                       {cat.category}
                     </span>
                     <span className="text-sm font-medium text-[var(--text-primary)]">
-                      {formatCurrency(cat.total)}
+                      {fmt(cat.total)}
                     </span>
                   </div>
                   <div className="h-1.5 bg-[var(--bg-hover)] rounded-full overflow-hidden">

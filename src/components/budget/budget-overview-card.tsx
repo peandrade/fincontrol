@@ -23,11 +23,11 @@ interface BudgetData {
   year: number;
 }
 
-interface BudgetSectionProps {
+interface BudgetOverviewCardProps {
   refreshTrigger?: number;
 }
 
-export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
+export function BudgetOverviewCard({ refreshTrigger = 0 }: BudgetOverviewCardProps) {
   const [data, setData] = useState<BudgetData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -137,8 +137,8 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
   if (isLoading) {
     return (
       <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
-        <div className="flex items-center justify-center py-8">
-          <RefreshCw className="w-6 h-6 text-[var(--text-dimmed)] animate-spin" />
+        <div className="flex items-center justify-center py-4">
+          <RefreshCw className="w-5 h-5 text-[var(--text-dimmed)] animate-spin" />
         </div>
       </div>
     );
@@ -151,22 +151,23 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
     totalRemaining: 0,
     totalPercentage: 0,
   };
+  const hasBudgets = data && data.budgets.length > 0;
 
   return (
     <>
-      <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] overflow-hidden h-full flex flex-col">
-        {}
-        <div className="p-6 border-b border-[var(--border-color)]">
-          <div className="flex items-center justify-between mb-4">
+      <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[420px]">
+        {/* Header */}
+        <div className="p-4 sm:p-5 flex-shrink-0">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary-soft rounded-lg">
                 <Wallet className="w-5 h-5 text-primary-color" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+                <h3 className="text-base font-semibold text-[var(--text-primary)]">
                   Orçamento Mensal
                 </h3>
-                <p className="text-sm text-[var(--text-dimmed)]">
+                <p className="text-xs text-[var(--text-dimmed)]">
                   {new Date(data?.year || 0, (data?.month || 1) - 1).toLocaleDateString("pt-BR", {
                     month: "long",
                     year: "numeric",
@@ -176,73 +177,80 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
             </div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary text-sm"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary text-xs"
             >
-              <Plus className="w-4 h-4" />
-              Novo Orçamento
+              <Plus className="w-3.5 h-3.5" />
+              Novo
             </button>
           </div>
 
-          {}
-          {data && data.budgets.length > 0 && (
-            <div className="bg-[var(--bg-hover)] rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-[var(--text-muted)]">
-                  Total do mês
-                </span>
+          {/* Progress bar geral */}
+          {hasBudgets && (
+            <div className="bg-[var(--bg-hover)] rounded-xl p-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-[var(--text-muted)]">Total do mês</span>
                 <div className="text-right">
-                  <span className="text-lg font-bold text-[var(--text-primary)]">
+                  <span className="text-sm font-bold text-[var(--text-primary)]">
                     {fmt(summary.totalSpent)}
                   </span>
-                  <span className="text-sm text-[var(--text-dimmed)]">
+                  <span className="text-xs text-[var(--text-dimmed)]">
                     {" "}/ {fmt(summary.totalLimit)}
                   </span>
                 </div>
               </div>
-              <div className="relative">
-                <div className="w-full bg-[var(--bg-hover-strong)] rounded-full h-3 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full bg-gradient-to-r ${getProgressColor(
-                      summary.totalPercentage
-                    )} transition-all duration-500`}
-                    style={{
-                      width: `${Math.min(summary.totalPercentage, 100)}%`,
-                    }}
-                  />
-                </div>
-                <div className="flex justify-between mt-2 text-xs">
-                  <span
-                    className={`${
-                      summary.totalPercentage >= 100
-                        ? "text-red-400"
-                        : summary.totalPercentage >= 80
-                        ? "text-amber-400"
-                        : "text-emerald-400"
-                    }`}
-                  >
-                    {summary.totalPercentage.toFixed(0)}% utilizado
-                  </span>
-                  <span className={summary.totalRemaining < 0 ? "text-red-400 font-medium" : "text-[var(--text-dimmed)]"}>
-                    {summary.totalRemaining < 0
-                      ? `Excedeu em ${fmt(Math.abs(summary.totalRemaining))}`
-                      : `Restam ${fmt(summary.totalRemaining)}`
-                    }
-                  </span>
-                </div>
+              <div className="w-full bg-[var(--bg-hover-strong)] rounded-full h-2 overflow-hidden">
+                <div
+                  className={`h-full rounded-full bg-gradient-to-r ${getProgressColor(
+                    summary.totalPercentage
+                  )} transition-all duration-500`}
+                  style={{
+                    width: `${Math.min(summary.totalPercentage, 100)}%`,
+                  }}
+                />
+              </div>
+              <div className="flex justify-between mt-1 text-[11px]">
+                <span
+                  className={`${
+                    summary.totalPercentage >= 100
+                      ? "text-red-400"
+                      : summary.totalPercentage >= 80
+                      ? "text-amber-400"
+                      : "text-emerald-400"
+                  }`}
+                >
+                  {summary.totalPercentage.toFixed(0)}% utilizado
+                </span>
+                <span className={summary.totalRemaining < 0 ? "text-red-400 font-medium" : "text-[var(--text-dimmed)]"}>
+                  {summary.totalRemaining < 0
+                    ? `Excedeu em ${fmt(Math.abs(summary.totalRemaining))}`
+                    : `Restam ${fmt(summary.totalRemaining)}`}
+                </span>
               </div>
             </div>
           )}
         </div>
 
-        {}
-        <div className="p-6 flex-1 overflow-y-auto">
-          <BudgetList
-            budgets={data?.budgets || []}
-            onDelete={handleDelete}
-            onEdit={(budget) => setEditBudget(budget)}
-            isDeleting={isDeleting}
-          />
-        </div>
+        {/* Budget list with scroll */}
+        {hasBudgets && (
+          <div className="px-4 sm:px-5 pb-4 sm:pb-5 overflow-y-auto flex-1 min-h-0">
+            <BudgetList
+              budgets={data?.budgets || []}
+              onDelete={handleDelete}
+              onEdit={(budget) => setEditBudget(budget)}
+              isDeleting={isDeleting}
+            />
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!hasBudgets && (
+          <div className="text-center py-4 px-4">
+            <p className="text-sm text-[var(--text-dimmed)]">Nenhum orçamento definido</p>
+            <p className="text-xs text-[var(--text-dimmed)] mt-1">
+              Defina limites de gastos por categoria
+            </p>
+          </div>
+        )}
       </div>
 
       <BudgetModal

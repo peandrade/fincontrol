@@ -3,7 +3,9 @@
 import { useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { formatCurrency } from "@/lib/utils";
-import { useTheme } from "@/contexts";
+import { useTheme, usePreferences } from "@/contexts";
+
+const HIDDEN = "•••••";
 import type { CategoryData } from "@/types";
 
 interface CategoryChartProps {
@@ -12,6 +14,7 @@ interface CategoryChartProps {
 
 export function CategoryChart({ data }: CategoryChartProps) {
   const { theme } = useTheme();
+  const { privacy } = usePreferences();
 
   const pieChartData = useMemo(
     () => data.map((item) => ({ name: item.name, value: item.value })),
@@ -61,7 +64,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value) => [formatCurrency(Number(value)), "Valor"]}
+                formatter={(value) => [privacy.hideValues ? HIDDEN : formatCurrency(Number(value)), "Valor"]}
                 contentStyle={tooltipStyle}
                 labelStyle={{ color: theme === "dark" ? "#9CA3AF" : "#6B7280" }}
                 itemStyle={{ color: theme === "dark" ? "#f3f4f6" : "#1f2937" }}

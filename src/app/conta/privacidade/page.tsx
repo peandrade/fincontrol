@@ -224,8 +224,8 @@ export default function PrivacidadePage() {
             {privacy.autoLock && (
               <div className="pt-4 border-t border-[var(--border-color)]">
                 <p className="text-sm text-[var(--text-muted)] mb-3">Tempo de inatividade</p>
-                <div className="grid grid-cols-5 gap-2">
-                  {[1, 5, 15, 30, 0].map((minutes) => (
+                <div className="grid grid-cols-4 gap-2">
+                  {[1, 5, 15, 30].map((minutes) => (
                     <button
                       key={minutes}
                       onClick={() => updatePrivacy({ autoLockTime: minutes })}
@@ -236,7 +236,7 @@ export default function PrivacidadePage() {
                       }`}
                     >
                       <span className="text-sm text-[var(--text-primary)]">
-                        {minutes === 0 ? "Nunca" : `${minutes} min`}
+                        {`${minutes} min`}
                       </span>
                     </button>
                   ))}

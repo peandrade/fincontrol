@@ -19,6 +19,7 @@ interface InvestmentListProps {
   onAddOperation: (investment: Investment) => void;
   onEdit: (investment: Investment) => void;
   deletingId?: string | null;
+  headerExtra?: React.ReactNode;
 }
 
 export function InvestmentList({
@@ -27,6 +28,7 @@ export function InvestmentList({
   onAddOperation,
   onEdit,
   deletingId,
+  headerExtra,
 }: InvestmentListProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<Investment | null>(null);
   const { privacy, general } = usePreferences();
@@ -54,7 +56,7 @@ export function InvestmentList({
 
   if (investments.length === 0) {
     return (
-      <div className="backdrop-blur rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-colors duration-300" style={cardStyle}>
+      <div className="backdrop-blur rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-colors duration-300 h-full" style={cardStyle}>
         <h3 className="text-base sm:text-lg font-semibold mb-4 sm:mb-6" style={{ color: "var(--text-primary)" }}>Meus Investimentos</h3>
         <div className="text-center py-8 sm:py-12">
           <p className="text-sm sm:text-base" style={{ color: "var(--text-dimmed)" }}>Nenhum investimento registrado</p>
@@ -67,18 +69,21 @@ export function InvestmentList({
   }
 
   return (
-    <div className="backdrop-blur rounded-2xl p-4 sm:p-6 transition-colors duration-300" style={cardStyle}>
-      <div className="flex items-center justify-between mb-4 sm:mb-6">
+    <div className="backdrop-blur rounded-2xl p-4 sm:p-6 transition-colors duration-300 h-full flex flex-col" style={cardStyle}>
+      <div className="flex items-center justify-between mb-4 sm:mb-6 flex-shrink-0">
         <div>
           <h3 className="text-base sm:text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Meus Investimentos</h3>
           <p className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>Acompanhe sua carteira</p>
         </div>
-        <span className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>
-          {investments.length} {investments.length === 1 ? "ativo" : "ativos"}
-        </span>
+        <div className="flex items-center gap-3">
+          {headerExtra}
+          <span className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>
+            {investments.length} {investments.length === 1 ? "ativo" : "ativos"}
+          </span>
+        </div>
       </div>
 
-      <div className="space-y-3 sm:space-y-4 max-h-[600px] overflow-y-auto pr-1 sm:pr-2">
+      <div className="space-y-3 sm:space-y-4 overflow-y-auto pr-1 sm:pr-2 flex-1 min-h-0 max-h-[500px] lg:max-h-none">
         {investments.map((investment) => {
           const isPositive = investment.profitLoss >= 0;
           const color = getInvestmentTypeColor(investment.type);
@@ -173,31 +178,31 @@ export function InvestmentList({
                   </div>
 
                   {}
-                  <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
-                    <button
-                      onClick={() => onEdit(investment)}
-                      className="p-2 sm:p-2 hover:bg-primary-medium active:bg-primary-soft rounded-lg transition-all"
-                      title="Editar / Atualizar"
-                    >
-                      <Pencil className="w-4 h-4 sm:w-4 sm:h-4 text-primary-color" />
-                    </button>
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => onAddOperation(investment)}
-                      className="p-2 sm:p-2 hover:bg-emerald-500/20 active:bg-emerald-500/30 rounded-lg transition-all"
+                      className="p-1.5 hover:bg-emerald-500/20 active:bg-emerald-500/30 rounded-lg transition-all"
                       title="Nova operação"
                     >
-                      <Plus className="w-4 h-4 sm:w-4 sm:h-4 text-emerald-400" />
+                      <Plus className="w-4 h-4 text-emerald-400" />
+                    </button>
+                    <button
+                      onClick={() => onEdit(investment)}
+                      className="p-1.5 hover:bg-amber-500/20 active:bg-amber-500/30 rounded-lg transition-all"
+                      title="Editar / Atualizar"
+                    >
+                      <Pencil className="w-4 h-4 text-amber-400" />
                     </button>
                     <button
                       onClick={() => handleDeleteClick(investment)}
                       disabled={deletingId === investment.id}
-                      className="p-2 sm:p-2 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all disabled:opacity-50"
+                      className="p-1.5 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all disabled:opacity-50"
                       title="Excluir"
                     >
                       {deletingId === investment.id ? (
                         <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <Trash2 className="w-4 h-4 sm:w-4 sm:h-4 text-red-400" />
+                        <Trash2 className="w-4 h-4 text-red-400" />
                       )}
                     </button>
                   </div>

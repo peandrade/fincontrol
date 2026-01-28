@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Wallet } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
@@ -11,6 +11,7 @@ interface BudgetModalProps {
   onSave: (data: { category: string; limit: number; isFixed: boolean }) => Promise<void>;
   isSubmitting: boolean;
   existingCategories: string[];
+  editData?: { category: string; limit: number; isFixed: boolean } | null;
 }
 
 export function BudgetModal({
@@ -19,13 +20,27 @@ export function BudgetModal({
   onSave,
   isSubmitting,
   existingCategories,
+  editData,
 }: BudgetModalProps) {
   const [category, setCategory] = useState("");
   const [limit, setLimit] = useState("");
   const [isFixed, setIsFixed] = useState(true);
+  const isEditing = !!editData;
+
+  useEffect(() => {
+    if (isOpen && editData) {
+      setCategory(editData.category);
+      setLimit(editData.limit.toString());
+      setIsFixed(editData.isFixed);
+    } else if (isOpen && !editData) {
+      setCategory("");
+      setLimit("");
+      setIsFixed(true);
+    }
+  }, [isOpen, editData]);
 
   const availableCategories = EXPENSE_CATEGORIES.filter(
-    (cat) => !existingCategories.includes(cat)
+    (cat) => !existingCategories.includes(cat) || (isEditing && cat === editData?.category)
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,10 +72,10 @@ export function BudgetModal({
             </div>
             <div>
               <h2 className="text-xl font-semibold text-[var(--text-primary)]">
-                Novo Orçamento
+                {isEditing ? "Editar Orçamento" : "Novo Orçamento"}
               </h2>
               <p className="text-[var(--text-dimmed)] text-sm">
-                Defina um limite mensal por categoria
+                {isEditing ? "Altere o limite mensal" : "Defina um limite mensal por categoria"}
               </p>
             </div>
           </div>
@@ -79,7 +94,11 @@ export function BudgetModal({
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
               Categoria
             </label>
-            {availableCategories.length === 0 ? (
+            {isEditing ? (
+              <p className="text-sm text-[var(--text-primary)] bg-[var(--bg-hover)] rounded-xl py-3 px-4 font-medium">
+                {editData?.category}
+              </p>
+            ) : availableCategories.length === 0 ? (
               <p className="text-sm text-[var(--text-dimmed)] bg-[var(--bg-hover)] rounded-xl p-4">
                 Todas as categorias já possuem orçamento definido.
               </p>
@@ -156,10 +175,10 @@ export function BudgetModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !category || !limit || availableCategories.length === 0}
+              disabled={isSubmitting || !category || !limit || (!isEditing && availableCategories.length === 0)}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary disabled:opacity-50"
             >
-              {isSubmitting ? "Salvando..." : "Criar Orçamento"}
+              {isSubmitting ? "Salvando..." : isEditing ? "Salvar" : "Criar Orçamento"}
             </button>
           </div>
         </form>

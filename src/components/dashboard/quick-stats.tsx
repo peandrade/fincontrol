@@ -11,7 +11,6 @@ import {
   ArrowDownRight,
   ChevronRight,
   PiggyBank,
-  Eye,
   EyeOff,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -53,7 +52,7 @@ interface DashboardSummary {
 export function QuickStats() {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { privacy, updatePrivacy } = usePreferences();
+  const { privacy } = usePreferences();
 
   useEffect(() => {
     fetchSummary();
@@ -71,10 +70,6 @@ export function QuickStats() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const toggleHidden = () => {
-    updatePrivacy({ hideValues: !privacy.hideValues });
   };
 
   if (isLoading) {
@@ -158,17 +153,14 @@ export function QuickStats() {
             <div className="p-1.5 sm:p-2 rounded-lg bg-primary-medium">
               <PiggyBank className="w-4 h-4 sm:w-5 sm:h-5 text-primary-color" />
             </div>
-            <button
-              onClick={toggleHidden}
-              className="p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors"
-              title={privacy.hideValues ? "Mostrar valor" : "Esconder valor"}
-            >
-              {privacy.hideValues ? (
+            {privacy.hideValues && (
+              <div
+                className="p-1.5 rounded-lg"
+                title="Modo discreto ativo"
+              >
                 <EyeOff className="w-4 h-4 text-[var(--text-muted)]" />
-              ) : (
-                <Eye className="w-4 h-4 text-[var(--text-muted)]" />
-              )}
-            </button>
+              </div>
+            )}
           </div>
           <p className="text-xs sm:text-sm text-[var(--text-muted)] mb-0.5 sm:mb-1">Patrimônio Total</p>
           <p className="text-base sm:text-xl font-bold text-[var(--text-primary)]">

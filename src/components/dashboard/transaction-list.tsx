@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUp, ArrowDown, Trash2 } from "lucide-react";
+import { ArrowUp, ArrowDown, Trash2, Pencil } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePreferences } from "@/contexts";
 import { getCategoryColor } from "@/lib/constants";
@@ -13,12 +13,14 @@ import type { Transaction } from "@/types";
 interface TransactionListProps {
   transactions: Transaction[];
   onDelete: (id: string) => void;
+  onEdit?: (transaction: Transaction) => void;
   deletingId?: string | null;
 }
 
 export function TransactionList({
   transactions,
   onDelete,
+  onEdit,
   deletingId,
 }: TransactionListProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<Transaction | null>(null);
@@ -141,17 +143,28 @@ export function TransactionList({
                   {transaction.type === "income" ? "+" : "-"}
                   {privacy.hideValues ? "•••••" : formatCurrency(transaction.value)}
                 </p>
-                <button
-                  onClick={() => handleDeleteClick(transaction)}
-                  disabled={deletingId === transaction.id}
-                  className="p-1.5 sm:p-2 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all disabled:opacity-50"
-                >
-                  {deletingId === transaction.id ? (
-                    <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Trash2 className="w-4 h-4 text-red-400" />
+                <div className="flex items-center gap-1">
+                  {onEdit && (
+                    <button
+                      onClick={() => onEdit(transaction)}
+                      className="p-1.5 hover:bg-amber-500/20 active:bg-amber-500/30 rounded-lg transition-all"
+                      title="Editar"
+                    >
+                      <Pencil className="w-4 h-4 text-amber-400" />
+                    </button>
                   )}
-                </button>
+                  <button
+                    onClick={() => handleDeleteClick(transaction)}
+                    disabled={deletingId === transaction.id}
+                    className="p-1.5 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all disabled:opacity-50"
+                  >
+                    {deletingId === transaction.id ? (
+                      <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           ))}

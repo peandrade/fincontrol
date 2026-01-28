@@ -10,7 +10,9 @@ import {
 } from "recharts";
 import { ChevronDown } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import { useTheme } from "@/contexts";
+import { useTheme, usePreferences } from "@/contexts";
+
+const HIDDEN = "•••••";
 import type { MonthlyEvolution, EvolutionPeriod } from "@/types";
 
 interface MonthlyChartProps {
@@ -37,10 +39,12 @@ function ChartTooltip({
   active,
   payload,
   label,
+  hideValues,
 }: {
   active?: boolean;
   payload?: TooltipPayload[];
   label?: string;
+  hideValues?: boolean;
 }) {
   if (active && payload && payload.length) {
     return (
@@ -61,7 +65,7 @@ function ChartTooltip({
             className="text-sm font-medium"
           >
             {entry.name === "income" ? "Receitas" : "Despesas"}:{" "}
-            {formatCurrency(entry.value)}
+            {hideValues ? HIDDEN : formatCurrency(entry.value)}
           </p>
         ))}
       </div>
@@ -72,6 +76,7 @@ function ChartTooltip({
 
 export function MonthlyChart({ data, period, onPeriodChange }: MonthlyChartProps) {
   const { theme } = useTheme();
+  const { privacy } = usePreferences();
   const currentPeriodLabel = PERIOD_OPTIONS.find(p => p.value === period)?.label || "6 Meses";
 
   const axisTickColor = theme === "dark" ? "#9CA3AF" : "#4B5563";
@@ -156,9 +161,11 @@ export function MonthlyChart({ data, period, onPeriodChange }: MonthlyChartProps
               axisLine={false}
               tickLine={false}
               tick={{ fill: axisTickColor, fontSize: 12 }}
-              tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+              tickFormatter={(value) =>
+                privacy.hideValues ? "•••" : `${(value / 1000).toFixed(0)}k`
+              }
             />
-            <Tooltip content={<ChartTooltip />} />
+            <Tooltip content={<ChartTooltip hideValues={privacy.hideValues} />} />
             <Area
               type="monotone"
               dataKey="income"

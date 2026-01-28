@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getCategoryColor } from "@/lib/constants";
+import { usePreferences } from "@/contexts";
+
+const HIDDEN = "•••••";
 
 interface CategoryTrend {
   category: string;
@@ -87,6 +90,8 @@ export function AdvancedAnalytics() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState<string[]>(["insights", "velocity"]);
+  const { privacy } = usePreferences();
+  const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
   useEffect(() => {
     fetchData();
@@ -235,19 +240,19 @@ export function AdvancedAnalytics() {
               <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
                 <p className="text-xs text-[var(--text-dimmed)]">Gasto até agora</p>
                 <p className="text-lg font-bold text-[var(--text-primary)]">
-                  {formatCurrency(data.spendingVelocity.currentMonth.spent)}
+                  {fmt(data.spendingVelocity.currentMonth.spent)}
                 </p>
               </div>
               <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
                 <p className="text-xs text-[var(--text-dimmed)]">Média diária</p>
                 <p className="text-lg font-bold text-primary-color">
-                  {formatCurrency(data.spendingVelocity.currentMonth.dailyAverage)}
+                  {fmt(data.spendingVelocity.currentMonth.dailyAverage)}
                 </p>
               </div>
               <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
                 <p className="text-xs text-[var(--text-dimmed)]">Projeção mensal</p>
                 <p className="text-lg font-bold text-amber-400">
-                  {formatCurrency(data.spendingVelocity.currentMonth.projectedTotal)}
+                  {fmt(data.spendingVelocity.currentMonth.projectedTotal)}
                 </p>
               </div>
               <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
@@ -355,7 +360,7 @@ export function AdvancedAnalytics() {
                 </div>
                 <div className="w-24 text-right">
                   <span className="text-xs font-medium text-[var(--text-primary)]">
-                    {formatCurrency(day.totalExpenses)}
+                    {fmt(day.totalExpenses)}
                   </span>
                 </div>
                 <span className="w-12 text-right text-xs text-[var(--text-dimmed)]">
@@ -430,7 +435,7 @@ export function AdvancedAnalytics() {
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs text-[var(--text-dimmed)]">
-                      Média: {formatCurrency(category.average)}/mês
+                      Média: {fmt(category.average)}/mês
                     </span>
                   </div>
                   {/* Mini sparkline */}
@@ -443,7 +448,7 @@ export function AdvancedAnalytics() {
                           key={i}
                           className="flex-1 bg-[color-mix(in_srgb,var(--color-primary)_50%,transparent)] rounded-t"
                           style={{ height: `${Math.max(height, 10)}%` }}
-                          title={`${month.month}: ${formatCurrency(month.value)}`}
+                          title={`${month.month}: ${fmt(month.value)}`}
                         />
                       );
                     })}
@@ -484,7 +489,7 @@ export function AdvancedAnalytics() {
                 <p className="text-xs text-[var(--text-dimmed)] mb-2">Despesas Totais</p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-lg font-bold text-red-400">
-                    {formatCurrency(data.yearComparison.totals.currentYearExpenses)}
+                    {fmt(data.yearComparison.totals.currentYearExpenses)}
                   </span>
                   <span
                     className={`text-xs ${
@@ -498,7 +503,7 @@ export function AdvancedAnalytics() {
                   </span>
                 </div>
                 <p className="text-xs text-[var(--text-dimmed)] mt-1">
-                  {data.yearComparison.previousYear}: {formatCurrency(data.yearComparison.totals.previousYearExpenses)}
+                  {data.yearComparison.previousYear}: {fmt(data.yearComparison.totals.previousYearExpenses)}
                 </p>
               </div>
 
@@ -506,7 +511,7 @@ export function AdvancedAnalytics() {
                 <p className="text-xs text-[var(--text-dimmed)] mb-2">Receitas Totais</p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-lg font-bold text-emerald-400">
-                    {formatCurrency(data.yearComparison.totals.currentYearIncome)}
+                    {fmt(data.yearComparison.totals.currentYearIncome)}
                   </span>
                   <span
                     className={`text-xs ${
@@ -520,7 +525,7 @@ export function AdvancedAnalytics() {
                   </span>
                 </div>
                 <p className="text-xs text-[var(--text-dimmed)] mt-1">
-                  {data.yearComparison.previousYear}: {formatCurrency(data.yearComparison.totals.previousYearIncome)}
+                  {data.yearComparison.previousYear}: {fmt(data.yearComparison.totals.previousYearIncome)}
                 </p>
               </div>
             </div>
@@ -544,12 +549,12 @@ export function AdvancedAnalytics() {
                       <div
                         className="flex-1 bg-[color-mix(in_srgb,var(--color-primary)_30%,transparent)] rounded-t"
                         style={{ height: `${previousHeight}%` }}
-                        title={`${data.yearComparison.previousYear}: ${formatCurrency(month.previousYearExpenses)}`}
+                        title={`${data.yearComparison.previousYear}: ${fmt(month.previousYearExpenses)}`}
                       />
                       <div
                         className="flex-1 bg-[var(--color-primary)] rounded-t"
                         style={{ height: `${currentHeight}%` }}
-                        title={`${data.yearComparison.currentYear}: ${formatCurrency(month.currentYearExpenses)}`}
+                        title={`${data.yearComparison.currentYear}: ${fmt(month.currentYearExpenses)}`}
                       />
                     </div>
                     <span className="text-[10px] text-[var(--text-dimmed)]">{month.monthName}</span>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Calendar, CalendarDays, Target, LayoutList, X } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { Calendar, CalendarDays } from "lucide-react";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useFeedback } from "@/hooks/use-feedback";
 import { useTemplateStore } from "@/store/template-store";
@@ -11,11 +11,10 @@ import { SummaryCards, MonthlyChart, CategoryChart, TransactionList, WealthEvolu
 import { FinancialHealthScore } from "@/components/dashboard/financial-health-score";
 import { BillsCalendar } from "@/components/dashboard/bills-calendar";
 import { TransactionModal } from "@/components/forms/transaction-modal";
-import { BudgetSection } from "@/components/budget/budget-section";
+import { BudgetOverviewCard } from "@/components/budget/budget-overview-card";
 import { RecurringSection } from "@/components/recurring";
-import { QuickActionButtons, TemplateSection, TemplateModal } from "@/components/quick-transaction";
-import { CollapsibleSection } from "@/components/ui/collapsible-section";
-import type { CreateTransactionInput, EvolutionPeriod, TransactionType, TransactionTemplate } from "@/types";
+import { QuickActionButtons } from "@/components/quick-transaction";
+import type { CreateTransactionInput, EvolutionPeriod, Transaction, TransactionType, TransactionTemplate } from "@/types";
 
 // Helper function to map defaultPeriod to EvolutionPeriod
 function mapDefaultPeriodToEvolution(defaultPeriod: string): EvolutionPeriod {
@@ -39,11 +38,10 @@ export default function DashboardPage() {
   const [budgetRefreshTrigger, setBudgetRefreshTrigger] = useState(0);
 
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<TransactionTemplate | null>(null);
-  const [isTemplateSubmitting, setIsTemplateSubmitting] = useState(false);
+  const calendarRef = useRef<HTMLDivElement>(null);
   const [initialTransactionType, setInitialTransactionType] = useState<TransactionType | undefined>(undefined);
   const [selectedTemplate, setSelectedTemplate] = useState<TransactionTemplate | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   const {
     transactions,
@@ -56,12 +54,24 @@ export default function DashboardPage() {
     getMonthlyEvolution,
   } = useTransactionStore();
 
-  const { addTemplate, updateTemplate } = useTemplateStore();
+  const { addTemplate } = useTemplateStore();
   const feedback = useFeedback();
 
   useEffect(() => {
     fetchTransactions();
   }, [fetchTransactions]);
+
+  // Close calendar popup on click outside
+  useEffect(() => {
+    if (!isCalendarOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
+        setIsCalendarOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isCalendarOpen]);
 
   // Update evolution period when defaultPeriod preference changes
   useEffect(() => {
@@ -78,6 +88,10 @@ export default function DashboardPage() {
   ) => {
     setIsSubmitting(true);
     try {
+      if (editingTransaction) {
+        await deleteTransaction(editingTransaction.id);
+      }
+
       await addTransaction(data);
       feedback.success();
 
@@ -95,6 +109,7 @@ export default function DashboardPage() {
 
       setSelectedTemplate(null);
       setInitialTransactionType(undefined);
+      setEditingTransaction(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -112,41 +127,18 @@ export default function DashboardPage() {
     setIsModalOpen(true);
   };
 
-  const handleEditTemplate = (template: TransactionTemplate) => {
-    setEditingTemplate(template);
-    setIsTemplateModalOpen(true);
-  };
-
-  const handleCreateTemplate = () => {
-    setEditingTemplate(null);
-    setIsTemplateModalOpen(true);
-  };
-
-  const handleSaveTemplate = async (data: {
-    name: string;
-    description?: string;
-    category: string;
-    type: TransactionType;
-    value?: number;
-  }) => {
-    setIsTemplateSubmitting(true);
-    try {
-      if (editingTemplate) {
-        await updateTemplate(editingTemplate.id, data);
-      } else {
-        await addTemplate(data);
-      }
-      setIsTemplateModalOpen(false);
-      setEditingTemplate(null);
-    } finally {
-      setIsTemplateSubmitting(false);
-    }
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setSelectedTemplate(null);
+    setInitialTransactionType(undefined);
+    setIsModalOpen(true);
   };
 
   const handleCloseTransactionModal = () => {
     setIsModalOpen(false);
     setSelectedTemplate(null);
     setInitialTransactionType(undefined);
+    setEditingTransaction(null);
   };
 
   const handleDeleteTransaction = async (id: string) => {
@@ -213,13 +205,24 @@ export default function DashboardPage() {
               {getMonthYearLabel()}
             </p>
           </div>
-          <button
-            onClick={() => setIsCalendarOpen(true)}
-            className="flex items-center justify-center p-3 rounded-xl border border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-all"
-            title="Calendário de Contas"
-          >
-            <CalendarDays className="w-5 h-5 text-blue-400" />
-          </button>
+          <div className="relative" ref={calendarRef}>
+            <button
+              onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+              className={`flex items-center justify-center p-3 rounded-xl border transition-all ${
+                isCalendarOpen
+                  ? "border-blue-500/50 bg-blue-500/10"
+                  : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
+              }`}
+              title="Calendário de Contas"
+            >
+              <CalendarDays className="w-5 h-5 text-blue-400" />
+            </button>
+            {isCalendarOpen && (
+              <div className="absolute right-0 top-full mt-2 w-[380px] sm:w-[420px] max-h-[80vh] overflow-y-auto rounded-2xl shadow-2xl border border-[var(--border-color)] z-50 animate-slideUp">
+                <BillsCalendar />
+              </div>
+            )}
+          </div>
         </header>
 
         {/* Quick Stats - Always visible */}
@@ -248,54 +251,28 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Section: Planejamento */}
-        <CollapsibleSection
-          id="planning"
-          title="Planejamento"
-          icon={<Target className="w-5 h-5 text-primary-color" />}
-          defaultExpanded={false}
-        >
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <BudgetSection refreshTrigger={budgetRefreshTrigger} />
-            <RecurringSection
-              onExpenseLaunched={() => {
-                fetchTransactions();
-                setBudgetRefreshTrigger((prev) => prev + 1);
-              }}
-            />
-          </div>
-        </CollapsibleSection>
+        {/* Orçamento + Despesas Fixas */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <BudgetOverviewCard refreshTrigger={budgetRefreshTrigger} />
+          <RecurringSection
+            onExpenseLaunched={() => {
+              fetchTransactions();
+              setBudgetRefreshTrigger((prev) => prev + 1);
+            }}
+          />
+        </div>
 
-        {/* Section: Transações */}
-        <CollapsibleSection
-          id="transactions"
-          title="Transações Recentes"
-          icon={<LayoutList className="w-5 h-5 text-primary-color" />}
-          badge={transactions.length}
-          badgeColor="violet"
-          defaultExpanded={true}
-        >
-          <div className="flex flex-col lg:flex-row gap-6">
-            <div className="lg:w-1/3">
-              <TemplateSection
-                onUseTemplate={handleUseTemplate}
-                onEditTemplate={handleEditTemplate}
-                onCreateTemplate={handleCreateTemplate}
-              />
-            </div>
-            <div className="lg:w-2/3">
-              <TransactionList
-                transactions={transactions}
-                onDelete={handleDeleteTransaction}
-                deletingId={deletingId}
-              />
-            </div>
-          </div>
-        </CollapsibleSection>
+        {/* Transações Recentes */}
+        <TransactionList
+          transactions={transactions}
+          onDelete={handleDeleteTransaction}
+          onEdit={handleEditTransaction}
+          deletingId={deletingId}
+        />
       </div>
 
       {}
-      <QuickActionButtons onQuickAdd={handleQuickAdd} />
+      <QuickActionButtons onQuickAdd={handleQuickAdd} onUseTemplate={handleUseTemplate} />
 
       {}
       <TransactionModal
@@ -305,37 +282,7 @@ export default function DashboardPage() {
         isSubmitting={isSubmitting}
         initialType={initialTransactionType}
         template={selectedTemplate}
-      />
-
-      {/* Calendar Modal */}
-      {isCalendarOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setIsCalendarOpen(false)}
-          />
-          <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl">
-            <button
-              onClick={() => setIsCalendarOpen(false)}
-              className="absolute top-4 right-4 z-10 p-1.5 rounded-lg bg-[var(--bg-hover)] hover:bg-[var(--bg-primary)] transition-colors"
-            >
-              <X className="w-4 h-4 text-[var(--text-muted)]" />
-            </button>
-            <BillsCalendar />
-          </div>
-        </div>
-      )}
-
-      {}
-      <TemplateModal
-        isOpen={isTemplateModalOpen}
-        onClose={() => {
-          setIsTemplateModalOpen(false);
-          setEditingTemplate(null);
-        }}
-        onSave={handleSaveTemplate}
-        template={editingTemplate}
-        isSubmitting={isTemplateSubmitting}
+        editTransaction={editingTransaction}
       />
     </div>
   );
