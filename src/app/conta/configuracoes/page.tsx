@@ -40,7 +40,7 @@ export default function ConfiguracoesPage() {
         />
       </div>
 
-      <div className="relative max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative max-w-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">
         <button
           onClick={() => router.push("/conta")}
           className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-6"
@@ -78,14 +78,20 @@ export default function ConfiguracoesPage() {
               </div>
               <button
                 onClick={() => updateNotifications({ budgetAlerts: !notifications.budgetAlerts })}
-                className={`relative w-14 h-8 rounded-full transition-colors ${
-                  notifications.budgetAlerts ? "bg-amber-500" : "bg-[var(--bg-hover)]"
-                }`}
+                className={`
+                  relative w-14 h-7 rounded-full transition-colors duration-200 flex-shrink-0
+                  flex items-center px-0.5
+                  ${notifications.budgetAlerts ? "bg-amber-500" : "bg-[var(--bg-hover)]"}
+                `}
+                role="switch"
+                aria-checked={notifications.budgetAlerts}
               >
-                <div
-                  className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
-                    notifications.budgetAlerts ? "translate-x-7" : "translate-x-1"
-                  }`}
+                <span
+                  className={`
+                    w-6 h-6 rounded-full bg-white shadow-md
+                    transition-transform duration-200 ease-in-out
+                    ${notifications.budgetAlerts ? "translate-x-[26px]" : "translate-x-0"}
+                  `}
                 />
               </button>
             </div>
@@ -125,14 +131,20 @@ export default function ConfiguracoesPage() {
               </div>
               <button
                 onClick={() => updateNotifications({ billReminders: !notifications.billReminders })}
-                className={`relative w-14 h-8 rounded-full transition-colors ${
-                  notifications.billReminders ? "bg-red-500" : "bg-[var(--bg-hover)]"
-                }`}
+                className={`
+                  relative w-14 h-7 rounded-full transition-colors duration-200 flex-shrink-0
+                  flex items-center px-0.5
+                  ${notifications.billReminders ? "bg-red-500" : "bg-[var(--bg-hover)]"}
+                `}
+                role="switch"
+                aria-checked={notifications.billReminders}
               >
-                <div
-                  className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
-                    notifications.billReminders ? "translate-x-7" : "translate-x-1"
-                  }`}
+                <span
+                  className={`
+                    w-6 h-6 rounded-full bg-white shadow-md
+                    transition-transform duration-200 ease-in-out
+                    ${notifications.billReminders ? "translate-x-[26px]" : "translate-x-0"}
+                  `}
                 />
               </button>
             </div>
@@ -179,14 +191,20 @@ export default function ConfiguracoesPage() {
                 </div>
                 <button
                   onClick={() => updateNotifications({ weeklyReport: !notifications.weeklyReport })}
-                  className={`relative w-14 h-8 rounded-full transition-colors ${
-                    notifications.weeklyReport ? "bg-blue-500" : "bg-[var(--bg-secondary)]"
-                  }`}
+                  className={`
+                    relative w-14 h-7 rounded-full transition-colors duration-200 flex-shrink-0
+                    flex items-center px-0.5
+                    ${notifications.weeklyReport ? "bg-blue-500" : "bg-[var(--bg-secondary)]"}
+                  `}
+                  role="switch"
+                  aria-checked={notifications.weeklyReport}
                 >
-                  <div
-                    className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
-                      notifications.weeklyReport ? "translate-x-7" : "translate-x-1"
-                    }`}
+                  <span
+                    className={`
+                      w-6 h-6 rounded-full bg-white shadow-md
+                      transition-transform duration-200 ease-in-out
+                      ${notifications.weeklyReport ? "translate-x-[26px]" : "translate-x-0"}
+                    `}
                   />
                 </button>
               </div>
@@ -198,14 +216,20 @@ export default function ConfiguracoesPage() {
                 </div>
                 <button
                   onClick={() => updateNotifications({ monthlyReport: !notifications.monthlyReport })}
-                  className={`relative w-14 h-8 rounded-full transition-colors ${
-                    notifications.monthlyReport ? "bg-blue-500" : "bg-[var(--bg-secondary)]"
-                  }`}
+                  className={`
+                    relative w-14 h-7 rounded-full transition-colors duration-200 flex-shrink-0
+                    flex items-center px-0.5
+                    ${notifications.monthlyReport ? "bg-blue-500" : "bg-[var(--bg-secondary)]"}
+                  `}
+                  role="switch"
+                  aria-checked={notifications.monthlyReport}
                 >
-                  <div
-                    className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
-                      notifications.monthlyReport ? "translate-x-7" : "translate-x-1"
-                    }`}
+                  <span
+                    className={`
+                      w-6 h-6 rounded-full bg-white shadow-md
+                      transition-transform duration-200 ease-in-out
+                      ${notifications.monthlyReport ? "translate-x-[26px]" : "translate-x-0"}
+                    `}
                   />
                 </button>
               </div>
@@ -232,14 +256,20 @@ export default function ConfiguracoesPage() {
                 </div>
                 <button
                   onClick={() => updateNotifications({ sounds: !notifications.sounds })}
-                  className={`relative w-14 h-8 rounded-full transition-colors ${
-                    notifications.sounds ? "bg-violet-500" : "bg-[var(--bg-secondary)]"
-                  }`}
+                  className={`
+                    relative w-14 h-7 rounded-full transition-colors duration-200 flex-shrink-0
+                    flex items-center px-0.5
+                    ${notifications.sounds ? "bg-violet-500" : "bg-[var(--bg-secondary)]"}
+                  `}
+                  role="switch"
+                  aria-checked={notifications.sounds}
                 >
-                  <div
-                    className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
-                      notifications.sounds ? "translate-x-7" : "translate-x-1"
-                    }`}
+                  <span
+                    className={`
+                      w-6 h-6 rounded-full bg-white shadow-md
+                      transition-transform duration-200 ease-in-out
+                      ${notifications.sounds ? "translate-x-[26px]" : "translate-x-0"}
+                    `}
                   />
                 </button>
               </div>
@@ -251,14 +281,20 @@ export default function ConfiguracoesPage() {
                 </div>
                 <button
                   onClick={() => updateNotifications({ vibration: !notifications.vibration })}
-                  className={`relative w-14 h-8 rounded-full transition-colors ${
-                    notifications.vibration ? "bg-violet-500" : "bg-[var(--bg-secondary)]"
-                  }`}
+                  className={`
+                    relative w-14 h-7 rounded-full transition-colors duration-200 flex-shrink-0
+                    flex items-center px-0.5
+                    ${notifications.vibration ? "bg-violet-500" : "bg-[var(--bg-secondary)]"}
+                  `}
+                  role="switch"
+                  aria-checked={notifications.vibration}
                 >
-                  <div
-                    className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
-                      notifications.vibration ? "translate-x-7" : "translate-x-1"
-                    }`}
+                  <span
+                    className={`
+                      w-6 h-6 rounded-full bg-white shadow-md
+                      transition-transform duration-200 ease-in-out
+                      ${notifications.vibration ? "translate-x-[26px]" : "translate-x-0"}
+                    `}
                   />
                 </button>
               </div>

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { getShortMonthName } from "@/lib/card-constants";
+import { cardApi, ApiClientError } from "@/lib/api-client";
 import type {
   CreditCard,
   Invoice,
@@ -10,13 +11,23 @@ import type {
   InvoiceStatus,
 } from "@/types/credit-card";
 
+// ============================================
+// Types
+// ============================================
+
+interface PurchaseResponse {
+  card: CreditCard;
+}
+
 interface CardStore {
+  // State
   cards: CreditCard[];
   selectedCard: CreditCard | null;
   selectedInvoice: Invoice | null;
   isLoading: boolean;
   error: string | null;
 
+  // Actions
   fetchCards: () => Promise<void>;
   addCard: (data: CreateCardInput) => Promise<void>;
   updateCard: (id: string, data: Partial<CreditCard>) => Promise<void>;
@@ -26,7 +37,9 @@ interface CardStore {
   addPurchase: (data: CreatePurchaseInput) => Promise<void>;
   deletePurchase: (purchaseId: string) => Promise<void>;
   updateInvoiceStatus: (cardId: string, invoiceId: string, status: InvoiceStatus) => Promise<void>;
+  clearError: () => void;
 
+  // Selectors (computed data)
   getCardSummary: (cardId?: string) => CardSummary;
   getInvoicePreview: (cardId: string, months?: number) => InvoicePreview[];
   getAllCardsInvoicePreview: (months?: number) => InvoicePreview[];
@@ -34,7 +47,29 @@ interface CardStore {
   getCardInvoices: (cardId: string) => Invoice[];
 }
 
+// ============================================
+// Helpers
+// ============================================
+
+/**
+ * Extract error message from various error types.
+ */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    return error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Erro desconhecido";
+}
+
+// ============================================
+// Store
+// ============================================
+
 export const useCardStore = create<CardStore>((set, get) => ({
+  // Initial state
   cards: [],
   selectedCard: null,
   selectedInvoice: null,
@@ -43,164 +78,132 @@ export const useCardStore = create<CardStore>((set, get) => ({
 
   fetchCards: async () => {
     set({ isLoading: true, error: null });
+
     try {
-      const response = await fetch("/api/cards");
-      if (!response.ok) throw new Error("Erro ao buscar cartões");
-      const data = await response.json();
+      const data = await cardApi.getAll<CreditCard>();
 
       const { selectedCard } = get();
       const updatedSelectedCard = selectedCard
-        ? data.find((c: CreditCard) => c.id === selectedCard.id) || null
+        ? data.find((c) => c.id === selectedCard.id) || null
         : null;
 
       set({
         cards: data,
         selectedCard: updatedSelectedCard,
-        isLoading: false
-      });
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
         isLoading: false,
       });
+    } catch (error) {
+      set({ error: getErrorMessage(error), isLoading: false });
     }
   },
 
   addCard: async (data: CreateCardInput) => {
     set({ isLoading: true, error: null });
+
     try {
-      const response = await fetch("/api/cards", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error("Erro ao criar cartão");
-      const newCard = await response.json();
+      const newCard = await cardApi.create<CreditCard, CreateCardInput>(data);
       set((state) => ({
         cards: [newCard, ...state.cards],
         isLoading: false,
       }));
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
 
   updateCard: async (id: string, data: Partial<CreditCard>) => {
     set({ isLoading: true, error: null });
+
     try {
-      const response = await fetch(`/api/cards/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error("Erro ao atualizar cartão");
-      const updated = await response.json();
+      const updated = await cardApi.update<CreditCard, Partial<CreditCard>>(id, data);
       set((state) => ({
         cards: state.cards.map((c) => (c.id === id ? updated : c)),
         selectedCard: state.selectedCard?.id === id ? updated : state.selectedCard,
         isLoading: false,
       }));
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
 
   deleteCard: async (id: string) => {
     set({ isLoading: true, error: null });
+
     try {
-      const response = await fetch(`/api/cards/${id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Erro ao deletar cartão");
+      await cardApi.delete(id);
       set((state) => ({
         cards: state.cards.filter((c) => c.id !== id),
         selectedCard: state.selectedCard?.id === id ? null : state.selectedCard,
         isLoading: false,
       }));
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
 
   selectCard: (card) => {
-
     const { cards } = get();
-    const updatedCard = card ? cards.find(c => c.id === card.id) || card : null;
+    const updatedCard = card ? cards.find((c) => c.id === card.id) || card : null;
     set({ selectedCard: updatedCard });
   },
+
   selectInvoice: (invoice) => set({ selectedInvoice: invoice }),
 
   addPurchase: async (data: CreatePurchaseInput) => {
     set({ isLoading: true, error: null });
+
     try {
-      const response = await fetch(`/api/cards/${data.creditCardId}/purchases`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error("Erro ao adicionar compra");
-      const { card: updatedCard } = await response.json();
+      const { card: updatedCard } = await cardApi.addPurchase<PurchaseResponse, CreatePurchaseInput>(
+        data.creditCardId,
+        data
+      );
       set((state) => ({
         cards: state.cards.map((c) => (c.id === data.creditCardId ? updatedCard : c)),
         selectedCard: state.selectedCard?.id === data.creditCardId ? updatedCard : state.selectedCard,
         isLoading: false,
       }));
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
 
   deletePurchase: async (purchaseId: string) => {
     set({ isLoading: true, error: null });
+
     try {
-      const response = await fetch(`/api/purchases/${purchaseId}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Erro ao deletar compra");
+      await cardApi.deletePurchase(purchaseId);
+      // Refetch cards to get updated state
       await get().fetchCards();
-      set({ isLoading: false });
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
 
   updateInvoiceStatus: async (cardId, invoiceId, status) => {
     set({ isLoading: true, error: null });
+
     try {
-      const response = await fetch(`/api/cards/${cardId}/invoices/${invoiceId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      if (!response.ok) throw new Error("Erro ao atualizar fatura");
+      await cardApi.updateInvoice<unknown, { status: InvoiceStatus }>(cardId, invoiceId, { status });
+      // Refetch cards to get updated state
       await get().fetchCards();
-      set({ isLoading: false });
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
+
+  clearError: () => {
+    set({ error: null });
+  },
+
+  // ============================================
+  // Selectors (computed data from local state)
+  // ============================================
 
   getCardSummary: (cardId?: string): CardSummary => {
     const { cards } = get();

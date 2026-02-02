@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse } from "@/lib/api-utils";
 import { isFixedIncome } from "@/types";
 import {
   fetchCDIHistory,
@@ -10,20 +10,19 @@ import {
   type YieldCalculationResult,
 } from "@/lib/cdi-history-service";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
 
+export async function GET(request: NextRequest, { params }: RouteParams) {
+  return withAuth(async (session) => {
     const { id } = await params;
 
-    const investment = await prisma.investment.findUnique({
-      where: { id },
+    const investment = await prisma.investment.findFirst({
+      where: {
+        id,
+        userId: session.user.id,
+      },
       include: {
         operations: {
           orderBy: { date: "asc" },
@@ -32,21 +31,11 @@ export async function GET(
     });
 
     if (!investment) {
-      return NextResponse.json(
-        { error: "Investimento não encontrado" },
-        { status: 404 }
-      );
-    }
-
-    if (investment.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Investimento não encontrado", 404, "NOT_FOUND");
     }
 
     if (!isFixedIncome(investment.type as Parameters<typeof isFixedIncome>[0])) {
-      return NextResponse.json(
-        { error: "Este investimento não é de renda fixa" },
-        { status: 400 }
-      );
+      return errorResponse("Este investimento não é de renda fixa", 400, "NOT_FIXED_INCOME");
     }
 
     if (!investment.indexer || investment.indexer === "NA") {
@@ -61,10 +50,7 @@ export async function GET(
     const cdiHistory = await fetchCDIHistory(1500);
 
     if (!cdiHistory) {
-      return NextResponse.json(
-        { error: "Não foi possível buscar histórico do CDI" },
-        { status: 503 }
-      );
+      return errorResponse("Não foi possível buscar histórico do CDI", 503, "CDI_UNAVAILABLE");
     }
 
     const deposits = investment.operations.filter(op => op.type === "deposit" || op.type === "buy");
@@ -190,11 +176,5 @@ export async function GET(
         totalDays: cdiHistory.entries.length,
       },
     });
-  } catch (error) {
-    console.error("Erro ao calcular rendimento:", error);
-    return NextResponse.json(
-      { error: "Erro ao calcular rendimento" },
-      { status: 500 }
-    );
-  }
+  });
 }

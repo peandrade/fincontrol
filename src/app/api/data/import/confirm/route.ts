@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withAuth, errorResponse } from "@/lib/api-utils";
 import { z } from "zod";
+import { validateBody } from "@/lib/schemas";
 
 const transactionSchema = z.object({
   type: z.enum(["income", "expense"]),
@@ -60,23 +61,15 @@ const confirmSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  return withAuth(async (session, req) => {
+    const body = await req.json();
+
+    const validation = validateBody(confirmSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const body = await request.json();
-    const parsed = confirmSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Dados inválidos", details: parsed.error.issues },
-        { status: 400 }
-      );
-    }
-
-    const { transactions, investments, budgets, goals, recurringExpenses } = parsed.data;
+    const { transactions, investments, budgets, goals, recurringExpenses } = validation.data;
     const userId = session.user.id;
 
     const result = await prisma.$transaction(async (tx) => {
@@ -208,11 +201,5 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(result);
-  } catch (error) {
-    console.error("Erro ao importar dados:", error);
-    return NextResponse.json(
-      { error: "Erro ao salvar dados. Nenhum dado foi importado." },
-      { status: 500 }
-    );
-  }
+  }, request);
 }

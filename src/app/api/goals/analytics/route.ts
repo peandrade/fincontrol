@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withAuth } from "@/lib/api-utils";
 import { differenceInMonths, differenceInDays, format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -38,13 +38,7 @@ interface GoalInsight {
 }
 
 export async function GET() {
-  try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const userId = session.user.id;
     const now = new Date();
     const sixMonthsAgo = subMonths(now, 6);
@@ -284,11 +278,5 @@ export async function GET() {
         goalsOnTrack: goalsProgress.filter((g) => g.onTrack).length,
       },
     });
-  } catch (error) {
-    console.error("Erro ao gerar analytics de metas:", error);
-    return NextResponse.json(
-      { error: "Erro ao gerar analytics de metas" },
-      { status: 500 }
-    );
-  }
+  });
 }

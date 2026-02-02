@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useId } from "react";
 import { X, ShoppingCart, Repeat, CreditCard, AlertTriangle } from "lucide-react";
 import { PURCHASE_CATEGORIES } from "@/lib/card-constants";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -21,6 +21,7 @@ export function PurchaseModal({
   onSave,
   isSubmitting,
 }: PurchaseModalProps) {
+  const titleId = useId();
   const [description, setDescription] = useState("");
   const [value, setValue] = useState("");
   const [category, setCategory] = useState<string>(PURCHASE_CATEGORIES[0]);
@@ -81,7 +82,12 @@ export function PurchaseModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp max-h-[90vh] overflow-y-auto">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp max-h-[90vh] overflow-y-auto"
+      >
         {}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)] sticky top-0 bg-[var(--bg-secondary)] z-10">
           <div className="flex items-center gap-3">
@@ -89,12 +95,12 @@ export function PurchaseModal({
               className="p-2 rounded-xl"
               style={{ backgroundColor: `${card.color}30` }}
             >
-              <ShoppingCart className="w-5 h-5" style={{ color: card.color }} />
+              <ShoppingCart className="w-5 h-5" style={{ color: card.color }} aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]">Nova Compra</h2>
+              <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">Nova Compra</h2>
               <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-                <CreditCard className="w-3.5 h-3.5" />
+                <CreditCard className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{card.name}</span>
               </div>
             </div>
@@ -102,8 +108,9 @@ export function PurchaseModal({
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Fechar"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
         </div>
 

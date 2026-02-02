@@ -84,15 +84,17 @@ export function CategoryList({
                   onClick={() => onEdit(category)}
                   className="p-2 hover:bg-primary-medium rounded-lg transition-colors"
                   title="Editar"
+                  aria-label={`Editar categoria ${category.name}`}
                 >
-                  <Pencil className="w-4 h-4 text-primary-color" />
+                  <Pencil className="w-4 h-4 text-primary-color" aria-hidden="true" />
                 </button>
                 <button
                   onClick={() => handleDeleteClick(category)}
                   className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
                   title="Excluir"
+                  aria-label={`Excluir categoria ${category.name}`}
                 >
-                  <Trash2 className="w-4 h-4 text-red-400" />
+                  <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
                 </button>
               </div>
             )}

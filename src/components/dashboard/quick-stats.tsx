@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Wallet,
@@ -15,7 +14,10 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { usePreferences } from "@/contexts";
+import { useDashboardSummary } from "@/hooks";
+import { Skeleton } from "@/components/ui/skeleton";
 
+// Local interface for the component's expected data shape
 interface DashboardSummary {
   balance: {
     current: number;
@@ -50,27 +52,11 @@ interface DashboardSummary {
 }
 
 export function QuickStats() {
-  const [data, setData] = useState<DashboardSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: hookData, isLoading } = useDashboardSummary();
   const { privacy } = usePreferences();
 
-  useEffect(() => {
-    fetchSummary();
-  }, []);
-
-  const fetchSummary = async () => {
-    try {
-      const response = await fetch("/api/dashboard/summary");
-      if (response.ok) {
-        const result = await response.json();
-        setData(result);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar resumo:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Cast to local interface (API returns compatible structure)
+  const data = hookData as unknown as DashboardSummary | null;
 
   if (isLoading) {
     return (
@@ -79,11 +65,14 @@ export function QuickStats() {
           {[1, 2, 3, 4, 5].map((i) => (
             <div
               key={i}
-              className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] p-3 sm:p-5 animate-pulse"
+              className={`${i === 1 ? "col-span-2 lg:col-span-1" : ""} bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] p-3 sm:p-5`}
             >
-              <div className="h-3 sm:h-4 bg-[var(--bg-hover)] rounded w-1/2 mb-2 sm:mb-3" />
-              <div className="h-6 sm:h-8 bg-[var(--bg-hover)] rounded w-3/4 mb-1 sm:mb-2" />
-              <div className="h-2 sm:h-3 bg-[var(--bg-hover)] rounded w-1/3" />
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <Skeleton className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg" />
+              </div>
+              <Skeleton className="h-3 sm:h-4 w-20 mb-1 sm:mb-2" />
+              <Skeleton className="h-5 sm:h-6 w-24 mb-2" />
+              <Skeleton className="h-2 sm:h-3 w-16" />
             </div>
           ))}
         </div>
@@ -145,25 +134,25 @@ export function QuickStats() {
   ];
 
   return (
-    <div className="mb-6 sm:mb-8">
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4">
+    <div className="mb-6 sm:mb-8 overflow-hidden w-full">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 w-full">
         {/* Patrimônio Total - Card compacto */}
-        <div className="col-span-2 lg:col-span-1 bg-gradient-to-br from-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] to-[color-mix(in_srgb,var(--color-secondary)_20%,transparent)] backdrop-blur rounded-xl sm:rounded-2xl border border-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] p-3 sm:p-5">
+        <div className="col-span-2 lg:col-span-1 bg-gradient-to-br from-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] to-[color-mix(in_srgb,var(--color-secondary)_20%,transparent)] backdrop-blur rounded-xl sm:rounded-2xl border border-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] p-4 sm:p-5 min-w-0 overflow-hidden">
           <div className="flex items-center justify-between mb-2 sm:mb-3">
-            <div className="p-1.5 sm:p-2 rounded-lg bg-primary-medium">
-              <PiggyBank className="w-4 h-4 sm:w-5 sm:h-5 text-primary-color" />
+            <div className="p-2 sm:p-2 rounded-lg bg-primary-medium flex-shrink-0">
+              <PiggyBank className="w-5 h-5 sm:w-5 sm:h-5 text-primary-color" />
             </div>
             {privacy.hideValues && (
               <div
-                className="p-1.5 rounded-lg"
+                className="p-1.5 rounded-lg flex-shrink-0"
                 title="Modo discreto ativo"
               >
                 <EyeOff className="w-4 h-4 text-[var(--text-muted)]" />
               </div>
             )}
           </div>
-          <p className="text-xs sm:text-sm text-[var(--text-muted)] mb-0.5 sm:mb-1">Patrimônio Total</p>
-          <p className="text-base sm:text-xl font-bold text-[var(--text-primary)]">
+          <p className="text-xs sm:text-sm text-[var(--text-muted)] mb-1 truncate">Patrimônio Total</p>
+          <p className="text-lg sm:text-xl font-bold text-[var(--text-primary)] truncate">
             {privacy.hideValues ? "•••••" : formatCurrency(data.wealth.total)}
           </p>
         </div>
@@ -175,22 +164,22 @@ export function QuickStats() {
             <Link
               key={stat.title}
               href={stat.href}
-              className="group bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] p-3 sm:p-5 transition-all hover:border-[var(--border-color-strong)] hover:shadow-lg"
+              className="group bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] p-4 sm:p-5 transition-all hover:border-[var(--border-color-strong)] hover:shadow-lg min-w-0 overflow-hidden"
             >
               <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <div className={`p-1.5 sm:p-2 rounded-lg ${stat.iconBg}`}>
-                  <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${stat.iconColor}`} />
+                <div className={`p-2 sm:p-2 rounded-lg ${stat.iconBg} flex-shrink-0`}>
+                  <Icon className={`w-5 h-5 sm:w-5 sm:h-5 ${stat.iconColor}`} />
                 </div>
-                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-[var(--text-dimmed)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                <ChevronRight className="w-4 h-4 text-[var(--text-dimmed)] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
               </div>
 
-              <p className="text-xs sm:text-sm text-[var(--text-muted)] mb-0.5 sm:mb-1">{stat.title}</p>
+              <p className="text-xs sm:text-sm text-[var(--text-muted)] mb-1 truncate">{stat.title}</p>
 
-              <p className="text-base sm:text-xl font-bold text-[var(--text-primary)] mb-1 sm:mb-2">
+              <p className="text-lg sm:text-xl font-bold text-[var(--text-primary)] mb-1.5 sm:mb-2 truncate">
                 {privacy.hideValues ? "•••••" : formatCurrency(stat.value)}
               </p>
 
-              <div className="flex items-center gap-1 text-[10px] sm:text-xs flex-wrap">
+              <div className="flex items-center gap-1 text-xs sm:text-xs">
                 {stat.isPercent ? (
                   <>
                     <span
@@ -208,21 +197,21 @@ export function QuickStats() {
                     >
                       {stat.subValue.toFixed(1)}%
                     </span>
-                    <span className="text-[var(--text-dimmed)] hidden sm:inline">{stat.subLabel}</span>
+                    <span className="text-[var(--text-dimmed)] hidden sm:inline truncate">{stat.subLabel}</span>
                   </>
                 ) : (
                   <>
                     {stat.isPositive ? (
-                      <ArrowUpRight className="w-3 h-3 text-emerald-400" />
+                      <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
                     ) : (
-                      <ArrowDownRight className="w-3 h-3 text-red-400" />
+                      <ArrowDownRight className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
                     )}
                     <span
-                      className={stat.isPositive ? "text-emerald-400" : "text-red-400"}
+                      className={`truncate ${stat.isPositive ? "text-emerald-400" : "text-red-400"}`}
                     >
                       {privacy.hideValues ? "•••••" : formatCurrency(Math.abs(stat.subValue))}
                     </span>
-                    <span className="text-[var(--text-dimmed)] hidden sm:inline">{stat.subLabel}</span>
+                    <span className="text-[var(--text-dimmed)] hidden sm:inline truncate">{stat.subLabel}</span>
                   </>
                 )}
               </div>

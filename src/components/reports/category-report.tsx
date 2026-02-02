@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useId } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import { usePreferences } from "@/contexts";
@@ -27,6 +27,7 @@ interface CategoryData {
 
 export function CategoryReport({ transactions, categories, type }: CategoryReportProps) {
   const { privacy } = usePreferences();
+  const descriptionId = useId();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
   const categoryData = useMemo(() => {
 
@@ -106,9 +107,16 @@ export function CategoryReport({ transactions, categories, type }: CategoryRepor
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {}
+      {/* Chart */}
       <div className="flex flex-col items-center">
-        <div className="h-64 w-full">
+        <p id={descriptionId} className="sr-only">
+          Gráfico de pizza mostrando distribuição de {type === "expense" ? "despesas" : type === "income" ? "receitas" : "transações"} por categoria.
+          {privacy.hideValues
+            ? " Valores ocultos."
+            : ` Total: ${formatCurrency(categoryData.total)}. ${categoryData.data.slice(0, 3).map(d => `${d.name}: ${d.percentage.toFixed(0)}%`).join(", ")}.`
+          }
+        </p>
+        <div className="h-64 w-full" role="img" aria-describedby={descriptionId}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie

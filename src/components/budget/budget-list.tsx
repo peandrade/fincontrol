@@ -120,8 +120,9 @@ export function BudgetList({ budgets, onDelete, onEdit, isDeleting }: BudgetList
                         onClick={() => onEdit(budget)}
                         className="p-1.5 hover:bg-amber-500/20 active:bg-amber-500/30 rounded-lg transition-all"
                         title="Editar orçamento"
+                        aria-label={`Editar orçamento de ${budget.category}`}
                       >
-                        <Pencil className="w-4 h-4 text-amber-400" />
+                        <Pencil className="w-4 h-4 text-amber-400" aria-hidden="true" />
                       </button>
                     )}
                     <button
@@ -134,8 +135,9 @@ export function BudgetList({ budgets, onDelete, onEdit, isDeleting }: BudgetList
                       }}
                       className="p-1.5 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all"
                       title="Remover orçamento"
+                      aria-label={`Remover orçamento de ${budget.category}`}
                     >
-                      <Trash2 className="w-4 h-4 text-red-400" />
+                      <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
                     </button>
                   </div>
                 </div>

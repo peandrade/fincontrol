@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { GoalCategory } from "@prisma/client";
+import { withAuth, errorResponse, invalidateGoalCache } from "@/lib/api-utils";
+import { createGoalSchema, validateBody } from "@/lib/schemas";
+import { checkRateLimit, getClientIp, rateLimitPresets } from "@/lib/rate-limit";
 
 export interface GoalWithProgress {
   id: string;
@@ -25,12 +27,7 @@ export interface GoalWithProgress {
 }
 
 export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const goals = await prisma.financialGoal.findMany({
       where: { userId: session.user.id },
       include: {
@@ -80,44 +77,51 @@ export async function GET() {
         : 0,
     };
 
-    return NextResponse.json({ goals: goalsWithProgress, summary });
-  } catch (error) {
-    console.error("Erro ao buscar metas:", error);
-    return NextResponse.json({ error: "Erro ao buscar metas" }, { status: 500 });
-  }
+    return NextResponse.json({ goals: goalsWithProgress, summary }, {
+      headers: {
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+      },
+    });
+  });
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  // Rate limit: 30 mutations per minute
+  const rateLimit = checkRateLimit(getClientIp(request), {
+    ...rateLimitPresets.mutation,
+    identifier: "goals-create",
+  });
+
+  if (!rateLimit.success) {
+    return errorResponse("Muitas requisições. Tente novamente em breve.", 429, "RATE_LIMITED");
+  }
+
+  return withAuth(async (session, req) => {
+    const body = await req.json();
+
+    // Validate with Zod schema
+    const validation = validateBody(createGoalSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 400, "VALIDATION_ERROR", validation.details);
     }
 
-    const body = await request.json();
-    const { name, description, category, targetValue, targetDate, icon, color, currentValue } = body;
-
-    if (!name || !category || !targetValue) {
-      return NextResponse.json(
-        { error: "Nome, categoria e valor alvo são obrigatórios" },
-        { status: 400 }
-      );
-    }
+    const { name, description, type, targetValue, deadline, icon, color, currentValue } = validation.data;
 
     const goal = await prisma.financialGoal.create({
       data: {
         name,
-        description,
-        category,
+        description: description || null,
+        category: type, // Schema uses 'type', DB uses 'category'
         targetValue,
         currentValue: currentValue || 0,
-        targetDate: targetDate ? new Date(targetDate) : null,
-        icon,
+        targetDate: deadline ? new Date(deadline) : null,
+        icon: icon || null,
         color: color || "#8B5CF6",
         userId: session.user.id,
       },
     });
 
+    // Create initial contribution if there's a starting value
     if (currentValue && currentValue > 0) {
       await prisma.goalContribution.create({
         data: {
@@ -129,9 +133,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Invalidate related caches
+    invalidateGoalCache(session.user.id);
+
     return NextResponse.json(goal, { status: 201 });
-  } catch (error) {
-    console.error("Erro ao criar meta:", error);
-    return NextResponse.json({ error: "Erro ao criar meta" }, { status: 500 });
-  }
+  }, request);
 }

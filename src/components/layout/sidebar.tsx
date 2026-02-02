@@ -228,8 +228,9 @@ export function Sidebar() {
             rel="noopener noreferrer"
             className="p-2 rounded-lg transition-all text-[var(--text-dimmed)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
             title="GitHub"
+            aria-label="Visitar perfil no GitHub"
           >
-            <Github className="w-4 h-4" />
+            <Github className="w-4 h-4" aria-hidden="true" />
           </a>
           <a
             href="https://www.linkedin.com/in/pedro-andrade-santos/"
@@ -237,8 +238,9 @@ export function Sidebar() {
             rel="noopener noreferrer"
             className="p-2 rounded-lg transition-all text-[var(--text-dimmed)] hover:text-[#0A66C2] hover:bg-[var(--bg-hover)]"
             title="LinkedIn"
+            aria-label="Visitar perfil no LinkedIn"
           >
-            <Linkedin className="w-4 h-4" />
+            <Linkedin className="w-4 h-4" aria-hidden="true" />
           </a>
         </div>
       </div>

@@ -1,100 +1,73 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateCategoryCache } from "@/lib/api-utils";
+import { updateCategorySchema, validateBody } from "@/lib/schemas";
 
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
 
+export async function PUT(request: Request, { params }: RouteParams) {
+  return withAuth(async (session, req) => {
     const { id } = await params;
 
-    const category = await prisma.category.findUnique({
-      where: { id },
+    const category = await prisma.category.findFirst({
+      where: {
+        id,
+        userId: session.user.id,
+      },
     });
 
     if (!category) {
-      return NextResponse.json(
-        { error: "Categoria não encontrada" },
-        { status: 404 }
-      );
-    }
-
-    if (category.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Não autorizado a editar esta categoria" },
-        { status: 403 }
-      );
+      return errorResponse("Categoria não encontrada", 404, "NOT_FOUND");
     }
 
     if (category.isDefault) {
-      return NextResponse.json(
-        { error: "Não é possível editar categorias padrão" },
-        { status: 400 }
-      );
+      return errorResponse("Não é possível editar categorias padrão", 400, "FORBIDDEN_ACTION");
     }
 
-    const body = await request.json();
+    const body = await req.json();
+
+    const validation = validateBody(updateCategorySchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
+    }
+
+    const { name, icon, color } = validation.data;
 
     const updatedCategory = await prisma.category.update({
       where: { id },
       data: {
-        name: body.name ?? category.name,
-        icon: body.icon ?? category.icon,
-        color: body.color ?? category.color,
+        ...(name !== undefined && { name }),
+        ...(icon !== undefined && { icon }),
+        ...(color !== undefined && { color }),
       },
     });
 
+    // Invalidate related caches
+    invalidateCategoryCache(session.user.id);
+
     return NextResponse.json(updatedCategory);
-  } catch (error) {
-    console.error("Erro ao atualizar categoria:", error);
-    return NextResponse.json(
-      { error: "Erro ao atualizar categoria" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+export async function DELETE(request: Request, { params }: RouteParams) {
+  return withAuth(async (session) => {
     const { id } = await params;
 
-    const category = await prisma.category.findUnique({
-      where: { id },
+    const category = await prisma.category.findFirst({
+      where: {
+        id,
+        userId: session.user.id,
+      },
     });
 
     if (!category) {
-      return NextResponse.json(
-        { error: "Categoria não encontrada" },
-        { status: 404 }
-      );
-    }
-
-    if (category.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Não autorizado a excluir esta categoria" },
-        { status: 403 }
-      );
+      return errorResponse("Categoria não encontrada", 404, "NOT_FOUND");
     }
 
     if (category.isDefault) {
-      return NextResponse.json(
-        { error: "Não é possível excluir categorias padrão" },
-        { status: 400 }
-      );
+      return errorResponse("Não é possível excluir categorias padrão", 400, "FORBIDDEN_ACTION");
     }
 
     const transactionsCount = await prisma.transaction.count({
@@ -105,12 +78,10 @@ export async function DELETE(
     });
 
     if (transactionsCount > 0) {
-      return NextResponse.json(
-        {
-          error: `Não é possível excluir esta categoria. Existem ${transactionsCount} transações usando ela.`,
-          transactionsCount
-        },
-        { status: 400 }
+      return errorResponse(
+        `Não é possível excluir esta categoria. Existem ${transactionsCount} transações usando ela.`,
+        400,
+        "HAS_DEPENDENCIES"
       );
     }
 
@@ -118,12 +89,9 @@ export async function DELETE(
       where: { id },
     });
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Erro ao excluir categoria:", error);
-    return NextResponse.json(
-      { error: "Erro ao excluir categoria" },
-      { status: 500 }
-    );
-  }
+    // Invalidate related caches
+    invalidateCategoryCache(session.user.id);
+
+    return new NextResponse(null, { status: 204 });
+  });
 }

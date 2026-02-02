@@ -60,7 +60,7 @@ export default function GeralPage() {
         />
       </div>
 
-      <div className="relative max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative max-w-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">
         <button
           onClick={() => router.push("/conta")}
           className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-6"
@@ -205,14 +205,20 @@ export default function GeralPage() {
               </div>
               <button
                 onClick={() => updateGeneral({ confirmBeforeDelete: !general.confirmBeforeDelete })}
-                className={`relative w-14 h-8 rounded-full transition-colors ${
-                  general.confirmBeforeDelete ? "bg-amber-500" : "bg-[var(--bg-hover)]"
-                }`}
+                className={`
+                  relative w-14 h-7 rounded-full transition-colors duration-200 flex-shrink-0
+                  flex items-center px-0.5
+                  ${general.confirmBeforeDelete ? "bg-amber-500" : "bg-[var(--bg-hover)]"}
+                `}
+                role="switch"
+                aria-checked={general.confirmBeforeDelete}
               >
-                <div
-                  className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
-                    general.confirmBeforeDelete ? "translate-x-7" : "translate-x-1"
-                  }`}
+                <span
+                  className={`
+                    w-6 h-6 rounded-full bg-white shadow-md
+                    transition-transform duration-200 ease-in-out
+                    ${general.confirmBeforeDelete ? "translate-x-[26px]" : "translate-x-0"}
+                  `}
                 />
               </button>
             </div>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateBudgetCache } from "@/lib/api-utils";
 
 export interface BudgetWithSpent {
   id: string;
@@ -14,13 +14,9 @@ export interface BudgetWithSpent {
 }
 
 export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
-    const searchParams = request.nextUrl.searchParams;
+  return withAuth(async (session, req) => {
+    try {
+      const searchParams = (req as NextRequest).nextUrl.searchParams;
     const month = parseInt(searchParams.get("month") || String(new Date().getMonth() + 1));
     const year = parseInt(searchParams.get("year") || String(new Date().getFullYear()));
 
@@ -114,24 +110,22 @@ export async function GET(request: NextRequest) {
       },
       month,
       year,
+    }, {
+      headers: {
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+      },
     });
-  } catch (error) {
-    console.error("Erro ao buscar orçamentos:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar orçamentos" },
-      { status: 500 }
-    );
-  }
+    } catch (error) {
+      console.error("Erro ao buscar orçamentos:", error);
+      return errorResponse("Erro ao buscar orçamentos", 500, "BUDGETS_ERROR");
+    }
+  }, request);
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
-    const body = await request.json();
+  return withAuth(async (session, req) => {
+    try {
+      const body = await req.json();
     const { category, limit, month, year, isFixed } = body;
 
     if (!category || limit === undefined) {
@@ -165,12 +159,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(budget, { status: 201 });
-  } catch (error) {
-    console.error("Erro ao criar orçamento:", error);
-    return NextResponse.json(
-      { error: "Erro ao criar orçamento" },
-      { status: 500 }
-    );
-  }
+      // Invalidate related caches
+      invalidateBudgetCache(session.user.id);
+
+      return NextResponse.json(budget, { status: 201 });
+    } catch (error) {
+      console.error("Erro ao criar orçamento:", error);
+      return errorResponse("Erro ao criar orçamento", 500, "CREATE_BUDGET_ERROR");
+    }
+  }, request);
 }

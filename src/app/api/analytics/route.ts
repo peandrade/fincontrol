@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { subMonths, startOfMonth, endOfMonth, format, getDay, startOfYear } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { withAuth, errorResponse } from "@/lib/api-utils";
+import { subMonths, startOfMonth, endOfMonth, format } from "date-fns";
+import { Prisma } from "@prisma/client";
+import { toNumber } from "@/lib/decimal-utils";
 
 interface CategoryTrend {
   category: string;
@@ -10,7 +11,7 @@ interface CategoryTrend {
     month: string;
     value: number;
   }[];
-  trend: number; // percentage change
+  trend: number;
   average: number;
 }
 
@@ -65,40 +66,123 @@ interface TopInsight {
   category?: string;
 }
 
+interface DowAggregate {
+  dow: number;
+  total: Prisma.Decimal;
+  count: bigint;
+}
+
+interface CategoryMonthAggregate {
+  category: string;
+  month: Date;
+  total: Prisma.Decimal;
+}
+
+interface MonthlyAggregate {
+  month: number;
+  year: number;
+  type: string;
+  total: Prisma.Decimal;
+}
+
 export async function GET() {
-  try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
-    const userId = session.user.id;
+  return withAuth(async (session) => {
+    try {
+      const userId = session.user.id;
     const now = new Date();
     const currentYear = now.getFullYear();
     const previousYear = currentYear - 1;
     const sixMonthsAgo = subMonths(now, 6);
-    const twelveMonthsAgo = subMonths(now, 12);
-    const startOfCurrentYear = startOfYear(now);
+    const currentMonthStart = startOfMonth(now);
+    const lastMonthStart = startOfMonth(subMonths(now, 1));
+    const lastMonthEnd = endOfMonth(subMonths(now, 1));
+    const startOfPreviousYear = new Date(previousYear, 0, 1);
+    const endOfCurrentYear = new Date(currentYear, 11, 31, 23, 59, 59);
 
-    // Fetch all transactions for the last 12 months
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        userId,
-        date: { gte: twelveMonthsAgo, lte: now },
-      },
-      orderBy: { date: "asc" },
-    });
+    // All queries in parallel using database aggregations
+    const [
+      dowPatterns,
+      categoryByMonth,
+      monthlyTotals,
+      currentMonthSpent,
+      lastMonthSpent,
+      sameMonthLastYearSpent,
+    ] = await Promise.all([
+      // Day of week patterns - aggregated at DB level
+      prisma.$queryRaw<DowAggregate[]>`
+        SELECT
+          EXTRACT(DOW FROM date)::int as dow,
+          SUM(value) as total,
+          COUNT(*) as count
+        FROM transactions
+        WHERE "userId" = ${userId}
+          AND type = 'expense'
+          AND date >= ${sixMonthsAgo}
+        GROUP BY EXTRACT(DOW FROM date)
+      `,
 
-    // Fetch last year's transactions for YoY comparison
-    const lastYearStart = new Date(previousYear, 0, 1);
-    const lastYearEnd = new Date(previousYear, 11, 31, 23, 59, 59);
-    const lastYearTransactions = await prisma.transaction.findMany({
-      where: {
-        userId,
-        date: { gte: lastYearStart, lte: lastYearEnd },
-      },
-    });
+      // Category trends by month - aggregated at DB level
+      prisma.$queryRaw<CategoryMonthAggregate[]>`
+        SELECT
+          category,
+          DATE_TRUNC('month', date) as month,
+          SUM(value) as total
+        FROM transactions
+        WHERE "userId" = ${userId}
+          AND type = 'expense'
+          AND date >= ${sixMonthsAgo}
+        GROUP BY category, DATE_TRUNC('month', date)
+        ORDER BY category, month
+      `,
+
+      // Monthly totals for year comparison - aggregated at DB level
+      prisma.$queryRaw<MonthlyAggregate[]>`
+        SELECT
+          EXTRACT(MONTH FROM date)::int as month,
+          EXTRACT(YEAR FROM date)::int as year,
+          type::text,
+          SUM(value) as total
+        FROM transactions
+        WHERE "userId" = ${userId}
+          AND date >= ${startOfPreviousYear}
+          AND date <= ${endOfCurrentYear}
+        GROUP BY EXTRACT(MONTH FROM date), EXTRACT(YEAR FROM date), type
+        ORDER BY year, month
+      `,
+
+      // Current month expenses
+      prisma.transaction.aggregate({
+        where: {
+          userId,
+          type: "expense",
+          date: { gte: currentMonthStart },
+        },
+        _sum: { value: true },
+      }),
+
+      // Last month expenses
+      prisma.transaction.aggregate({
+        where: {
+          userId,
+          type: "expense",
+          date: { gte: lastMonthStart, lte: lastMonthEnd },
+        },
+        _sum: { value: true },
+      }),
+
+      // Same month last year expenses
+      prisma.transaction.aggregate({
+        where: {
+          userId,
+          type: "expense",
+          date: {
+            gte: new Date(previousYear, now.getMonth(), 1),
+            lte: new Date(previousYear, now.getMonth() + 1, 0, 23, 59, 59),
+          },
+        },
+        _sum: { value: true },
+      }),
+    ]);
 
     // === DAY OF WEEK PATTERNS ===
     const dayNames = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -108,14 +192,11 @@ export async function GET() {
       dayOfWeekData[i] = { total: 0, count: 0 };
     }
 
-    const recentExpenses = transactions.filter(
-      (t) => t.type === "expense" && new Date(t.date) >= sixMonthsAgo
-    );
-
-    for (const t of recentExpenses) {
-      const day = getDay(new Date(t.date));
-      dayOfWeekData[day].total += t.value;
-      dayOfWeekData[day].count += 1;
+    for (const row of dowPatterns) {
+      dayOfWeekData[row.dow] = {
+        total: toNumber(row.total),
+        count: toNumber(row.count),
+      };
     }
 
     const totalExpenses = Object.values(dayOfWeekData).reduce((sum, d) => sum + d.total, 0);
@@ -131,25 +212,19 @@ export async function GET() {
       })
     );
 
-    // === CATEGORY TRENDS (Last 6 months) ===
-    const categoryMonthlyData: Record<string, Record<string, number>> = {};
-    const lastSixMonthsExpenses = transactions.filter(
-      (t) => t.type === "expense" && new Date(t.date) >= sixMonthsAgo
-    );
-
-    for (const t of lastSixMonthsExpenses) {
-      const monthKey = format(new Date(t.date), "yyyy-MM");
-      if (!categoryMonthlyData[t.category]) {
-        categoryMonthlyData[t.category] = {};
-      }
-      categoryMonthlyData[t.category][monthKey] =
-        (categoryMonthlyData[t.category][monthKey] || 0) + t.value;
-    }
-
-    // Generate last 6 month keys
+    // === CATEGORY TRENDS ===
     const monthKeys: string[] = [];
     for (let i = 5; i >= 0; i--) {
       monthKeys.push(format(subMonths(now, i), "yyyy-MM"));
+    }
+
+    const categoryMonthlyData: Record<string, Record<string, number>> = {};
+    for (const row of categoryByMonth) {
+      const monthKey = format(new Date(row.month), "yyyy-MM");
+      if (!categoryMonthlyData[row.category]) {
+        categoryMonthlyData[row.category] = {};
+      }
+      categoryMonthlyData[row.category][monthKey] = toNumber(row.total);
     }
 
     const categoryTrends: CategoryTrend[] = Object.entries(categoryMonthlyData)
@@ -162,7 +237,6 @@ export async function GET() {
         const values = monthlyValues.map((m) => m.value);
         const average = values.reduce((a, b) => a + b, 0) / values.length;
 
-        // Calculate trend (comparing last 3 months vs first 3 months)
         const recentAvg = values.slice(-3).reduce((a, b) => a + b, 0) / 3;
         const olderAvg = values.slice(0, 3).reduce((a, b) => a + b, 0) / 3;
         const trend = olderAvg > 0 ? ((recentAvg - olderAvg) / olderAvg) * 100 : 0;
@@ -178,43 +252,18 @@ export async function GET() {
       .slice(0, 10);
 
     // === SPENDING VELOCITY ===
-    const currentMonthStart = startOfMonth(now);
-    const currentMonthTransactions = transactions.filter(
-      (t) => t.type === "expense" && new Date(t.date) >= currentMonthStart
-    );
-    const currentMonthSpent = currentMonthTransactions.reduce((sum, t) => sum + t.value, 0);
+    const currentMonthSpentValue = currentMonthSpent._sum.value || 0;
     const daysElapsed = now.getDate();
     const daysInMonth = endOfMonth(now).getDate();
-    const dailyAverage = daysElapsed > 0 ? currentMonthSpent / daysElapsed : 0;
+    const dailyAverage = daysElapsed > 0 ? currentMonthSpentValue / daysElapsed : 0;
     const projectedTotal = dailyAverage * daysInMonth;
 
-    // Last month's total
-    const lastMonthStart = startOfMonth(subMonths(now, 1));
-    const lastMonthEnd = endOfMonth(subMonths(now, 1));
-    const lastMonthTotal = transactions
-      .filter(
-        (t) =>
-          t.type === "expense" &&
-          new Date(t.date) >= lastMonthStart &&
-          new Date(t.date) <= lastMonthEnd
-      )
-      .reduce((sum, t) => sum + t.value, 0);
-
-    // Same month last year
-    const sameMonthLastYearStart = new Date(previousYear, now.getMonth(), 1);
-    const sameMonthLastYearEnd = new Date(previousYear, now.getMonth() + 1, 0, 23, 59, 59);
-    const sameMonthLastYearTotal = lastYearTransactions
-      .filter(
-        (t) =>
-          t.type === "expense" &&
-          new Date(t.date) >= sameMonthLastYearStart &&
-          new Date(t.date) <= sameMonthLastYearEnd
-      )
-      .reduce((sum, t) => sum + t.value, 0);
+    const lastMonthTotal = lastMonthSpent._sum.value || 0;
+    const sameMonthLastYearTotal = sameMonthLastYearSpent._sum.value || 0;
 
     const spendingVelocity: SpendingVelocity = {
       currentMonth: {
-        spent: currentMonthSpent,
+        spent: currentMonthSpentValue,
         dailyAverage,
         daysElapsed,
         projectedTotal,
@@ -229,73 +278,32 @@ export async function GET() {
     };
 
     // === YEAR COMPARISON ===
+    const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+    // Index monthly totals for O(1) lookup
+    const monthlyIndex: Record<string, number> = {};
+    for (const row of monthlyTotals) {
+      const key = `${row.year}-${row.month}-${row.type}`;
+      monthlyIndex[key] = toNumber(row.total);
+    }
+
     const yearComparisonMonths: YearComparison["months"] = [];
-    const monthNames = [
-      "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-      "Jul", "Ago", "Set", "Out", "Nov", "Dez"
-    ];
-
     for (let month = 0; month < 12; month++) {
-      const currentYearExpenses = transactions
-        .filter(
-          (t) =>
-            t.type === "expense" &&
-            new Date(t.date).getMonth() === month &&
-            new Date(t.date).getFullYear() === currentYear
-        )
-        .reduce((sum, t) => sum + t.value, 0);
-
-      const previousYearExpenses = lastYearTransactions
-        .filter(
-          (t) =>
-            t.type === "expense" &&
-            new Date(t.date).getMonth() === month
-        )
-        .reduce((sum, t) => sum + t.value, 0);
-
-      const currentYearIncome = transactions
-        .filter(
-          (t) =>
-            t.type === "income" &&
-            new Date(t.date).getMonth() === month &&
-            new Date(t.date).getFullYear() === currentYear
-        )
-        .reduce((sum, t) => sum + t.value, 0);
-
-      const previousYearIncome = lastYearTransactions
-        .filter(
-          (t) =>
-            t.type === "income" &&
-            new Date(t.date).getMonth() === month
-        )
-        .reduce((sum, t) => sum + t.value, 0);
-
+      const monthNum = month + 1; // DB uses 1-12
       yearComparisonMonths.push({
         month,
         monthName: monthNames[month],
-        currentYearExpenses,
-        previousYearExpenses,
-        currentYearIncome,
-        previousYearIncome,
+        currentYearExpenses: monthlyIndex[`${currentYear}-${monthNum}-expense`] || 0,
+        previousYearExpenses: monthlyIndex[`${previousYear}-${monthNum}-expense`] || 0,
+        currentYearIncome: monthlyIndex[`${currentYear}-${monthNum}-income`] || 0,
+        previousYearIncome: monthlyIndex[`${previousYear}-${monthNum}-income`] || 0,
       });
     }
 
-    const currentYearTotalExpenses = yearComparisonMonths.reduce(
-      (sum, m) => sum + m.currentYearExpenses,
-      0
-    );
-    const previousYearTotalExpenses = yearComparisonMonths.reduce(
-      (sum, m) => sum + m.previousYearExpenses,
-      0
-    );
-    const currentYearTotalIncome = yearComparisonMonths.reduce(
-      (sum, m) => sum + m.currentYearIncome,
-      0
-    );
-    const previousYearTotalIncome = yearComparisonMonths.reduce(
-      (sum, m) => sum + m.previousYearIncome,
-      0
-    );
+    const currentYearTotalExpenses = yearComparisonMonths.reduce((sum, m) => sum + m.currentYearExpenses, 0);
+    const previousYearTotalExpenses = yearComparisonMonths.reduce((sum, m) => sum + m.previousYearExpenses, 0);
+    const currentYearTotalIncome = yearComparisonMonths.reduce((sum, m) => sum + m.currentYearIncome, 0);
+    const previousYearTotalIncome = yearComparisonMonths.reduce((sum, m) => sum + m.previousYearIncome, 0);
 
     const yearComparison: YearComparison = {
       currentYear,
@@ -320,7 +328,6 @@ export async function GET() {
     // === TOP INSIGHTS ===
     const insights: TopInsight[] = [];
 
-    // Biggest spending increase
     const increasingCategories = categoryTrends.filter((c) => c.trend > 20);
     if (increasingCategories.length > 0) {
       const biggest = increasingCategories[0];
@@ -333,7 +340,6 @@ export async function GET() {
       });
     }
 
-    // Biggest spending decrease
     const decreasingCategories = categoryTrends.filter((c) => c.trend < -20);
     if (decreasingCategories.length > 0) {
       const biggest = decreasingCategories.sort((a, b) => a.trend - b.trend)[0];
@@ -346,7 +352,6 @@ export async function GET() {
       });
     }
 
-    // Spending velocity insight
     if (spendingVelocity.comparison.vsLastMonth > 20) {
       insights.push({
         type: "negative",
@@ -363,7 +368,6 @@ export async function GET() {
       });
     }
 
-    // Day of week insight
     const highestSpendingDay = dayOfWeekPatterns.reduce((max, day) =>
       day.totalExpenses > max.totalExpenses ? day : max
     );
@@ -376,18 +380,23 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({
-      dayOfWeekPatterns,
-      categoryTrends,
-      spendingVelocity,
-      yearComparison,
-      insights,
-    });
-  } catch (error) {
-    console.error("Erro ao gerar analytics:", error);
     return NextResponse.json(
-      { error: "Erro ao gerar analytics" },
-      { status: 500 }
+      {
+        dayOfWeekPatterns,
+        categoryTrends,
+        spendingVelocity,
+        yearComparison,
+        insights,
+      },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+        },
+      }
     );
-  }
+    } catch (error) {
+      console.error("Erro ao gerar analytics:", error);
+      return errorResponse("Erro ao gerar analytics", 500, "ANALYTICS_ERROR");
+    }
+  });
 }

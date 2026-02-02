@@ -2,18 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { generateWeeklyReportEmail, generateMonthlyReportEmail } from "@/lib/email-reports";
-
-const MONTH_NAMES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
+import { MONTH_NAMES } from "@/lib/constants";
 
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization");
     const expectedSecret = process.env.CRON_SECRET;
 
-    if (expectedSecret && authHeader !== `Bearer ${expectedSecret}`) {
+    // Security: CRON_SECRET must be configured to use this endpoint
+    if (!expectedSecret) {
+      console.error("[Reports] CRON_SECRET not configured - endpoint disabled");
+      return NextResponse.json(
+        { error: "Endpoint não configurado" },
+        { status: 503 }
+      );
+    }
+
+    // Validate the authorization header
+    if (authHeader !== `Bearer ${expectedSecret}`) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 

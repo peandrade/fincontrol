@@ -1,47 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateGoalCache } from "@/lib/api-utils";
+import { createGoalContributionSchema, validateBody } from "@/lib/schemas";
+import { z } from "zod";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+const deleteContributionSchema = z.object({
+  contributionId: z.string().min(1, "ID da contribuição é obrigatório"),
+});
+
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session, req) => {
     const { id } = await params;
-    const body = await request.json();
-    const { value, date, notes } = body;
+    const body = await req.json();
 
-    if (!value || value <= 0) {
-      return NextResponse.json(
-        { error: "Valor deve ser maior que zero" },
-        { status: 400 }
-      );
+    // Override goalId with the one from params
+    const validation = validateBody(createGoalContributionSchema, { ...body, goalId: id });
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const goal = await prisma.financialGoal.findUnique({
-      where: { id },
+    const goal = await prisma.financialGoal.findFirst({
+      where: {
+        id,
+        userId: session.user.id,
+      },
     });
 
     if (!goal) {
-      return NextResponse.json({ error: "Meta não encontrada" }, { status: 404 });
+      return errorResponse("Meta não encontrada", 404, "NOT_FOUND");
     }
 
-    if (goal.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
-    }
+    const { value, date, notes } = validation.data;
 
     const contribution = await prisma.goalContribution.create({
       data: {
         goalId: id,
         value,
         date: date ? new Date(date) : new Date(),
-        notes,
+        notes: notes || null,
       },
     });
 
@@ -57,48 +57,38 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       },
     });
 
+    // Invalidate related caches
+    invalidateGoalCache(session.user.id);
+
     return NextResponse.json({
       contribution,
       newCurrentValue,
       isCompleted,
     });
-  } catch (error) {
-    console.error("Erro ao adicionar contribuição:", error);
-    return NextResponse.json(
-      { error: "Erro ao adicionar contribuição" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session, req) => {
     const { id } = await params;
-    const body = await request.json();
-    const { contributionId } = body;
+    const body = await req.json();
 
-    if (!contributionId) {
-      return NextResponse.json(
-        { error: "ID da contribuição é obrigatório" },
-        { status: 400 }
-      );
+    const validation = validateBody(deleteContributionSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const goal = await prisma.financialGoal.findUnique({
-      where: { id },
+    const { contributionId } = validation.data;
+
+    const goal = await prisma.financialGoal.findFirst({
+      where: {
+        id,
+        userId: session.user.id,
+      },
     });
 
     if (!goal) {
-      return NextResponse.json({ error: "Meta não encontrada" }, { status: 404 });
-    }
-
-    if (goal.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Meta não encontrada", 404, "NOT_FOUND");
     }
 
     const contribution = await prisma.goalContribution.findUnique({
@@ -106,10 +96,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!contribution || contribution.goalId !== id) {
-      return NextResponse.json(
-        { error: "Contribuição não encontrada" },
-        { status: 404 }
-      );
+      return errorResponse("Contribuição não encontrada", 404, "NOT_FOUND");
     }
 
     await prisma.goalContribution.delete({
@@ -125,12 +112,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       },
     });
 
+    // Invalidate related caches
+    invalidateGoalCache(session.user.id);
+
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Erro ao remover contribuição:", error);
-    return NextResponse.json(
-      { error: "Erro ao remover contribuição" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withAuth } from "@/lib/api-utils";
 
 interface PerformanceData {
   investmentId: string;
@@ -55,13 +55,7 @@ const defaultTargets: Record<string, number> = {
 };
 
 export async function GET() {
-  try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const userId = session.user.id;
 
     // Fetch investments with operations
@@ -243,12 +237,10 @@ export async function GET() {
         investmentCount: investments.length,
         typeCount: uniqueTypes,
       },
+    }, {
+      headers: {
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+      },
     });
-  } catch (error) {
-    console.error("Erro ao gerar analytics de investimentos:", error);
-    return NextResponse.json(
-      { error: "Erro ao gerar analytics de investimentos" },
-      { status: 500 }
-    );
-  }
+  });
 }

@@ -1,31 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateCardCache, invalidateTransactionCache } from "@/lib/api-utils";
+import { updateInvoiceSchema, validateBody } from "@/lib/schemas";
 
 interface RouteParams {
   params: Promise<{ id: string; invoiceId: string }>;
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  return withAuth(async (session, req) => {
+    const { id: cardId, invoiceId } = await params;
+    const body = await req.json();
+
+    const validation = validateBody(updateInvoiceSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const { id: cardId, invoiceId } = await params;
-    const body = await request.json();
-
-    const card = await prisma.creditCard.findUnique({
-      where: { id: cardId },
+    const card = await prisma.creditCard.findFirst({
+      where: {
+        id: cardId,
+        userId: session.user.id,
+      },
     });
 
     if (!card) {
-      return NextResponse.json({ error: "Cartão não encontrado" }, { status: 404 });
-    }
-
-    if (card.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Cartão não encontrado", 404, "NOT_FOUND");
     }
 
     const currentInvoice = await prisma.invoice.findUnique({
@@ -34,24 +34,29 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!currentInvoice) {
-      return NextResponse.json({ error: "Fatura não encontrada" }, { status: 404 });
+      return errorResponse("Fatura não encontrada", 404, "NOT_FOUND");
     }
 
+    if (currentInvoice.creditCardId !== cardId) {
+      return errorResponse("Fatura não pertence a este cartão", 400, "INVALID_REFERENCE");
+    }
+
+    const { status, paidAmount } = validation.data;
     const updateData: Record<string, unknown> = {};
     let paymentAmount = 0;
 
-    if (body.status) {
-      updateData.status = body.status;
+    if (status) {
+      updateData.status = status;
 
-      if (body.status === "paid") {
+      if (status === "paid") {
         paymentAmount = currentInvoice.total - currentInvoice.paidAmount;
         updateData.paidAmount = currentInvoice.total;
       }
     }
 
-    if (body.paidAmount !== undefined && body.paidAmount > currentInvoice.paidAmount) {
-      paymentAmount = body.paidAmount - currentInvoice.paidAmount;
-      updateData.paidAmount = body.paidAmount;
+    if (paidAmount !== undefined && paidAmount > currentInvoice.paidAmount) {
+      paymentAmount = paidAmount - currentInvoice.paidAmount;
+      updateData.paidAmount = paidAmount;
     }
 
     const invoice = await prisma.invoice.update({
@@ -79,14 +84,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           userId: session.user.id,
         },
       });
+
+      // Invalidate transaction cache since we created a transaction
+      invalidateTransactionCache(session.user.id);
     }
 
+    // Invalidate card cache for invoice update
+    invalidateCardCache(session.user.id);
+
     return NextResponse.json(invoice);
-  } catch (error) {
-    console.error("Erro ao atualizar fatura:", error);
-    return NextResponse.json(
-      { error: "Erro ao atualizar fatura" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }

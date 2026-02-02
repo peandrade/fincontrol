@@ -14,6 +14,7 @@ import { TransactionModal } from "@/components/forms/transaction-modal";
 import { BudgetOverviewCard } from "@/components/budget/budget-overview-card";
 import { RecurringSection } from "@/components/recurring";
 import { QuickActionButtons } from "@/components/quick-transaction";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import type { CreateTransactionInput, EvolutionPeriod, Transaction, TransactionType, TransactionTemplate } from "@/types";
 
 // Helper function to map defaultPeriod to EvolutionPeriod
@@ -167,7 +168,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <div className="min-h-screen transition-colors duration-300 overflow-x-hidden" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}>
       {}
       <style>{`
         @keyframes slideUp {
@@ -186,29 +187,29 @@ export default function DashboardPage() {
       `}</style>
 
       {}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] rounded-full blur-3xl" />
-        <div className="absolute top-1/2 -left-40 w-80 h-80 bg-[color-mix(in_srgb,var(--color-secondary)_10%,transparent)] rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 right-1/3 w-80 h-80 bg-fuchsia-600/10 rounded-full blur-3xl" />
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        <div className="absolute -top-40 -right-40 w-40 sm:w-80 h-40 sm:h-80 bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] rounded-full blur-3xl opacity-50" />
+        <div className="absolute top-1/2 -left-40 w-40 sm:w-80 h-40 sm:h-80 bg-[color-mix(in_srgb,var(--color-secondary)_10%,transparent)] rounded-full blur-3xl opacity-50" />
+        <div className="absolute -bottom-40 right-1/3 w-40 sm:w-80 h-40 sm:h-80 bg-fuchsia-600/10 rounded-full blur-3xl opacity-50" />
       </div>
 
       {}
-      <div className="relative max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">
         {}
-        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>
+        <header className="flex flex-row items-center justify-between gap-3 mb-6 sm:mb-8">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold truncate" style={{ color: "var(--text-primary)" }}>
               Dashboard
             </h1>
-            <p className="mt-1 flex items-center gap-2" style={{ color: "var(--text-dimmed)" }}>
-              <Calendar className="w-4 h-4" />
-              {getMonthYearLabel()}
+            <p className="mt-1 flex items-center gap-2 text-sm" style={{ color: "var(--text-dimmed)" }}>
+              <Calendar className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate">{getMonthYearLabel()}</span>
             </p>
           </div>
-          <div className="relative" ref={calendarRef}>
+          <div className="relative flex-shrink-0" ref={calendarRef}>
             <button
               onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-              className={`flex items-center justify-center p-3 rounded-xl border transition-all ${
+              className={`flex items-center justify-center p-2.5 sm:p-3 rounded-xl border transition-all ${
                 isCalendarOpen
                   ? "border-blue-500/50 bg-blue-500/10"
                   : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
@@ -218,7 +219,7 @@ export default function DashboardPage() {
               <CalendarDays className="w-5 h-5 text-blue-400" />
             </button>
             {isCalendarOpen && (
-              <div className="absolute right-0 top-full mt-2 w-[380px] sm:w-[420px] max-h-[80vh] overflow-y-auto rounded-2xl shadow-2xl border border-[var(--border-color)] z-50 animate-slideUp">
+              <div className="absolute right-0 top-full mt-2 w-[calc(100vw-24px)] sm:w-[420px] max-w-[420px] max-h-[80vh] overflow-y-auto rounded-2xl shadow-2xl border border-[var(--border-color)] z-50 animate-slideUp" style={{ right: '-12px' }}>
                 <BillsCalendar />
               </div>
             )}
@@ -226,40 +227,54 @@ export default function DashboardPage() {
         </header>
 
         {/* Quick Stats - Always visible */}
-        <QuickStats />
+        <ErrorBoundary>
+          <QuickStats />
+        </ErrorBoundary>
 
         {/* Summary Cards - Always visible */}
         <SummaryCards summary={summary} />
 
         {/* Charts - Below summary cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
           <div className="lg:col-span-2">
-            <MonthlyChart
-              data={monthlyData}
-              period={evolutionPeriod}
-              onPeriodChange={setEvolutionPeriod}
-            />
+            <ErrorBoundary>
+              <MonthlyChart
+                data={monthlyData}
+                period={evolutionPeriod}
+                onPeriodChange={setEvolutionPeriod}
+              />
+            </ErrorBoundary>
           </div>
           <div className="h-full">
-            <CategoryChart data={categoryData} />
+            <ErrorBoundary>
+              <CategoryChart data={categoryData} />
+            </ErrorBoundary>
           </div>
           <div className="lg:col-span-2">
-            <WealthEvolutionChart />
+            <ErrorBoundary>
+              <WealthEvolutionChart />
+            </ErrorBoundary>
           </div>
           <div className="h-full">
-            <FinancialHealthScore />
+            <ErrorBoundary>
+              <FinancialHealthScore />
+            </ErrorBoundary>
           </div>
         </div>
 
         {/* Orçamento + Despesas Fixas */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <BudgetOverviewCard refreshTrigger={budgetRefreshTrigger} />
-          <RecurringSection
-            onExpenseLaunched={() => {
-              fetchTransactions();
-              setBudgetRefreshTrigger((prev) => prev + 1);
-            }}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+          <ErrorBoundary>
+            <BudgetOverviewCard refreshTrigger={budgetRefreshTrigger} />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <RecurringSection
+              onExpenseLaunched={() => {
+                fetchTransactions();
+                setBudgetRefreshTrigger((prev) => prev + 1);
+              }}
+            />
+          </ErrorBoundary>
         </div>
 
         {/* Transações Recentes */}

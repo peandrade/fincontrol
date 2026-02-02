@@ -181,7 +181,7 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
 
   return (
     <>
-      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden h-full flex flex-col">
+      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden max-h-[440px] flex flex-col">
         {}
         <div className="p-4 sm:p-6 border-b border-[var(--border-color)] flex-shrink-0">
           <div className="flex items-center justify-between mb-3 sm:mb-4">

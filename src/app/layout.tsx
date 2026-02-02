@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout";
 import { ThemeProvider, UserProvider, AppearanceProvider, PreferencesProvider, SidebarProvider } from "@/contexts";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { AutoLockGuard } from "@/components/providers/auto-lock-guard";
+import { ToastProvider } from "@/components/ui/toast";
 
 export const metadata: Metadata = {
   title: "FinControl - Controle Financeiro Pessoal",
@@ -20,18 +21,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className="antialiased min-h-screen">
+      <body className="antialiased min-h-screen overflow-x-hidden">
         <SessionProvider>
           <UserProvider>
             <AppearanceProvider>
               <ThemeProvider>
-                <PreferencesProvider>
-                  <SidebarProvider>
-                    <AutoLockGuard>
-                      <AppShell>{children}</AppShell>
-                    </AutoLockGuard>
-                  </SidebarProvider>
-                </PreferencesProvider>
+                <ToastProvider>
+                  <PreferencesProvider>
+                    <SidebarProvider>
+                      <AutoLockGuard>
+                        <AppShell>{children}</AppShell>
+                      </AutoLockGuard>
+                    </SidebarProvider>
+                  </PreferencesProvider>
+                </ToastProvider>
               </ThemeProvider>
             </AppearanceProvider>
           </UserProvider>

@@ -43,8 +43,8 @@ components/           # 15 pastas, ~77 componentes
   reports/            # Report generation
   ui/                 # Base UI (buttons, inputs, collapsible, modal, etc.)
 contexts/             # 5 contexts (theme, user, sidebar, preferences, appearance)
-hooks/                # use-feedback
-lib/                  # 13 utils (auth, prisma, email, pdf, excel, quotes, rates, etc.)
+hooks/                # 10 hooks (use-fetch, use-feedback, use-pagination, use-modal-state, use-available-balance, data fetching hooks)
+lib/                  # 18 utils (auth, prisma, api-utils, rate-limit, store-utils, openapi, etc.)
 store/                # 5 Zustand stores (transaction, template, category, card, investments)
 types/                # Type definitions
 middleware.ts         # Auth middleware
@@ -270,6 +270,26 @@ Verifica senha do usuario autenticado.
 
 Usado para confirmar acoes sensiveis (ex: desativar modo discreto).
 
+## Rate Limiting
+
+O rate limiting é implementado em `src/lib/rate-limit.ts` com presets para diferentes cenários:
+
+| Preset | Limite | Janela | Uso |
+|--------|--------|--------|-----|
+| `auth` | 5 | 60s | Login, verificar senha |
+| `passwordReset` | 3 | 300s | Reset de senha |
+| `register` | 3 | 3600s | Registro de usuário |
+| `api` | 100 | 60s | GET de dados |
+| `mutation` | 30 | 60s | POST/PUT/DELETE |
+| `externalApi` | 20 | 60s | APIs externas (cotações) |
+| `import` | 5 | 60s | Importação de dados |
+
+## Documentação da API
+
+- **Swagger UI:** `/docs` - Interface interativa da documentação
+- **OpenAPI Spec:** `/api/docs` - Spec JSON (OpenAPI 3.0)
+- **Arquivo:** `src/lib/openapi.ts` - Definição da spec
+
 ## Comandos
 
 ```bash
@@ -278,4 +298,75 @@ npx tsc --noEmit      # Type check
 npx prisma studio     # DB GUI
 npx prisma db push    # Sync schema
 npx prisma generate   # Generate client
+```
+
+---
+
+## Melhorias Futuras
+
+### Criptografia de Dados Sensíveis (Pendente)
+
+**Objetivo:** Armazenar valores financeiros criptografados no banco de dados para maior privacidade.
+
+**Como funciona:**
+```
+Salvar: valor → encrypt(AES-256) → banco (dado ilegível)
+Ler:    banco → decrypt() → valor (exibe normal na aplicação)
+```
+
+**Dados a criptografar:**
+- `Transaction.value`, `Transaction.description`
+- `Investment.quantity`, `Investment.averagePrice`
+- `Purchase.value`
+- `Budget.limit`
+- `FinancialGoal.targetValue`, `currentValue`
+- `RecurringExpense.value`
+- `Operation.quantity`, `Operation.price`
+
+**Segurança:**
+- Algoritmo: **AES-256** (padrão bancário, impossível quebrar sem a chave)
+- Chave: `ENCRYPTION_KEY` em variável de ambiente (nunca no código)
+- Sem a chave, dados são ilegíveis mesmo com acesso direto ao banco
+- Nem IA, nem ferramentas online conseguem reverter
+
+**Implementação necessária:**
+1. Criar `lib/encryption.ts` com funções `encrypt()` e `decrypt()`
+2. Adicionar `ENCRYPTION_KEY` nas variáveis de ambiente
+3. Modificar APIs para criptografar ao salvar e descriptografar ao ler
+4. Migrar dados existentes (script de migração)
+
+**Trade-offs:**
+- Perde capacidade de fazer cálculos no banco (SUM, AVG, etc.)
+- Todos os cálculos precisam ser feitos na aplicação após decrypt
+- Aumenta levemente o tempo de resposta das APIs
+
+**Exemplo de uso:**
+```typescript
+// lib/encryption.ts
+import crypto from 'crypto';
+
+const ALGORITHM = 'aes-256-gcm';
+const KEY = Buffer.from(process.env.ENCRYPTION_KEY!, 'hex');
+
+export function encrypt(value: number): string {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(ALGORITHM, KEY, iv);
+  const encrypted = Buffer.concat([
+    cipher.update(value.toString(), 'utf8'),
+    cipher.final()
+  ]);
+  const tag = cipher.getAuthTag();
+  return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
+}
+
+export function decrypt(encrypted: string): number {
+  const [ivHex, tagHex, dataHex] = encrypted.split(':');
+  const iv = Buffer.from(ivHex, 'hex');
+  const tag = Buffer.from(tagHex, 'hex');
+  const data = Buffer.from(dataHex, 'hex');
+  const decipher = crypto.createDecipheriv(ALGORITHM, KEY, iv);
+  decipher.setAuthTag(tag);
+  const decrypted = Buffer.concat([decipher.update(data), decipher.final()]);
+  return parseFloat(decrypted.toString('utf8'));
+}
 ```

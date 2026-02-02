@@ -1,10 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, RefreshCw, ShoppingCart, CreditCard, Layers } from "lucide-react";
+import { Plus, RefreshCw, ShoppingCart, CreditCard, Layers, AlertTriangle } from "lucide-react";
 import { useCardStore } from "@/store/card-store";
-import { useFeedback } from "@/hooks/use-feedback";
+import { useFeedback, useCardsAnalytics } from "@/hooks";
 import {
   SummaryCards,
   CardList,
@@ -13,7 +13,8 @@ import {
   CardModal,
   PurchaseModal,
 } from "@/components/cards";
-import { CardAnalytics } from "@/components/cards/card-analytics";
+import { CardAnalytics, CardAlertsContent } from "@/components/cards/card-analytics";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import type {
   CreditCard as CardType,
   CreateCardInput,
@@ -31,6 +32,13 @@ function CartoesContent() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"all" | "single">("all");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+
+  // Alerts popup state
+  const [isAlertsOpen, setIsAlertsOpen] = useState(false);
+  const alertsRef = useRef<HTMLDivElement>(null);
+
+  // Use cards analytics hook
+  const { data: analyticsData } = useCardsAnalytics();
 
   const {
     cards,
@@ -54,6 +62,18 @@ function CartoesContent() {
   useEffect(() => {
     fetchCards();
   }, [fetchCards]);
+
+  // Close alerts popup on click outside
+  useEffect(() => {
+    if (!isAlertsOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (alertsRef.current && !alertsRef.current.contains(e.target as Node)) {
+        setIsAlertsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isAlertsOpen]);
 
   useEffect(() => {
     if (cardIdFromUrl && cards.length > 0) {
@@ -171,7 +191,7 @@ function CartoesContent() {
       </div>
 
       {}
-      <div className="relative max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">
         {}
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
@@ -181,6 +201,39 @@ function CartoesContent() {
             <p className="mt-1" style={{ color: "var(--text-dimmed)" }}>Gerencie suas faturas</p>
           </div>
           <div className="flex items-center gap-3">
+            {/* Alerts Button */}
+            {analyticsData && analyticsData.alerts.length > 0 && (
+              <div className="relative" ref={alertsRef}>
+                <button
+                  onClick={() => setIsAlertsOpen(!isAlertsOpen)}
+                  className={`relative flex items-center justify-center p-3 rounded-xl border transition-all ${
+                    isAlertsOpen
+                      ? "border-red-500/50 bg-red-500/10"
+                      : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
+                  }`}
+                  title="Alertas de Cartões"
+                >
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                  <span className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-[10px] font-bold bg-red-500 text-white rounded-full">
+                    {analyticsData.alerts.length}
+                  </span>
+                </button>
+                {isAlertsOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-[380px] sm:w-[420px] max-h-[80vh] overflow-y-auto rounded-2xl shadow-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] z-50 animate-slideUp p-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-red-500/10 rounded-lg">
+                        <AlertTriangle className="w-5 h-5 text-red-400" />
+                      </div>
+                      <h3 className="text-base font-semibold text-[var(--text-primary)]">
+                        Alertas de Cartões
+                      </h3>
+                    </div>
+                    <CardAlertsContent alerts={analyticsData.alerts} />
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               onClick={() => fetchCards()}
               className="p-3 hover:bg-[var(--bg-hover)] rounded-xl transition-colors"
@@ -241,42 +294,45 @@ function CartoesContent() {
           )}
         </div>
 
-        {}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {}
-          <CardList
-            cards={cards}
-            selectedCardId={viewMode === "single" ? selectedCard?.id : null}
-            onSelectCard={handleSelectCard}
-            onDeleteCard={handleDeleteCard}
-            deletingId={deletingId}
-          />
+          <ErrorBoundary>
+            <CardList
+              cards={cards}
+              selectedCardId={viewMode === "single" ? selectedCard?.id : null}
+              onSelectCard={handleSelectCard}
+              onDeleteCard={handleDeleteCard}
+              deletingId={deletingId}
+            />
+          </ErrorBoundary>
 
-          {}
-          <InvoicePreviewChart
-            data={invoicePreview}
-            cardColor={viewMode === "single" ? selectedCard?.color : "#8B5CF6"}
-            title={viewMode === "all" ? "Previsão Total (Todos os Cartões)" : "Previsão de Faturas"}
-          />
+          <ErrorBoundary>
+            <InvoicePreviewChart
+              data={invoicePreview}
+              cardColor={viewMode === "single" ? selectedCard?.color : "#8B5CF6"}
+              title={viewMode === "all" ? "Previsão Total (Todos os Cartões)" : "Previsão de Faturas"}
+            />
+          </ErrorBoundary>
         </div>
 
-        {}
         {viewMode === "single" && (
-          <InvoiceDetail
-            invoices={cardInvoices}
-            selectedInvoice={selectedInvoice}
-            cardName={selectedCard?.name || ""}
-            cardColor={selectedCard?.color || "#8B5CF6"}
-            onSelectInvoice={handleSelectInvoice}
-            onPayInvoice={handlePayInvoice}
-            onDeletePurchase={handleDeletePurchase}
-            isLoading={isLoading}
-          />
+          <ErrorBoundary>
+            <InvoiceDetail
+              invoices={cardInvoices}
+              selectedInvoice={selectedInvoice}
+              cardName={selectedCard?.name || ""}
+              cardColor={selectedCard?.color || "#8B5CF6"}
+              onSelectInvoice={handleSelectInvoice}
+              onPayInvoice={handlePayInvoice}
+              onDeletePurchase={handleDeletePurchase}
+              isLoading={isLoading}
+            />
+          </ErrorBoundary>
         )}
 
-        {}
         <div className="mt-6">
-          <CardAnalytics />
+          <ErrorBoundary>
+            <CardAnalytics />
+          </ErrorBoundary>
         </div>
       </div>
 

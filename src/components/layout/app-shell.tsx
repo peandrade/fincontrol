@@ -100,15 +100,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen overflow-x-hidden w-full max-w-full">
         <Sidebar />
         <div
-          className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${
+          className={`flex-1 flex flex-col min-h-screen transition-all duration-300 overflow-x-hidden min-w-0 ${
             isCollapsed ? "md:ml-16" : "md:ml-60"
           }`}
         >
           <MobileHeader />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 pb-20 md:pb-0 overflow-x-hidden w-full">{children}</main>
         </div>
       </div>
       <BottomTabs />

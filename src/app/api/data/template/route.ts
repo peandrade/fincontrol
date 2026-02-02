@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { withAuth } from "@/lib/api-utils";
 import { generateImportTemplate } from "@/lib/excel-template";
 
 export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async () => {
     const buffer = await generateImportTemplate();
 
     return new NextResponse(new Uint8Array(buffer), {
@@ -20,11 +15,5 @@ export async function GET() {
           'attachment; filename="fincontrol-modelo-importacao.xlsx"',
       },
     });
-  } catch (error) {
-    console.error("Erro ao gerar template:", error);
-    return NextResponse.json(
-      { error: "Erro ao gerar template" },
-      { status: 500 }
-    );
-  }
+  });
 }

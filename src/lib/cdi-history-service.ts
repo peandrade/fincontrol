@@ -1,4 +1,4 @@
-
+import { CACHE_DURATIONS, CDI_DAILY_RATE_DEFAULT } from "@/lib/constants";
 
 export interface CDIHistoryEntry {
   date: string;
@@ -14,7 +14,6 @@ export interface CDIHistory {
 }
 
 let historyCache: CDIHistory | null = null;
-const CACHE_DURATION = 60 * 60 * 1000;
 
 function bcbDateToISO(bcbDate: string): string {
   const [day, month, year] = bcbDate.split('/');
@@ -28,7 +27,7 @@ function isoToDate(isoDate: string): Date {
 
 export async function fetchCDIHistory(days: number = 365): Promise<CDIHistory | null> {
 
-  if (historyCache && Date.now() - historyCache.lastUpdate.getTime() < CACHE_DURATION) {
+  if (historyCache && Date.now() - historyCache.lastUpdate.getTime() < CACHE_DURATIONS.RATES) {
     console.log("[CDI History] Usando cache");
     return historyCache;
   }
@@ -101,7 +100,6 @@ export async function fetchCDIHistory(days: number = 365): Promise<CDIHistory | 
 }
 
 function createFallbackHistory(days: number): CDIHistory {
-  const CDI_DAILY_RATE = 0.055;
   const entries: CDIHistoryEntry[] = [];
   const today = new Date();
 
@@ -118,7 +116,7 @@ function createFallbackHistory(days: number): CDIHistory {
     entries.push({
       date: dateBR,
       dateISO,
-      rate: CDI_DAILY_RATE,
+      rate: CDI_DAILY_RATE_DEFAULT,
     });
   }
 

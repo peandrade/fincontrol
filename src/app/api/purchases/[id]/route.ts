@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateCardCache } from "@/lib/api-utils";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const { id } = await params;
 
     const purchase = await prisma.purchase.findUnique({
@@ -27,14 +22,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!purchase) {
-      return NextResponse.json(
-        { error: "Compra não encontrada" },
-        { status: 404 }
-      );
+      return errorResponse("Compra não encontrada", 404, "NOT_FOUND");
     }
 
     if (purchase.invoice.creditCard.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Não autorizado", 403, "FORBIDDEN");
     }
 
     if (purchase.parentPurchaseId) {
@@ -43,7 +35,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       });
 
       for (const installment of allInstallments) {
-
         await prisma.invoice.update({
           where: { id: installment.invoiceId },
           data: {
@@ -56,7 +47,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         });
       }
     } else {
-
       await prisma.invoice.update({
         where: { id: purchase.invoiceId },
         data: {
@@ -69,12 +59,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Erro ao deletar compra:", error);
-    return NextResponse.json(
-      { error: "Erro ao deletar compra" },
-      { status: 500 }
-    );
-  }
+    // Invalidate related caches
+    invalidateCardCache(session.user.id);
+
+    return new NextResponse(null, { status: 204 });
+  });
 }

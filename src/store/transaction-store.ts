@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import { getCategoryColor } from "@/lib/constants";
+import { getCategoryColor, MONTH_NAMES_SHORT, DAY_NAMES_SHORT } from "@/lib/constants";
 import { calculatePercentage } from "@/lib/utils";
+import { transactionApi, ApiClientError } from "@/lib/api-client";
 import type {
   Transaction,
   CreateTransactionInput,
@@ -10,6 +11,10 @@ import type {
   EvolutionPeriod,
   TransactionType,
 } from "@/types";
+
+// ============================================
+// Types
+// ============================================
 
 export interface TransactionFilters {
   search: string;
@@ -31,19 +36,35 @@ export const defaultFilters: TransactionFilters = {
   maxValue: null,
 };
 
-interface TransactionState {
+interface Pagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasMore: boolean;
+}
 
+interface TransactionState {
+  // State
   transactions: Transaction[];
   isLoading: boolean;
   error: string | null;
   filters: TransactionFilters;
+  pagination: Pagination | null;
 
-  fetchTransactions: () => Promise<void>;
+  // Actions
+  fetchTransactions: (useFilters?: boolean) => Promise<void>;
+  fetchTransactionsPaginated: (page?: number, pageSize?: number, useFilters?: boolean) => Promise<void>;
+  fetchMoreTransactions: () => Promise<void>;
+  fetchWithCurrentFilters: () => Promise<void>;
   addTransaction: (data: CreateTransactionInput) => Promise<void>;
+  updateTransaction: (id: string, data: Partial<CreateTransactionInput>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   setFilters: (filters: Partial<TransactionFilters>) => void;
   clearFilters: () => void;
+  clearError: () => void;
 
+  // Selectors (computed data)
   getSummary: () => MonthlySummary;
   getCategoryData: () => CategoryData[];
   getMonthlyEvolution: (period?: EvolutionPeriod) => MonthlyEvolution[];
@@ -51,82 +72,164 @@ interface TransactionState {
   hasActiveFilters: () => boolean;
 }
 
-export const useTransactionStore = create<TransactionState>((set, get) => ({
+// ============================================
+// Helpers
+// ============================================
 
+/**
+ * Convert store filters to API query format.
+ */
+function filtersToApiQuery(filters: TransactionFilters) {
+  return {
+    search: filters.search || undefined,
+    type: filters.type !== "all" ? filters.type : undefined,
+    categories: filters.categories.length > 0 ? filters.categories : undefined,
+    startDate: filters.startDate || undefined,
+    endDate: filters.endDate || undefined,
+    minValue: filters.minValue ?? undefined,
+    maxValue: filters.maxValue ?? undefined,
+  };
+}
+
+/**
+ * Extract error message from various error types.
+ */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    return error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Erro desconhecido";
+}
+
+// ============================================
+// Store
+// ============================================
+
+export const useTransactionStore = create<TransactionState>((set, get) => ({
+  // Initial state
   transactions: [],
   isLoading: false,
   error: null,
   filters: { ...defaultFilters },
+  pagination: null,
 
-  fetchTransactions: async () => {
+  // Fetch all transactions (backwards compatibility)
+  fetchTransactions: async (useFilters = false) => {
     set({ isLoading: true, error: null });
 
     try {
-      const response = await fetch("/api/transactions");
-
-      if (!response.ok) {
-        throw new Error("Erro ao buscar transações");
-      }
-
-      const data = await response.json();
-      set({ transactions: data, isLoading: false });
+      const { filters } = get();
+      const query = useFilters ? filtersToApiQuery(filters) : undefined;
+      const data = await transactionApi.getAll<Transaction>(query);
+      set({ transactions: data, isLoading: false, pagination: null });
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
     }
+  },
+
+  // Fetch transactions with pagination
+  fetchTransactionsPaginated: async (page = 1, pageSize = 50, useFilters = false) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const { filters } = get();
+      const query = useFilters ? filtersToApiQuery(filters) : undefined;
+      const { data, pagination } = await transactionApi.getPaginated<Transaction>(
+        page,
+        pageSize,
+        query
+      );
+
+      if (page === 1) {
+        set({ transactions: data, pagination, isLoading: false });
+      } else {
+        set((state) => ({
+          transactions: [...state.transactions, ...data],
+          pagination,
+          isLoading: false,
+        }));
+      }
+    } catch (error) {
+      set({ error: getErrorMessage(error), isLoading: false });
+    }
+  },
+
+  // Fetch with current filters applied (server-side filtering)
+  fetchWithCurrentFilters: async () => {
+    await get().fetchTransactionsPaginated(1, 50, true);
+  },
+
+  // Load more transactions (infinite scroll)
+  fetchMoreTransactions: async () => {
+    const { pagination, isLoading } = get();
+
+    if (isLoading || !pagination?.hasMore) return;
+
+    await get().fetchTransactionsPaginated(pagination.page + 1, pagination.pageSize);
   },
 
   addTransaction: async (data: CreateTransactionInput) => {
     set({ isLoading: true, error: null });
 
     try {
-      const response = await fetch("/api/transactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error("Erro ao criar transação");
-      }
-
-      const newTransaction = await response.json();
-
+      const newTransaction = await transactionApi.create<Transaction, CreateTransactionInput>(data);
       set((state) => ({
         transactions: [newTransaction, ...state.transactions],
         isLoading: false,
       }));
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
+      set({ error: getErrorMessage(error), isLoading: false });
+      throw error;
+    }
+  },
+
+  updateTransaction: async (id: string, data: Partial<CreateTransactionInput>) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const updated = await transactionApi.update<Transaction, Partial<CreateTransactionInput>>(id, data);
+      set((state) => ({
+        transactions: state.transactions.map((t) => (t.id === id ? updated : t)),
         isLoading: false,
-      });
+      }));
+    } catch (error) {
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
 
   deleteTransaction: async (id: string) => {
     try {
-      const response = await fetch(`/api/transactions/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Erro ao deletar transação");
-      }
-
+      await transactionApi.delete(id);
       set((state) => ({
         transactions: state.transactions.filter((t) => t.id !== id),
       }));
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-      });
+      set({ error: getErrorMessage(error) });
       throw error;
     }
   },
+
+  setFilters: (newFilters: Partial<TransactionFilters>) => {
+    set((state) => ({
+      filters: { ...state.filters, ...newFilters },
+    }));
+  },
+
+  clearFilters: () => {
+    set({ filters: { ...defaultFilters } });
+  },
+
+  clearError: () => {
+    set({ error: null });
+  },
+
+  // ============================================
+  // Selectors (computed data from local state)
+  // ============================================
 
   getSummary: (): MonthlySummary => {
     const { transactions } = get();
@@ -147,6 +250,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       .filter((t) => t.type === "expense")
       .reduce((sum, t) => sum + t.value, 0);
 
+    // Previous month comparison
     const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
@@ -163,20 +267,12 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       .filter((t) => t.type === "expense")
       .reduce((sum, t) => sum + t.value, 0);
 
-    const incomeChange = lastIncome > 0
-      ? ((income - lastIncome) / lastIncome) * 100
-      : 0;
-
-    const expenseChange = lastExpense > 0
-      ? ((expense - lastExpense) / lastExpense) * 100
-      : 0;
-
     return {
       income,
       expense,
       balance: income - expense,
-      incomeChange,
-      expenseChange,
+      incomeChange: lastIncome > 0 ? ((income - lastIncome) / lastIncome) * 100 : 0,
+      expenseChange: lastExpense > 0 ? ((expense - lastExpense) / lastExpense) * 100 : 0,
     };
   },
 
@@ -215,8 +311,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   getMonthlyEvolution: (period: EvolutionPeriod = "6m"): MonthlyEvolution[] => {
     const { transactions } = get();
     const result: MonthlyEvolution[] = [];
-    const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-    const dayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
     const periodConfig: Record<EvolutionPeriod, { days?: number; months?: number; groupBy: "day" | "month" }> = {
       "1w": { days: 7, groupBy: "day" },
@@ -229,7 +323,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     const config = periodConfig[period];
 
     if (config.groupBy === "day" && config.days) {
-
       for (let i = config.days - 1; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
@@ -252,17 +345,12 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
           .reduce((sum, t) => sum + t.value, 0);
 
         const label = config.days <= 7
-          ? `${dayNames[date.getDay()]} ${date.getDate()}`
+          ? `${DAY_NAMES_SHORT[date.getDay()]} ${date.getDate()}`
           : `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}`;
 
-        result.push({
-          month: label,
-          income,
-          expense,
-        });
+        result.push({ month: label, income, expense });
       }
     } else if (config.groupBy === "month" && config.months) {
-
       for (let i = config.months - 1; i >= 0; i--) {
         const date = new Date();
         date.setMonth(date.getMonth() - i);
@@ -284,47 +372,37 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
           .reduce((sum, t) => sum + t.value, 0);
 
         const label = config.months > 6
-          ? `${monthNames[month]}/${String(year).slice(2)}`
-          : monthNames[month];
+          ? `${MONTH_NAMES_SHORT[month]}/${String(year).slice(2)}`
+          : MONTH_NAMES_SHORT[month];
 
-        result.push({
-          month: label,
-          income,
-          expense,
-        });
+        result.push({ month: label, income, expense });
       }
     }
 
     return result;
   },
 
-  setFilters: (newFilters: Partial<TransactionFilters>) => {
-    set((state) => ({
-      filters: { ...state.filters, ...newFilters },
-    }));
-  },
-
-  clearFilters: () => {
-    set({ filters: { ...defaultFilters } });
-  },
-
+  /**
+   * Get filtered transactions (client-side).
+   * For better performance with large datasets, use fetchWithCurrentFilters()
+   * for server-side filtering.
+   */
   getFilteredTransactions: (): Transaction[] => {
     const { transactions, filters } = get();
 
-    return transactions.filter((transaction) => {
+    if (!get().hasActiveFilters()) {
+      return transactions;
+    }
 
+    return transactions.filter((transaction) => {
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         const matchesDescription = transaction.description?.toLowerCase().includes(searchLower);
         const matchesCategory = transaction.category.toLowerCase().includes(searchLower);
-        if (!matchesDescription && !matchesCategory) {
-          return false;
-        }
+        if (!matchesDescription && !matchesCategory) return false;
       }
 
-      if (filters.type !== "all" && transaction.type !== filters.type) {
-        return false;
-      }
+      if (filters.type !== "all" && transaction.type !== filters.type) return false;
 
       if (filters.categories.length > 0 && !filters.categories.includes(transaction.category)) {
         return false;
@@ -334,27 +412,18 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         const transactionDate = new Date(transaction.date);
         const startDate = new Date(filters.startDate);
         startDate.setHours(0, 0, 0, 0);
-        if (transactionDate < startDate) {
-          return false;
-        }
+        if (transactionDate < startDate) return false;
       }
 
       if (filters.endDate) {
         const transactionDate = new Date(transaction.date);
         const endDate = new Date(filters.endDate);
         endDate.setHours(23, 59, 59, 999);
-        if (transactionDate > endDate) {
-          return false;
-        }
+        if (transactionDate > endDate) return false;
       }
 
-      if (filters.minValue !== null && transaction.value < filters.minValue) {
-        return false;
-      }
-
-      if (filters.maxValue !== null && transaction.value > filters.maxValue) {
-        return false;
-      }
+      if (filters.minValue !== null && transaction.value < filters.minValue) return false;
+      if (filters.maxValue !== null && transaction.value > filters.maxValue) return false;
 
       return true;
     });

@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import type { CreateCardInput } from "@/types/credit-card";
+import { withAuth, errorResponse, invalidateCardCache } from "@/lib/api-utils";
+import { createCreditCardSchema, validateBody } from "@/lib/schemas";
 
 export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const cards = await prisma.creditCard.findMany({
       where: { isActive: true, userId: session.user.id },
       include: {
@@ -19,6 +14,7 @@ export async function GET() {
           include: {
             purchases: {
               orderBy: { date: "desc" },
+              take: 100,
             },
           },
         },
@@ -27,39 +23,29 @@ export async function GET() {
     });
 
     return NextResponse.json(cards);
-  } catch (error) {
-    console.error("Erro ao buscar cartões:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar cartões" },
-      { status: 500 }
-    );
-  }
+  });
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  return withAuth(async (session, req) => {
+    const body = await req.json();
+
+    // Validate with Zod schema
+    const validation = validateBody(createCreditCardSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 400, "VALIDATION_ERROR", validation.details);
     }
 
-    const body: CreateCardInput = await request.json();
-
-    if (!body.name || !body.closingDay || !body.dueDay) {
-      return NextResponse.json(
-        { error: "Nome, dia de fechamento e vencimento são obrigatórios" },
-        { status: 400 }
-      );
-    }
+    const { name, lastDigits, limit, closingDay, dueDay, color } = validation.data;
 
     const card = await prisma.creditCard.create({
       data: {
-        name: body.name,
-        lastDigits: body.lastDigits || null,
-        limit: body.limit || 0,
-        closingDay: body.closingDay,
-        dueDay: body.dueDay,
-        color: body.color || "#8B5CF6",
+        name,
+        lastDigits: lastDigits || null,
+        limit: limit || 0,
+        closingDay,
+        dueDay,
+        color: color || "#8B5CF6",
         userId: session.user.id,
       },
       include: {
@@ -67,12 +53,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Invalidate related caches
+    invalidateCardCache(session.user.id);
+
     return NextResponse.json(card, { status: 201 });
-  } catch (error) {
-    console.error("Erro ao criar cartão:", error);
-    return NextResponse.json(
-      { error: "Erro ao criar cartão" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }

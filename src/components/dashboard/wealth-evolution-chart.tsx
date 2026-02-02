@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useId } from "react";
 import {
   AreaChart,
   Area,
@@ -13,14 +13,16 @@ import {
 import { ChevronDown, TrendingUp, TrendingDown, Wallet, RefreshCw, EyeOff } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useTheme, usePreferences } from "@/contexts";
+import { useWealthEvolution } from "@/hooks";
+import type { WealthDataPoint } from "@/hooks";
+import type { EvolutionPeriod } from "@/types";
+import { Skeleton, SkeletonChart } from "@/components/ui/skeleton";
 
 const HIDDEN = "•••••";
 
-type WealthPeriod = "1w" | "1m" | "3m" | "6m" | "1y";
-
-// Helper function to map defaultPeriod to WealthPeriod
-function mapDefaultPeriodToWealth(defaultPeriod: string): WealthPeriod {
-  const periodMap: Record<string, WealthPeriod> = {
+// Helper function to map defaultPeriod to EvolutionPeriod
+function mapDefaultPeriodToWealth(defaultPeriod: string): EvolutionPeriod {
+  const periodMap: Record<string, EvolutionPeriod> = {
     week: "1w",
     month: "1m",
     quarter: "3m",
@@ -29,33 +31,7 @@ function mapDefaultPeriodToWealth(defaultPeriod: string): WealthPeriod {
   return periodMap[defaultPeriod] || "1y";
 }
 
-interface WealthDataPoint {
-  month: string;
-  label: string;
-  transactionBalance: number;
-  investmentValue: number;
-  cardDebt: number;
-  totalWealth: number;
-  goalsSaved: number;
-}
-
-interface WealthSummary {
-  currentWealth: number;
-  transactionBalance: number;
-  investmentValue: number;
-  goalsSaved: number;
-  cardDebt: number;
-  wealthChange: number;
-  wealthChangePercent: number;
-}
-
-interface WealthData {
-  evolution: WealthDataPoint[];
-  summary: WealthSummary;
-  period: string;
-}
-
-const PERIOD_OPTIONS: { value: WealthPeriod; label: string }[] = [
+const PERIOD_OPTIONS: { value: EvolutionPeriod; label: string }[] = [
   { value: "1w", label: "1 Semana" },
   { value: "1m", label: "30 Dias" },
   { value: "3m", label: "3 Meses" },
@@ -129,30 +105,12 @@ function ChartTooltip({
 export function WealthEvolutionChart() {
   const { theme } = useTheme();
   const { general, privacy } = usePreferences();
-  const [period, setPeriod] = useState<WealthPeriod>(() =>
+  const descriptionId = useId();
+  const [period, setPeriod] = useState<EvolutionPeriod>(() =>
     mapDefaultPeriodToWealth(general.defaultPeriod)
   );
-  const [data, setData] = useState<WealthData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/wealth-evolution?period=${period}`);
-      if (response.ok) {
-        const wealthData = await response.json();
-        setData(wealthData);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar evolução patrimonial:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [period]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const { data, isLoading, refresh } = useWealthEvolution(period);
 
   // Update period when defaultPeriod preference changes
   useEffect(() => {
@@ -175,7 +133,7 @@ export function WealthEvolutionChart() {
 
   return (
     <div
-      className="backdrop-blur rounded-2xl p-4 sm:p-6 transition-colors duration-300 h-full"
+      className="backdrop-blur rounded-xl sm:rounded-2xl p-3 sm:p-6 transition-colors duration-300 h-full overflow-hidden"
       style={{
         backgroundColor: "var(--card-bg)",
         borderWidth: "1px",
@@ -200,29 +158,30 @@ export function WealthEvolutionChart() {
       `}</style>
 
       {}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 sm:mb-1">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="p-1.5 sm:p-2 bg-primary-soft rounded-lg">
+      <div className="flex items-center justify-between gap-2 mb-2 sm:mb-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="p-1.5 sm:p-2 bg-primary-soft rounded-lg flex-shrink-0">
             <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-primary-color" />
           </div>
-          <h3 className="text-base sm:text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+          <h3 className="text-sm sm:text-lg font-semibold truncate" style={{ color: "var(--text-primary)" }}>
             Evolução Patrimonial
           </h3>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           <button
-            onClick={fetchData}
+            onClick={refresh}
             disabled={isLoading}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors"
             title="Atualizar"
+            aria-label="Atualizar gráfico"
           >
-            <RefreshCw className={`w-4 h-4 text-gray-400 ${isLoading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />
           </button>
-          <div className="relative flex-1 sm:flex-none">
+          <div className="relative">
             <select
               value={period}
-              onChange={(e) => setPeriod(e.target.value as WealthPeriod)}
-              className="wealth-period-select w-full sm:w-auto appearance-none cursor-pointer px-3 py-1.5 pr-8 rounded-lg text-sm font-medium transition-colors"
+              onChange={(e) => setPeriod(e.target.value as EvolutionPeriod)}
+              className="wealth-period-select appearance-none cursor-pointer px-2 sm:px-3 py-1 sm:py-1.5 pr-6 sm:pr-8 rounded-lg text-xs sm:text-sm font-medium transition-colors"
               style={{
                 backgroundColor: "var(--bg-hover)",
                 color: "var(--text-primary)",
@@ -238,7 +197,7 @@ export function WealthEvolutionChart() {
               ))}
             </select>
             <ChevronDown
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+              className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 pointer-events-none"
               style={{ color: "var(--text-muted)" }}
             />
           </div>
@@ -246,46 +205,64 @@ export function WealthEvolutionChart() {
       </div>
 
       {}
-      <div className="flex items-center gap-4 mb-4">
-        <div>
-          <p className="text-xl sm:text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-            {privacy.hideValues ? HIDDEN : formatCurrency(summary.currentWealth)}
-          </p>
-          {privacy.hideValues ? (
-            <div className="flex items-center gap-1 mt-1">
-              <EyeOff className="w-3 h-3 sm:w-4 sm:h-4 text-[var(--text-dimmed)]" />
-              <span className="text-[10px] sm:text-xs" style={{ color: "var(--text-dimmed)" }}>
-                Modo discreto ativo
-              </span>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1">
-              {isPositiveChange ? (
-                <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-400" />
-              ) : (
-                <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 text-red-400" />
-              )}
-              <span
-                className={`text-xs sm:text-sm font-medium ${
-                  isPositiveChange ? "text-emerald-400" : "text-red-400"
-                }`}
-              >
-                {isPositiveChange ? "+" : ""}
-                {formatCurrency(summary.wealthChange)} ({summary.wealthChangePercent.toFixed(1)}%)
-              </span>
-              <span className="text-[10px] sm:text-xs" style={{ color: "var(--text-dimmed)" }}>
-                vs mês anterior
-              </span>
-            </div>
-          )}
-        </div>
+      <div className="mb-3 sm:mb-4">
+        <p className="text-lg sm:text-2xl font-bold truncate" style={{ color: "var(--text-primary)" }}>
+          {privacy.hideValues ? HIDDEN : formatCurrency(summary.currentWealth)}
+        </p>
+        {privacy.hideValues ? (
+          <div className="flex items-center gap-1 mt-1">
+            <EyeOff className="w-3 h-3 sm:w-4 sm:h-4 text-[var(--text-dimmed)]" />
+            <span className="text-[10px] sm:text-xs" style={{ color: "var(--text-dimmed)" }}>
+              Modo discreto ativo
+            </span>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-1 mt-1">
+            {isPositiveChange ? (
+              <TrendingUp className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+            ) : (
+              <TrendingDown className="w-3 h-3 text-red-400 flex-shrink-0" />
+            )}
+            <span
+              className={`text-[10px] sm:text-sm font-medium ${
+                isPositiveChange ? "text-emerald-400" : "text-red-400"
+              }`}
+            >
+              {isPositiveChange ? "+" : ""}
+              {formatCurrency(summary.wealthChange)}
+            </span>
+            <span className="text-[10px] sm:text-xs hidden sm:inline" style={{ color: "var(--text-dimmed)" }}>
+              vs mês anterior
+            </span>
+          </div>
+        )}
       </div>
 
-      {}
-      <div className="h-72">
+      {/* Chart */}
+      <p id={descriptionId} className="sr-only">
+        Gráfico de evolução patrimonial mostrando patrimônio total, saldo, investimentos, metas e dívidas.
+        {privacy.hideValues
+          ? " Valores ocultos."
+          : ` Patrimônio atual: ${formatCurrency(summary.currentWealth)}. Variação: ${summary.wealthChangePercent.toFixed(1)}% vs mês anterior.`
+        }
+      </p>
+      <div className="h-48 sm:h-72" role="img" aria-describedby={descriptionId}>
         {isLoading ? (
-          <div className="h-full flex items-center justify-center">
-            <RefreshCw className="w-6 h-6 text-[var(--text-dimmed)] animate-spin" />
+          <div className="h-full flex flex-col justify-end">
+            <div className="flex items-end justify-between gap-2 h-56">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <Skeleton
+                  key={i}
+                  className="flex-1 rounded-t"
+                  style={{ height: `${Math.random() * 60 + 20}%` }}
+                />
+              ))}
+            </div>
+            <div className="flex justify-between mt-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-3 w-8" />
+              ))}
+            </div>
           </div>
         ) : data && data.evolution.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
@@ -316,19 +293,19 @@ export function WealthEvolutionChart() {
                 dataKey="label"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: axisTickColor, fontSize: 11 }}
+                tick={{ fill: axisTickColor, fontSize: 10 }}
                 interval="preserveStartEnd"
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: axisTickColor, fontSize: 11 }}
+                tick={{ fill: axisTickColor, fontSize: 10 }}
                 tickFormatter={(value) =>
                   privacy.hideValues
                     ? "•••"
                     : value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()
                 }
-                width={50}
+                width={35}
               />
               <Tooltip content={<ChartTooltip hideValues={privacy.hideValues} />} />
               <ReferenceLine y={0} stroke="#6B7280" strokeDasharray="3 3" />
@@ -389,48 +366,48 @@ export function WealthEvolutionChart() {
       </div>
 
       {}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-2 mt-4 pt-4 border-t border-[var(--border-color)]">
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-xs" style={{ color: "var(--text-dimmed)" }}>
+      <div className="grid grid-cols-4 gap-1 sm:gap-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-[var(--border-color)]">
+        <div className="text-center min-w-0">
+          <div className="flex items-center justify-center gap-1 mb-0.5 sm:mb-1">
+            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+            <span className="text-[9px] sm:text-xs truncate" style={{ color: "var(--text-dimmed)" }}>
               Saldo
             </span>
           </div>
-          <p className="text-xs sm:text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+          <p className="text-[10px] sm:text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
             {privacy.hideValues ? HIDDEN : formatCurrency(summary.transactionBalance)}
           </p>
         </div>
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <div className="w-2 h-2 rounded-full bg-blue-500" />
-            <span className="text-xs" style={{ color: "var(--text-dimmed)" }}>
-              Investido
+        <div className="text-center min-w-0">
+          <div className="flex items-center justify-center gap-1 mb-0.5 sm:mb-1">
+            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-blue-500 flex-shrink-0" />
+            <span className="text-[9px] sm:text-xs truncate" style={{ color: "var(--text-dimmed)" }}>
+              Invest.
             </span>
           </div>
-          <p className="text-xs sm:text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+          <p className="text-[10px] sm:text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
             {privacy.hideValues ? HIDDEN : formatCurrency(summary.investmentValue)}
           </p>
         </div>
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <div className="w-2 h-2 rounded-full bg-amber-500" />
-            <span className="text-xs" style={{ color: "var(--text-dimmed)" }}>
+        <div className="text-center min-w-0">
+          <div className="flex items-center justify-center gap-1 mb-0.5 sm:mb-1">
+            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-500 flex-shrink-0" />
+            <span className="text-[9px] sm:text-xs truncate" style={{ color: "var(--text-dimmed)" }}>
               Metas
             </span>
           </div>
-          <p className="text-xs sm:text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+          <p className="text-[10px] sm:text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
             {privacy.hideValues ? HIDDEN : formatCurrency(summary.goalsSaved)}
           </p>
         </div>
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
-            <span className="text-xs" style={{ color: "var(--text-dimmed)" }}>
+        <div className="text-center min-w-0">
+          <div className="flex items-center justify-center gap-1 mb-0.5 sm:mb-1">
+            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-red-500 flex-shrink-0" />
+            <span className="text-[9px] sm:text-xs truncate" style={{ color: "var(--text-dimmed)" }}>
               Dívida
             </span>
           </div>
-          <p className="text-xs sm:text-sm font-medium text-red-400">
+          <p className="text-[10px] sm:text-sm font-medium text-red-400 truncate">
             {privacy.hideValues ? HIDDEN : `-${formatCurrency(summary.cardDebt)}`}
           </p>
         </div>

@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateRecurringCache } from "@/lib/api-utils";
+import { updateRecurringExpenseSchema, validateBody } from "@/lib/schemas";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const { id } = await params;
 
     const existing = await prisma.recurringExpense.findUnique({
@@ -20,74 +16,64 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!existing) {
-      return NextResponse.json(
-        { error: "Despesa recorrente não encontrada" },
-        { status: 404 }
-      );
+      return errorResponse("Despesa recorrente não encontrada", 404, "NOT_FOUND");
     }
 
     if (existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Não autorizado", 403, "FORBIDDEN");
     }
 
     await prisma.recurringExpense.delete({
       where: { id },
     });
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Erro ao deletar despesa recorrente:", error);
-    return NextResponse.json(
-      { error: "Erro ao deletar despesa recorrente" },
-      { status: 500 }
-    );
-  }
+    // Invalidate related caches
+    invalidateRecurringCache(session.user.id);
+
+    return new NextResponse(null, { status: 204 });
+  });
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session, req) => {
     const { id } = await params;
-    const body = await request.json();
-    const { description, value, category, dueDay, isActive, notes } = body;
+    const body = await req.json();
+
+    // Validate with Zod schema
+    const validation = validateBody(updateRecurringExpenseSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
+    }
 
     const existing = await prisma.recurringExpense.findUnique({
       where: { id },
     });
 
     if (!existing) {
-      return NextResponse.json(
-        { error: "Despesa recorrente não encontrada" },
-        { status: 404 }
-      );
+      return errorResponse("Despesa recorrente não encontrada", 404, "NOT_FOUND");
     }
 
     if (existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Não autorizado", 403, "FORBIDDEN");
     }
+
+    const { name, value, category, dueDay, isActive, description } = validation.data;
 
     const expense = await prisma.recurringExpense.update({
       where: { id },
       data: {
-        ...(description !== undefined && { description }),
+        ...(name !== undefined && { description: name }),
         ...(value !== undefined && { value }),
         ...(category !== undefined && { category }),
         ...(dueDay !== undefined && { dueDay }),
         ...(isActive !== undefined && { isActive }),
-        ...(notes !== undefined && { notes }),
+        ...(description !== undefined && { notes: description }),
       },
     });
 
+    // Invalidate related caches
+    invalidateRecurringCache(session.user.id);
+
     return NextResponse.json(expense);
-  } catch (error) {
-    console.error("Erro ao atualizar despesa recorrente:", error);
-    return NextResponse.json(
-      { error: "Erro ao atualizar despesa recorrente" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }

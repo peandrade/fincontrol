@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateRecurringCache } from "@/lib/api-utils";
+import { createRecurringExpenseSchema, validateBody } from "@/lib/schemas";
+import { checkRateLimit, getClientIp, rateLimitPresets } from "@/lib/rate-limit";
 
 export interface RecurringExpenseWithStatus {
   id: string;
@@ -18,12 +20,7 @@ export interface RecurringExpenseWithStatus {
 }
 
 export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const expenses = await prisma.recurringExpense.findMany({
       where: { userId: session.user.id },
       orderBy: [
@@ -87,51 +84,51 @@ export async function GET() {
       },
       currentMonth: currentMonth + 1,
       currentYear,
+    }, {
+      headers: {
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+      },
     });
-  } catch (error) {
-    console.error("Erro ao buscar despesas recorrentes:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar despesas recorrentes" },
-      { status: 500 }
-    );
-  }
+  });
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  // Rate limit: 30 mutations per minute
+  const rateLimit = checkRateLimit(getClientIp(request), {
+    ...rateLimitPresets.mutation,
+    identifier: "recurring-expenses-create",
+  });
+
+  if (!rateLimit.success) {
+    return errorResponse("Muitas requisições. Tente novamente em breve.", 429, "RATE_LIMITED");
+  }
+
+  return withAuth(async (session, req) => {
+    const body = await req.json();
+
+    // Validate with Zod schema
+    const validation = validateBody(createRecurringExpenseSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const body = await request.json();
-    const { description, value, category, dueDay, notes } = body;
-
-    if (!description || !value || !category) {
-      return NextResponse.json(
-        { error: "Descrição, valor e categoria são obrigatórios" },
-        { status: 400 }
-      );
-    }
+    const { name, value, category, dueDay, description } = validation.data;
 
     const expense = await prisma.recurringExpense.create({
       data: {
-        description,
+        description: name,
         value,
         category,
-        dueDay: dueDay || 1,
-        notes: notes || null,
+        dueDay,
+        notes: description || null,
         isActive: true,
         userId: session.user.id,
       },
     });
 
+    // Invalidate related caches
+    invalidateRecurringCache(session.user.id);
+
     return NextResponse.json(expense, { status: 201 });
-  } catch (error) {
-    console.error("Erro ao criar despesa recorrente:", error);
-    return NextResponse.json(
-      { error: "Erro ao criar despesa recorrente" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }

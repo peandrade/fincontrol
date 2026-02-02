@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { FileBarChart, Calendar, Download, Filter, RefreshCw } from "lucide-react";
+import { FileBarChart, Calendar, Download, Filter, RefreshCw, Lightbulb, TrendingUp } from "lucide-react";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useCategoryStore } from "@/store/category-store";
-import { CategoryReport, MonthlyComparison, AdvancedAnalytics } from "@/components/reports";
+import { useAnalytics } from "@/hooks";
+import { CategoryReport, MonthlyComparison, AdvancedAnalytics, InsightsContent, SpendingVelocityContent } from "@/components/reports";
 import { generateReportPDF } from "@/lib/pdf-generator";
 
 const MONTHS = [
@@ -19,15 +20,37 @@ export default function RelatoriosPage() {
   const [filterType, setFilterType] = useState<"expense" | "income" | "all">("expense");
   const [isExporting, setIsExporting] = useState(false);
 
+  // Popup states
+  const [isInsightsOpen, setIsInsightsOpen] = useState(false);
+  const [isVelocityOpen, setIsVelocityOpen] = useState(false);
+  const insightsRef = useRef<HTMLDivElement>(null);
+  const velocityRef = useRef<HTMLDivElement>(null);
+
   const reportRef = useRef<HTMLDivElement>(null);
 
   const { transactions, isLoading: isLoadingTransactions, fetchTransactions } = useTransactionStore();
   const { categories, isLoading: isLoadingCategories, fetchCategories } = useCategoryStore();
+  const { data: analyticsData } = useAnalytics();
 
   useEffect(() => {
     fetchTransactions();
     fetchCategories();
   }, [fetchTransactions, fetchCategories]);
+
+  // Close popups on click outside
+  useEffect(() => {
+    if (!isInsightsOpen && !isVelocityOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (isInsightsOpen && insightsRef.current && !insightsRef.current.contains(e.target as Node)) {
+        setIsInsightsOpen(false);
+      }
+      if (isVelocityOpen && velocityRef.current && !velocityRef.current.contains(e.target as Node)) {
+        setIsVelocityOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isInsightsOpen, isVelocityOpen]);
 
   const filteredTransactions = transactions.filter((t) => {
     const date = new Date(t.date);
@@ -83,7 +106,7 @@ export default function RelatoriosPage() {
       </div>
 
       {}
-      <div className="relative max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">
         {}
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
@@ -192,9 +215,45 @@ export default function RelatoriosPage() {
         <div ref={reportRef} className="space-y-6">
           {}
           <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-6">
-              Relatório por Categoria - {MONTHS[selectedMonth - 1]} {selectedYear}
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                Relatório por Categoria - {MONTHS[selectedMonth - 1]} {selectedYear}
+              </h2>
+              {analyticsData && analyticsData.insights.length > 0 && (
+                <div className="relative" ref={insightsRef}>
+                  <button
+                    onClick={() => setIsInsightsOpen(!isInsightsOpen)}
+                    className={`flex items-center justify-center p-2 rounded-lg border transition-all ${
+                      isInsightsOpen
+                        ? "border-amber-500/50 bg-amber-500/10"
+                        : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
+                    }`}
+                    title="Insights Inteligentes"
+                  >
+                    <Lightbulb className="w-4 h-4 text-amber-400" />
+                  </button>
+                  {isInsightsOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-[380px] sm:w-[480px] max-h-[80vh] overflow-y-auto rounded-2xl shadow-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] z-50 p-4 animate-[slideUp_0.3s_ease-out]">
+                      <style>{`
+                        @keyframes slideUp {
+                          from { opacity: 0; transform: translateY(20px); }
+                          to { opacity: 1; transform: translateY(0); }
+                        }
+                      `}</style>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-amber-500/10 rounded-lg">
+                          <Lightbulb className="w-5 h-5 text-amber-400" />
+                        </div>
+                        <h3 className="text-base font-semibold text-[var(--text-primary)]">
+                          Insights Inteligentes
+                        </h3>
+                      </div>
+                      <InsightsContent insights={analyticsData.insights} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <CategoryReport
               transactions={filteredTransactions}
               categories={categories}
@@ -204,9 +263,45 @@ export default function RelatoriosPage() {
 
           {}
           <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-6">
-              Comparativo Mensal
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                Comparativo Mensal
+              </h2>
+              {analyticsData && (
+                <div className="relative" ref={velocityRef}>
+                  <button
+                    onClick={() => setIsVelocityOpen(!isVelocityOpen)}
+                    className={`flex items-center justify-center p-2 rounded-lg border transition-all ${
+                      isVelocityOpen
+                        ? "border-primary-color/50 bg-primary-soft"
+                        : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
+                    }`}
+                    title="Velocidade de Gastos"
+                  >
+                    <TrendingUp className="w-4 h-4 text-primary-color" />
+                  </button>
+                  {isVelocityOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-[240px] rounded-xl shadow-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] z-50 p-3 animate-[slideUp_0.3s_ease-out]">
+                      <style>{`
+                        @keyframes slideUp {
+                          from { opacity: 0; transform: translateY(20px); }
+                          to { opacity: 1; transform: translateY(0); }
+                        }
+                      `}</style>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="p-1.5 bg-primary-soft rounded-lg">
+                          <TrendingUp className="w-4 h-4 text-primary-color" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                          Velocidade de Gastos
+                        </h3>
+                      </div>
+                      <SpendingVelocityContent velocity={analyticsData.spendingVelocity} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <MonthlyComparison
               transactions={transactions}
               currentMonth={selectedMonth}
@@ -216,9 +311,6 @@ export default function RelatoriosPage() {
 
           {}
           <div className="mt-6">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-6">
-              Analytics Avançados
-            </h2>
             <AdvancedAnalytics />
           </div>
         </div>

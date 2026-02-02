@@ -149,19 +149,22 @@ export function TransactionList({
                       onClick={() => onEdit(transaction)}
                       className="p-1.5 hover:bg-amber-500/20 active:bg-amber-500/30 rounded-lg transition-all"
                       title="Editar"
+                      aria-label="Editar transação"
                     >
-                      <Pencil className="w-4 h-4 text-amber-400" />
+                      <Pencil className="w-4 h-4 text-amber-400" aria-hidden="true" />
                     </button>
                   )}
                   <button
                     onClick={() => handleDeleteClick(transaction)}
                     disabled={deletingId === transaction.id}
                     className="p-1.5 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all disabled:opacity-50"
+                    title="Excluir"
+                    aria-label="Excluir transação"
                   >
                     {deletingId === transaction.id ? (
-                      <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" aria-label="Excluindo..." />
                     ) : (
-                      <Trash2 className="w-4 h-4 text-red-400" />
+                      <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
                     )}
                   </button>
                 </div>

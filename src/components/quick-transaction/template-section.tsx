@@ -168,7 +168,7 @@ export function TemplateSection({
                   </div>
                 </div>
 
-                {}
+                {/* Menu button */}
                 <div className="relative">
                   <button
                     onClick={(e) => {
@@ -176,8 +176,11 @@ export function TemplateSection({
                       setMenuOpen(menuOpen === template.id ? null : template.id);
                     }}
                     className="p-1 opacity-0 group-hover:opacity-100 hover:bg-white/10 rounded transition-all"
+                    aria-label="Abrir menu de opções"
+                    aria-expanded={menuOpen === template.id}
+                    aria-haspopup="menu"
                   >
-                    <MoreVertical className="w-4 h-4 text-[var(--text-dimmed)]" />
+                    <MoreVertical className="w-4 h-4 text-[var(--text-dimmed)]" aria-hidden="true" />
                   </button>
 
                   {menuOpen === template.id && (

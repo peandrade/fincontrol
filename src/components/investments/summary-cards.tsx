@@ -24,95 +24,95 @@ export function InvestmentSummaryCards({ summary }: InvestmentSummaryCardsProps)
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
       {}
-      <div className="backdrop-blur rounded-xl sm:rounded-2xl p-3 sm:p-6 transition-colors duration-300" style={cardStyle}>
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs sm:text-sm font-medium mb-0.5 sm:mb-1" style={{ color: "var(--text-muted)" }}>
+      <div className="backdrop-blur rounded-xl sm:rounded-2xl p-2.5 sm:p-6 transition-colors duration-300 min-w-0" style={cardStyle}>
+        <div className="flex items-start justify-between gap-1">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] sm:text-sm font-medium mb-0.5 sm:mb-1 truncate" style={{ color: "var(--text-muted)" }}>
               Total Investido
             </p>
-            <p className="text-lg sm:text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
+            <p className="text-sm sm:text-2xl font-bold truncate" style={{ color: "var(--text-primary)" }}>
               {privacy.hideValues ? "•••••" : formatCurrency(totalInvested)}
             </p>
           </div>
-          <div className="p-2 sm:p-3 bg-blue-500/20 rounded-lg sm:rounded-xl">
-            <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+          <div className="p-1.5 sm:p-3 bg-blue-500/20 rounded-lg sm:rounded-xl flex-shrink-0">
+            <Wallet className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-blue-400" />
           </div>
         </div>
-        <p className="mt-2 sm:mt-3 text-[10px] sm:text-sm" style={{ color: "var(--text-dimmed)" }}>
+        <p className="mt-1.5 sm:mt-3 text-[9px] sm:text-sm truncate" style={{ color: "var(--text-dimmed)" }}>
           Capital aplicado
         </p>
       </div>
 
       {}
-      <div className="backdrop-blur rounded-xl sm:rounded-2xl p-3 sm:p-6 transition-colors duration-300" style={cardStyle}>
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs sm:text-sm font-medium mb-0.5 sm:mb-1" style={{ color: "var(--text-muted)" }}>
+      <div className="backdrop-blur rounded-xl sm:rounded-2xl p-2.5 sm:p-6 transition-colors duration-300 min-w-0" style={cardStyle}>
+        <div className="flex items-start justify-between gap-1">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] sm:text-sm font-medium mb-0.5 sm:mb-1 truncate" style={{ color: "var(--text-muted)" }}>
               Valor Atual
             </p>
-            <p className="text-lg sm:text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
+            <p className="text-sm sm:text-2xl font-bold truncate" style={{ color: "var(--text-primary)" }}>
               {privacy.hideValues ? "•••••" : formatCurrency(currentValue)}
             </p>
           </div>
-          <div className="p-2 sm:p-3 bg-primary-medium rounded-lg sm:rounded-xl">
-            <PieChart className="w-4 h-4 sm:w-5 sm:h-5 text-primary-color" />
+          <div className="p-1.5 sm:p-3 bg-primary-medium rounded-lg sm:rounded-xl flex-shrink-0">
+            <PieChart className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary-color" />
           </div>
         </div>
-        <p className="mt-2 sm:mt-3 text-[10px] sm:text-sm" style={{ color: "var(--text-dimmed)" }}>
+        <p className="mt-1.5 sm:mt-3 text-[9px] sm:text-sm truncate" style={{ color: "var(--text-dimmed)" }}>
           {totalAssets} {totalAssets === 1 ? "ativo" : "ativos"}
         </p>
       </div>
 
       {}
-      <div className="backdrop-blur rounded-xl sm:rounded-2xl p-3 sm:p-6 transition-colors duration-300" style={cardStyle}>
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs sm:text-sm font-medium mb-0.5 sm:mb-1" style={{ color: "var(--text-muted)" }}>
+      <div className="backdrop-blur rounded-xl sm:rounded-2xl p-2.5 sm:p-6 transition-colors duration-300 min-w-0" style={cardStyle}>
+        <div className="flex items-start justify-between gap-1">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] sm:text-sm font-medium mb-0.5 sm:mb-1 truncate" style={{ color: "var(--text-muted)" }}>
               Rentabilidade
             </p>
-            <p className={`text-lg sm:text-2xl font-bold ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
+            <p className={`text-sm sm:text-2xl font-bold truncate ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
               {privacy.hideValues ? "•••••" : `${isPositive ? "+" : ""}${formatCurrency(profitLoss)}`}
             </p>
           </div>
-          <div className={`p-2 sm:p-3 rounded-lg sm:rounded-xl ${isPositive ? "bg-emerald-500/20" : "bg-red-500/20"}`}>
+          <div className={`p-1.5 sm:p-3 rounded-lg sm:rounded-xl flex-shrink-0 ${isPositive ? "bg-emerald-500/20" : "bg-red-500/20"}`}>
             {isPositive ? (
-              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+              <TrendingUp className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-emerald-400" />
             ) : (
-              <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
+              <TrendingDown className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-red-400" />
             )}
           </div>
         </div>
-        <p className={`mt-2 sm:mt-3 text-[10px] sm:text-sm ${isPositive ? "text-emerald-400/70" : "text-red-400/70"}`}>
+        <p className={`mt-1.5 sm:mt-3 text-[9px] sm:text-sm truncate ${isPositive ? "text-emerald-400/70" : "text-red-400/70"}`}>
           {isPositive ? "Lucro" : "Prejuízo"} total
         </p>
       </div>
 
       {}
       <div
-        className={`rounded-xl sm:rounded-2xl p-3 sm:p-6 ${
+        className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-6 min-w-0 ${
           isPositive
             ? "bg-gradient-to-br from-emerald-500/90 to-teal-600/90"
             : "bg-gradient-to-br from-red-500/90 to-orange-600/90"
         }`}
       >
-        <div className="flex items-start justify-between">
-          <div>
-            <p className={`text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 ${isPositive ? "text-emerald-100" : "text-red-100"}`}>
+        <div className="flex items-start justify-between gap-1">
+          <div className="min-w-0 flex-1">
+            <p className={`text-[10px] sm:text-sm font-medium mb-0.5 sm:mb-1 truncate ${isPositive ? "text-emerald-100" : "text-red-100"}`}>
               Rentab. %
             </p>
-            <p className="text-lg sm:text-2xl font-bold text-white">
+            <p className="text-sm sm:text-2xl font-bold text-white truncate">
               {isPositive ? "+" : ""}{profitLossPercent.toFixed(2)}%
             </p>
           </div>
-          <div className="p-2 sm:p-3 bg-white/20 rounded-lg sm:rounded-xl">
+          <div className="p-1.5 sm:p-3 bg-white/20 rounded-lg sm:rounded-xl flex-shrink-0">
             {isPositive ? (
-              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              <TrendingUp className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-white" />
             ) : (
-              <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              <TrendingDown className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-white" />
             )}
           </div>
         </div>
-        <p className={`mt-2 sm:mt-3 text-[10px] sm:text-sm ${isPositive ? "text-emerald-100" : "text-red-100"}`}>
+        <p className={`mt-1.5 sm:mt-3 text-[9px] sm:text-sm truncate ${isPositive ? "text-emerald-100" : "text-red-100"}`}>
           {isPositive ? "📈 Valorizada!" : "📉 Desvalorizada"}
         </p>
       </div>

@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, invalidateRecurringCache, invalidateTransactionCache } from "@/lib/api-utils";
+import { z } from "zod";
+import { validateBody } from "@/lib/schemas";
+
+const launchExpensesSchema = z.object({
+  expenseIds: z.array(z.string()).optional(),
+});
 
 export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  return withAuth(async (session, req) => {
+    const body = await req.json().catch(() => ({}));
+
+    const validation = validateBody(launchExpensesSchema, body);
+    if (!validation.success) {
+      // For backwards compatibility, allow empty body
     }
 
-    const body = await request.json().catch(() => ({}));
-    const { expenseIds } = body;
+    const expenseIds = validation.success ? validation.data.expenseIds : undefined;
 
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -44,7 +51,6 @@ export async function POST(request: NextRequest) {
     const updatedExpenses = [];
 
     for (const expense of expenses) {
-
       const dueDay = Math.min(expense.dueDay, new Date(currentYear, currentMonth + 1, 0).getDate());
       const transactionDate = new Date(currentYear, currentMonth, dueDay, 12, 0, 0);
 
@@ -67,16 +73,14 @@ export async function POST(request: NextRequest) {
       updatedExpenses.push(updated);
     }
 
+    // Invalidate related caches
+    invalidateRecurringCache(session.user.id);
+    invalidateTransactionCache(session.user.id);
+
     return NextResponse.json({
       launched: transactions.length,
       transactions,
       message: `${transactions.length} despesa(s) lançada(s) com sucesso`,
     });
-  } catch (error) {
-    console.error("Erro ao lançar despesas recorrentes:", error);
-    return NextResponse.json(
-      { error: "Erro ao lançar despesas recorrentes" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }

@@ -1,14 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse } from "@/lib/api-utils";
+import { checkRateLimit, getClientIp, rateLimitPresets } from "@/lib/rate-limit";
 
-export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
+export async function GET(request: Request) {
+  // Rate limit: 100 requests per minute
+  const rateLimit = checkRateLimit(getClientIp(request), {
+    ...rateLimitPresets.api,
+    identifier: "balance",
+  });
 
+  if (!rateLimit.success) {
+    return errorResponse("Muitas requisições. Tente novamente em breve.", 429, "RATE_LIMITED");
+  }
+
+  return withAuth(async (session) => {
     const transactions = await prisma.transaction.findMany({
       where: { userId: session.user.id },
       select: {
@@ -26,18 +32,19 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json({
-      balance,
-      formatted: new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      }).format(balance),
-    });
-  } catch (error) {
-    console.error("Erro ao calcular saldo:", error);
     return NextResponse.json(
-      { error: "Erro ao calcular saldo" },
-      { status: 500 }
+      {
+        balance,
+        formatted: new Intl.NumberFormat("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        }).format(balance),
+      },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=30, stale-while-revalidate=60",
+        },
+      }
     );
-  }
+  });
 }

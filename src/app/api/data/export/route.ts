@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withAuth } from "@/lib/api-utils";
 
 export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const transactions = await prisma.transaction.findMany({
       where: { userId: session.user.id },
       orderBy: { date: "desc" },
@@ -38,11 +33,5 @@ export async function GET() {
         "Content-Disposition": `attachment; filename="${filename}"`,
       },
     });
-  } catch (error) {
-    console.error("Erro ao exportar CSV:", error);
-    return NextResponse.json(
-      { error: "Erro ao exportar dados" },
-      { status: 500 }
-    );
-  }
+  });
 }

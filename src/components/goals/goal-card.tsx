@@ -66,8 +66,9 @@ export function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
               }}
               className="p-1.5 hover:bg-amber-500/20 active:bg-amber-500/30 rounded-lg transition-all"
               title="Editar"
+              aria-label="Editar meta"
             >
-              <Pencil className="w-4 h-4 text-amber-400" />
+              <Pencil className="w-4 h-4 text-amber-400" aria-hidden="true" />
             </button>
           )}
           <button
@@ -77,8 +78,9 @@ export function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
             }}
             className="p-1.5 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all"
             title="Remover"
+            aria-label="Remover meta"
           >
-            <Trash2 className="w-4 h-4 text-red-400" />
+            <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
           </button>
         </div>
       </div>

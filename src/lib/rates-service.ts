@@ -1,4 +1,4 @@
-
+import { CACHE_DURATIONS } from "@/lib/constants";
 
 export interface RateResult {
   code: string;
@@ -23,7 +23,6 @@ const RATE_CODES = {
 };
 
 let ratesCache: AllRates | null = null;
-const CACHE_DURATION = 60 * 60 * 1000;
 
 async function fetchBCBSeries(code: string): Promise<RateResult | null> {
   try {
@@ -90,7 +89,7 @@ function getSeriesUnit(code: string): string {
 
 function isCacheValid(): boolean {
   if (!ratesCache) return false;
-  return Date.now() - ratesCache.lastUpdate.getTime() < CACHE_DURATION;
+  return Date.now() - ratesCache.lastUpdate.getTime() < CACHE_DURATIONS.RATES;
 }
 
 export async function fetchAllRates(): Promise<AllRates> {

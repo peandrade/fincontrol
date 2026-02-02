@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
 import { X, CreditCard } from "lucide-react";
 import type { CreateCardInput } from "@/types/credit-card";
 import { CARD_COLORS } from "@/lib/card-constants";
@@ -14,6 +14,7 @@ interface CardModalProps {
 }
 
 export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalProps) {
+  const titleId = useId();
   const [name, setName] = useState("");
   const [lastDigits, setLastDigits] = useState("");
   const [limit, setLimit] = useState("");
@@ -48,20 +49,26 @@ export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalPr
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp"
+      >
         {}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)]">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl" style={{ backgroundColor: `${color}30` }}>
-              <CreditCard className="w-5 h-5" style={{ color }} />
+              <CreditCard className="w-5 h-5" style={{ color }} aria-hidden="true" />
             </div>
-            <h2 className="text-xl font-semibold text-[var(--text-primary)]">Novo Cartão</h2>
+            <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">Novo Cartão</h2>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Fechar"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
         </div>
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import type { CreatePurchaseInput } from "@/types/credit-card";
+import { withAuth, errorResponse, invalidateCardCache } from "@/lib/api-utils";
+import { createPurchaseSchema, validateBody } from "@/lib/schemas";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -51,13 +51,11 @@ async function getOrCreateInvoice(
   });
 
   if (!invoice) {
-
     const dueDate = new Date(year, month - 1, dueDay);
 
     let closingMonth = month;
     let closingYear = year;
     if (dueDay <= closingDay) {
-
       closingMonth -= 1;
       if (closingMonth < 1) {
         closingMonth = 12;
@@ -83,24 +81,23 @@ async function getOrCreateInvoice(
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session, req) => {
     const { id: creditCardId } = await params;
-    const body: Omit<CreatePurchaseInput, "creditCardId"> = await request.json();
+    const body = await req.json();
 
-    if (!body.description || !body.value || !body.date || !body.category) {
-      return NextResponse.json(
-        { error: "Descrição, valor, data e categoria são obrigatórios" },
-        { status: 400 }
-      );
+    // Override cardId with the one from params
+    const validation = validateBody(createPurchaseSchema, { ...body, cardId: creditCardId });
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const card = await prisma.creditCard.findUnique({
-      where: { id: creditCardId },
+    const { description, value, category, date, installments } = validation.data;
+
+    const card = await prisma.creditCard.findFirst({
+      where: {
+        id: creditCardId,
+        userId: session.user.id,
+      },
       include: {
         invoices: {
           where: {
@@ -111,14 +108,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!card) {
-      return NextResponse.json(
-        { error: "Cartão não encontrado" },
-        { status: 404 }
-      );
-    }
-
-    if (card.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Cartão não encontrado", 404, "NOT_FOUND");
     }
 
     const usedLimit = card.invoices.reduce(
@@ -127,31 +117,26 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
     const availableLimit = card.limit - usedLimit;
 
-    if (body.value > availableLimit) {
-      return NextResponse.json(
-        {
-          error: "Compra excede o limite disponível",
-          availableLimit,
-          requestedValue: body.value,
-        },
-        { status: 400 }
+    if (value > availableLimit) {
+      return errorResponse(
+        "Compra excede o limite disponível",
+        400,
+        "LIMIT_EXCEEDED"
       );
     }
 
-    const dateStr = typeof body.date === "string" ? body.date : body.date.toISOString();
-    const dateParts = dateStr.split("T")[0].split("-");
+    const dateParts = date.split("T")[0].split("-");
     const purchaseDate = new Date(
       parseInt(dateParts[0]),
       parseInt(dateParts[1]) - 1,
       parseInt(dateParts[2]),
       12, 0, 0, 0
     );
-    const installments = body.installments || 1;
-    const installmentValue = body.value / installments;
-    const parentPurchaseId = installments > 1 ? `parent_${Date.now()}` : null;
+    const installmentCount = installments || 1;
+    const installmentValue = value / installmentCount;
+    const parentPurchaseId = installmentCount > 1 ? `parent_${Date.now()}` : null;
 
-    for (let i = 0; i < installments; i++) {
-
+    for (let i = 0; i < installmentCount; i++) {
       const installmentDate = new Date(purchaseDate);
       installmentDate.setMonth(installmentDate.getMonth() + i);
 
@@ -172,18 +157,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       await prisma.purchase.create({
         data: {
           invoiceId: invoice.id,
-          description: installments > 1
-            ? `${body.description} (${i + 1}/${installments})`
-            : body.description,
+          description: installmentCount > 1
+            ? `${description} (${i + 1}/${installmentCount})`
+            : description,
           value: installmentValue,
-          totalValue: body.value,
-          category: body.category,
+          totalValue: value,
+          category,
           date: purchaseDate,
-          installments,
+          installments: installmentCount,
           currentInstallment: i + 1,
-          isRecurring: body.isRecurring || false,
+          isRecurring: false,
           parentPurchaseId,
-          notes: body.notes || null,
+          notes: null,
         },
       });
 
@@ -209,20 +194,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       },
     });
 
+    // Invalidate related caches
+    invalidateCardCache(session.user.id);
+
     return NextResponse.json(
       {
         card: updatedCard,
-        message: installments > 1
-          ? `Compra parcelada em ${installments}x adicionada`
+        message: installmentCount > 1
+          ? `Compra parcelada em ${installmentCount}x adicionada`
           : "Compra adicionada",
       },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("Erro ao adicionar compra:", error);
-    return NextResponse.json(
-      { error: "Erro ao adicionar compra" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }

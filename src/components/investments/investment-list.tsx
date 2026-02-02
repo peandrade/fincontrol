@@ -177,32 +177,35 @@ export function InvestmentList({
                     </div>
                   </div>
 
-                  {}
+                  {/* Action Buttons */}
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => onAddOperation(investment)}
                       className="p-1.5 hover:bg-emerald-500/20 active:bg-emerald-500/30 rounded-lg transition-all"
                       title="Nova operação"
+                      aria-label="Adicionar nova operação"
                     >
-                      <Plus className="w-4 h-4 text-emerald-400" />
+                      <Plus className="w-4 h-4 text-emerald-400" aria-hidden="true" />
                     </button>
                     <button
                       onClick={() => onEdit(investment)}
                       className="p-1.5 hover:bg-amber-500/20 active:bg-amber-500/30 rounded-lg transition-all"
                       title="Editar / Atualizar"
+                      aria-label="Editar investimento"
                     >
-                      <Pencil className="w-4 h-4 text-amber-400" />
+                      <Pencil className="w-4 h-4 text-amber-400" aria-hidden="true" />
                     </button>
                     <button
                       onClick={() => handleDeleteClick(investment)}
                       disabled={deletingId === investment.id}
                       className="p-1.5 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all disabled:opacity-50"
                       title="Excluir"
+                      aria-label="Excluir investimento"
                     >
                       {deletingId === investment.id ? (
-                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" aria-label="Excluindo..." />
                       ) : (
-                        <Trash2 className="w-4 h-4 text-red-400" />
+                        <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
                       )}
                     </button>
                   </div>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withAuth } from "@/lib/api-utils";
 
 export interface BudgetAlert {
   id: string;
@@ -14,13 +14,7 @@ export interface BudgetAlert {
 }
 
 export async function GET() {
-  try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const userId = session.user.id;
     const now = new Date();
     const month = now.getMonth() + 1;
@@ -166,11 +160,5 @@ export async function GET() {
     };
 
     return NextResponse.json({ alerts, summary });
-  } catch (error) {
-    console.error("Erro ao buscar alertas de orçamento:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar alertas de orçamento" },
-      { status: 500 }
-    );
-  }
+  });
 }

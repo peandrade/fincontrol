@@ -1,11 +1,36 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import {
+  checkRateLimit,
+  getClientIp,
+  rateLimitPresets,
+  rateLimitHeaders,
+} from "@/lib/rate-limit";
+
+// Password validation: min 8 chars, at least 1 uppercase, 1 lowercase, 1 number
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    // Rate limiting - 3 registrations per hour per IP
+    const clientIp = getClientIp(request);
+    const rateLimitResult = checkRateLimit(clientIp, {
+      ...rateLimitPresets.register,
+      identifier: "register",
+    });
 
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: "Muitas tentativas de registro. Tente novamente mais tarde." },
+        {
+          status: 429,
+          headers: rateLimitHeaders(rateLimitResult),
+        }
+      );
+    }
+
+    const body = await request.json();
     const { name, email, password } = body;
 
     if (!email || !password) {
@@ -23,15 +48,19 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 6) {
+    // Enhanced password validation
+    if (!PASSWORD_REGEX.test(password)) {
       return NextResponse.json(
-        { error: "A senha deve ter pelo menos 6 caracteres" },
+        {
+          error:
+            "A senha deve ter pelo menos 8 caracteres, incluindo maiúscula, minúscula e número",
+        },
         { status: 400 }
       );
     }
 
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email: email.toLowerCase().trim() },
     });
 
     if (existingUser) {
@@ -41,12 +70,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12); // Increased from 10 to 12 rounds
 
     const user = await prisma.user.create({
       data: {
         name: name || null,
-        email,
+        email: email.toLowerCase().trim(),
         password: hashedPassword,
       },
     });
@@ -57,7 +86,10 @@ export async function POST(request: Request) {
         email: user.email,
         name: user.name,
       },
-      { status: 201 }
+      {
+        status: 201,
+        headers: rateLimitHeaders(rateLimitResult),
+      }
     );
   } catch (error) {
     console.error("Erro ao registrar usuário:", error);

@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse } from "@/lib/api-utils";
+import { updateProfileSchema, validateBody } from "@/lib/schemas";
 
 export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -21,25 +17,23 @@ export async function GET() {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
+      return errorResponse("Usuário não encontrado", 404, "NOT_FOUND");
     }
 
     return NextResponse.json(user);
-  } catch (error) {
-    console.error("Erro ao buscar perfil:", error);
-    return NextResponse.json({ error: "Erro ao buscar perfil" }, { status: 500 });
-  }
+  });
 }
 
 export async function PUT(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  return withAuth(async (session, req) => {
+    const body = await req.json();
+
+    const validation = validateBody(updateProfileSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const body = await request.json();
-    const { name, image } = body;
+    const { name, image } = validation.data;
 
     const user = await prisma.user.update({
       where: { id: session.user.id },
@@ -57,8 +51,5 @@ export async function PUT(request: NextRequest) {
     });
 
     return NextResponse.json(user);
-  } catch (error) {
-    console.error("Erro ao atualizar perfil:", error);
-    return NextResponse.json({ error: "Erro ao atualizar perfil" }, { status: 500 });
-  }
+  }, request);
 }

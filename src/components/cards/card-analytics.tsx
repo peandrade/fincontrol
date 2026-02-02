@@ -1,8 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import {
-  AlertTriangle,
   TrendingUp,
   RefreshCw,
   PieChart,
@@ -13,75 +11,24 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { getCategoryColor } from "@/lib/constants";
 import { usePreferences } from "@/contexts";
+import { useCardsAnalytics } from "@/hooks";
+import type {
+  CardSpendingByCategory,
+  CardMonthlySpending,
+  CardAlert,
+  CardsAnalyticsData,
+} from "@/hooks";
 
 const HIDDEN = "•••••";
 
-interface CardSpendingByCategory {
-  category: string;
-  total: number;
-  percentage: number;
-  transactionCount: number;
-}
-
-interface CardMonthlySpending {
-  month: string;
-  monthLabel: string;
-  total: number;
-  cardBreakdown: {
-    cardId: string;
-    cardName: string;
-    cardColor: string;
-    total: number;
-  }[];
-}
-
-interface CardAlert {
-  type: "payment_due" | "high_usage" | "closing_soon";
-  cardId: string;
-  cardName: string;
-  cardColor: string;
-  message: string;
-  value?: number;
-  daysUntil?: number;
-}
-
-interface CardAnalyticsData {
-  spendingByCategory: CardSpendingByCategory[];
-  monthlySpending: CardMonthlySpending[];
-  alerts: CardAlert[];
-  summary: {
-    totalCards: number;
-    totalLimit: number;
-    totalUsed: number;
-    usagePercentage: number;
-    averageMonthlySpending: number;
-    totalSpendingLast6Months: number;
-  };
-}
+// Re-export types for backwards compatibility
+export type { CardSpendingByCategory, CardMonthlySpending, CardAlert };
+export type CardAnalyticsData = CardsAnalyticsData;
 
 export function CardAnalytics() {
-  const [data, setData] = useState<CardAnalyticsData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = useCardsAnalytics();
   const { privacy } = usePreferences();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const response = await fetch("/api/cards/analytics");
-      if (response.ok) {
-        const result = await response.json();
-        setData(result);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar analytics:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -99,76 +46,6 @@ export function CardAnalytics() {
 
   return (
     <div className="space-y-6">
-      {/* Alerts */}
-      {data.alerts.length > 0 && (
-        <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] p-4 sm:p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-red-500/10 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-red-400" />
-            </div>
-            <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-              Alertas de Cartões
-            </h3>
-          </div>
-
-          <div className="space-y-2 sm:space-y-3">
-            {data.alerts.map((alert, index) => (
-              <div
-                key={index}
-                className={`flex items-center gap-3 p-3 rounded-xl border ${
-                  alert.type === "payment_due"
-                    ? "bg-red-500/10 border-red-500/30"
-                    : alert.type === "closing_soon"
-                    ? "bg-amber-500/10 border-amber-500/30"
-                    : "bg-orange-500/10 border-orange-500/30"
-                }`}
-              >
-                <div
-                  className="w-8 h-6 rounded flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: alert.cardColor }}
-                >
-                  <CreditCard className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[var(--text-primary)] truncate">
-                    {alert.cardName}
-                  </p>
-                  <p
-                    className={`text-xs ${
-                      alert.type === "payment_due"
-                        ? "text-red-400"
-                        : alert.type === "closing_soon"
-                        ? "text-amber-400"
-                        : "text-orange-400"
-                    }`}
-                  >
-                    {alert.message}
-                  </p>
-                </div>
-                {alert.value && (
-                  <span
-                    className={`text-sm font-bold shrink-0 ${
-                      alert.type === "payment_due" ? "text-red-400" : "text-orange-400"
-                    }`}
-                  >
-                    {fmt(alert.value)}
-                  </span>
-                )}
-                {alert.type === "payment_due" || alert.type === "closing_soon" ? (
-                  <Clock
-                    className={`w-4 h-4 shrink-0 ${
-                      alert.type === "payment_due" ? "text-red-400" : "text-amber-400"
-                    }`}
-                  />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-orange-400 shrink-0" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Grid: Monthly Spending Trend + Spending by Category */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Monthly Spending Trend */}
@@ -262,6 +139,78 @@ export function CardAnalytics() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Component to render card alerts (for use in popups)
+export function CardAlertsContent({ alerts }: { alerts: CardAlert[] }) {
+  const { privacy } = usePreferences();
+  const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
+
+  if (alerts.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-sm text-[var(--text-muted)]">Nenhum alerta no momento</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 sm:space-y-3">
+      {alerts.map((alert, index) => (
+        <div
+          key={index}
+          className={`flex items-center gap-3 p-3 rounded-xl border ${
+            alert.type === "payment_due"
+              ? "bg-red-500/10 border-red-500/30"
+              : alert.type === "closing_soon"
+              ? "bg-amber-500/10 border-amber-500/30"
+              : "bg-orange-500/10 border-orange-500/30"
+          }`}
+        >
+          <div
+            className="w-8 h-6 rounded flex items-center justify-center shrink-0"
+            style={{ backgroundColor: alert.cardColor }}
+          >
+            <CreditCard className="w-4 h-4 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+              {alert.cardName}
+            </p>
+            <p
+              className={`text-xs ${
+                alert.type === "payment_due"
+                  ? "text-red-400"
+                  : alert.type === "closing_soon"
+                  ? "text-amber-400"
+                  : "text-orange-400"
+              }`}
+            >
+              {alert.message}
+            </p>
+          </div>
+          {alert.value && (
+            <span
+              className={`text-sm font-bold shrink-0 ${
+                alert.type === "payment_due" ? "text-red-400" : "text-orange-400"
+              }`}
+            >
+              {fmt(alert.value)}
+            </span>
+          )}
+          {alert.type === "payment_due" || alert.type === "closing_soon" ? (
+            <Clock
+              className={`w-4 h-4 shrink-0 ${
+                alert.type === "payment_due" ? "text-red-400" : "text-amber-400"
+              }`}
+            />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-orange-400 shrink-0" />
+          )}
+        </div>
+      ))}
     </div>
   );
 }

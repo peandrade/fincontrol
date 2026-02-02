@@ -12,15 +12,16 @@ import {
 } from "@/components/investments";
 import {
   PortfolioInsights,
-  AllocationTargets,
   PerformanceCards,
 } from "@/components/investments/investment-analytics";
+import { DividendsCard } from "@/components/investments";
 import type { InvestmentAnalyticsData } from "@/components/investments/investment-analytics";
 import { GoalSection } from "@/components/goals";
 import { GoalInsights } from "@/components/goals/goals-analytics";
 import type { GoalsAnalyticsData } from "@/components/goals/goals-analytics";
 import type { Investment, CreateInvestmentInput, CreateOperationInput, UpdateInvestmentInput } from "@/types";
 import { useInvestmentStore } from "@/store/investments-store";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function InvestmentsPage() {
   const [isInvestmentModalOpen, setIsInvestmentModalOpen] = useState(false);
@@ -246,7 +247,7 @@ export default function InvestmentsPage() {
       </div>
 
       {}
-      <div className="relative max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">
         {}
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
@@ -323,13 +324,16 @@ export default function InvestmentsPage() {
           </div>
         </header>
 
-        {}
-        <InvestmentSummaryCards summary={summary} />
+        <ErrorBoundary>
+          <InvestmentSummaryCards summary={summary} />
+        </ErrorBoundary>
 
         {/* Row 1: Alocação + Investimentos */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-1">
-            <AllocationChart data={allocation} />
+            <ErrorBoundary>
+              <AllocationChart data={allocation} />
+            </ErrorBoundary>
           </div>
           <div className="lg:col-span-2 lg:relative">
             <div className="lg:absolute lg:inset-0">
@@ -377,53 +381,48 @@ export default function InvestmentsPage() {
           </div>
         </div>
 
-        {/* Row 2: Metas + Alocação vs Meta */}
+        {/* Row 2: Metas + Proventos */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <div className="lg:relative">
-            <div className="lg:absolute lg:inset-0">
-              <GoalSection
-                headerExtra={
-                  hasGoalInsights ? (
-                    <div className="relative" ref={goalInsightsRef}>
-                      <button
-                        onClick={() => {
-                          setIsGoalInsightsOpen(!isGoalInsightsOpen);
-                          setIsPortfolioInsightsOpen(false);
-                        }}
-                        className={`flex items-center justify-center p-2 rounded-lg border transition-all ${
-                          isGoalInsightsOpen
-                            ? "border-blue-500/50 bg-blue-500/10"
-                            : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
-                        }`}
-                        title="Insights das Metas"
-                      >
-                        <Lightbulb className="w-4 h-4 text-blue-400" />
-                      </button>
-                      {isGoalInsightsOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-[380px] sm:w-[480px] max-h-[80vh] overflow-y-auto rounded-2xl shadow-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] z-50 animate-slideUp p-4">
-                          <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-blue-500/10 rounded-lg">
-                              <Lightbulb className="w-5 h-5 text-blue-400" />
-                            </div>
-                            <h3 className="text-base font-semibold text-[var(--text-primary)]">
-                              Insights das Metas
-                            </h3>
+          <ErrorBoundary>
+            <GoalSection
+              headerExtra={
+                hasGoalInsights ? (
+                  <div className="relative" ref={goalInsightsRef}>
+                    <button
+                      onClick={() => {
+                        setIsGoalInsightsOpen(!isGoalInsightsOpen);
+                        setIsPortfolioInsightsOpen(false);
+                      }}
+                      className={`flex items-center justify-center p-2 rounded-lg border transition-all ${
+                        isGoalInsightsOpen
+                          ? "border-blue-500/50 bg-blue-500/10"
+                          : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
+                      }`}
+                      title="Insights das Metas"
+                    >
+                      <Lightbulb className="w-4 h-4 text-blue-400" />
+                    </button>
+                    {isGoalInsightsOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-[380px] sm:w-[480px] max-h-[80vh] overflow-y-auto rounded-2xl shadow-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] z-50 animate-slideUp p-4">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="p-2 bg-blue-500/10 rounded-lg">
+                            <Lightbulb className="w-5 h-5 text-blue-400" />
                           </div>
-                          <GoalInsights insights={goalAnalyticsData.insights} />
+                          <h3 className="text-base font-semibold text-[var(--text-primary)]">
+                            Insights das Metas
+                          </h3>
                         </div>
-                      )}
-                    </div>
-                  ) : undefined
-                }
-              />
-            </div>
-          </div>
-          {hasAnalytics && (
-            <AllocationTargets
-              data={analyticsData.allocation}
-              summary={analyticsData.summary}
+                        <GoalInsights insights={goalAnalyticsData.insights} />
+                      </div>
+                    )}
+                  </div>
+                ) : undefined
+              }
             />
-          )}
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <DividendsCard />
+          </ErrorBoundary>
         </div>
 
         {/* Row 3: Performance (Melhores Desempenhos + Atenção Necessária) */}

@@ -1,6 +1,7 @@
 "use client";
 
-import { X, TrendingUp, TrendingDown, PiggyBank, Wallet, FileText } from "lucide-react";
+import { useId } from "react";
+import { X, TrendingUp, TrendingDown, PiggyBank, Wallet, FileText, Coins } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { isFixedIncome } from "@/types";
 import type { Investment, Operation, OperationType, InvestmentType } from "@/types";
@@ -12,6 +13,9 @@ interface TransactionHistoryModalProps {
 }
 
 function getOperationIcon(type: OperationType, isFixed: boolean) {
+  if (type === "dividend") {
+    return <Coins className="w-4 h-4" />;
+  }
   if (isFixed) {
     return type === "buy" || type === "deposit" ? (
       <PiggyBank className="w-4 h-4" />
@@ -27,6 +31,9 @@ function getOperationIcon(type: OperationType, isFixed: boolean) {
 }
 
 function getOperationLabel(type: OperationType, isFixed: boolean): string {
+  if (type === "dividend") {
+    return "Provento";
+  }
   if (isFixed) {
     return type === "buy" || type === "deposit" ? "Depósito" : "Resgate";
   }
@@ -47,6 +54,8 @@ export function TransactionHistoryModal({
   onClose,
   investment,
 }: TransactionHistoryModalProps) {
+  const titleId = useId();
+
   if (!isOpen || !investment) return null;
 
   const isFixed = isFixedIncome(investment.type as InvestmentType);
@@ -64,13 +73,22 @@ export function TransactionHistoryModal({
     .filter((op) => op.type === "sell" || op.type === "withdraw")
     .reduce((sum, op) => sum + op.total, 0);
 
+  const totalDividends = operations
+    .filter((op) => op.type === "dividend")
+    .reduce((sum, op) => sum + op.total, 0);
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-lg shadow-2xl animate-slideUp max-h-[90vh] flex flex-col">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-lg shadow-2xl animate-slideUp max-h-[90vh] flex flex-col"
+      >
         {}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)] flex-shrink-0">
           <div>
-            <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+            <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">
               Histórico de Transações
             </h2>
             <p className="text-[var(--text-dimmed)] text-sm">
@@ -80,14 +98,15 @@ export function TransactionHistoryModal({
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Fechar"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
         </div>
 
-        {}
+        {/* Summary */}
         <div className="p-4 border-b border-[var(--border-color-strong)] flex-shrink-0">
-          <div className="grid grid-cols-3 gap-4">
+          <div className={`grid gap-4 ${totalDividends > 0 ? "grid-cols-4" : "grid-cols-3"}`}>
             <div className="text-center">
               <p className="text-xs text-[var(--text-muted)] mb-1">
                 {isFixed ? "Depósitos" : "Compras"}
@@ -104,6 +123,14 @@ export function TransactionHistoryModal({
                 {formatCurrency(totalWithdrawals)}
               </p>
             </div>
+            {totalDividends > 0 && (
+              <div className="text-center">
+                <p className="text-xs text-[var(--text-muted)] mb-1">Proventos</p>
+                <p className="text-amber-400 font-semibold">
+                  {formatCurrency(totalDividends)}
+                </p>
+              </div>
+            )}
             <div className="text-center">
               <p className="text-xs text-[var(--text-muted)] mb-1">Operações</p>
               <p className="text-[var(--text-primary)] font-semibold">
@@ -156,14 +183,25 @@ function TransactionItem({
   operation: Operation;
   isFixed: boolean;
 }) {
+  const isDividend = operation.type === "dividend";
   const isDeposit = operation.type === "buy" || operation.type === "deposit";
-  const colorClass = isDeposit ? "text-emerald-400" : "text-red-400";
-  const bgClass = isDeposit ? "bg-emerald-500/10" : "bg-red-500/10";
+  const isPositive = isDividend || isDeposit;
+
+  const colorClass = isDividend
+    ? "text-amber-400"
+    : isPositive
+      ? "text-emerald-400"
+      : "text-red-400";
+  const bgClass = isDividend
+    ? "bg-amber-500/10"
+    : isPositive
+      ? "bg-emerald-500/10"
+      : "bg-red-500/10";
 
   return (
     <div className="bg-[var(--bg-hover)] rounded-xl p-4">
       <div className="flex items-start justify-between gap-3">
-        {}
+        {/* Left side */}
         <div className="flex items-start gap-3">
           <div className={`p-2 rounded-lg ${bgClass}`}>
             <span className={colorClass}>
@@ -179,7 +217,7 @@ function TransactionItem({
                 {formatDate(operation.date)}
               </span>
             </div>
-            {!isFixed && (
+            {!isFixed && !isDividend && (
               <p className="text-sm text-[var(--text-muted)] mt-0.5">
                 {operation.quantity.toLocaleString("pt-BR", {
                   maximumFractionDigits: 6,
@@ -195,16 +233,16 @@ function TransactionItem({
           </div>
         </div>
 
-        {}
+        {/* Right side */}
         <div className="text-right">
           <p className={`font-semibold ${colorClass}`}>
-            {isDeposit ? "+" : "-"}
+            {isPositive ? "+" : "-"}
             {formatCurrency(operation.total)}
           </p>
         </div>
       </div>
 
-      {}
+      {/* Notes */}
       {operation.notes && (
         <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
           <p className="text-sm text-[var(--text-muted)] flex items-start gap-2">

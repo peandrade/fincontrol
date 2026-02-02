@@ -1,48 +1,54 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { startOfMonth, endOfMonth, subMonths, startOfYear } from "date-fns";
+import { withAuth, errorResponse } from "@/lib/api-utils";
+import { startOfMonth, endOfMonth, startOfYear } from "date-fns";
+import {
+  getPeriodTotals,
+  getCategoryTotals,
+  getSpendingTrend,
+} from "@/lib/transaction-aggregations";
+import { serverCache, CacheTags, CacheTTL } from "@/lib/server-cache";
 
 export async function GET() {
-  try {
-    const session = await auth();
+  return withAuth(async (session) => {
+    try {
+      const userId = session.user.id;
+      const cacheKey = serverCache.userKey(userId, "financial-health");
 
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
-    const userId = session.user.id;
+      // Check cache first
+      const cached = serverCache.get(cacheKey);
+      if (cached) {
+        return NextResponse.json(cached, {
+          headers: {
+            "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+          },
+        });
+      }
     const now = new Date();
     const startOfCurrentMonth = startOfMonth(now);
     const endOfCurrentMonth = endOfMonth(now);
     const startOfYearDate = startOfYear(now);
-    const sixMonthsAgo = subMonths(now, 6);
 
-    // Fetch all necessary data in parallel
+    // Fetch all necessary data in parallel - using aggregations for transactions
     const [
-      monthlyTransactions,
-      yearlyTransactions,
+      monthlyTotals,
+      yearlyTotals,
+      categoryExpenses,
+      spendingTrendData,
       investments,
       creditCards,
       goals,
       budgets,
       recurringExpenses,
-      last6MonthsTransactions,
     ] = await Promise.all([
-      // Current month transactions
-      prisma.transaction.findMany({
-        where: {
-          userId,
-          date: { gte: startOfCurrentMonth, lte: endOfCurrentMonth },
-        },
-      }),
-      // Year to date transactions
-      prisma.transaction.findMany({
-        where: {
-          userId,
-          date: { gte: startOfYearDate, lte: now },
-        },
-      }),
+      // Current month totals (aggregated)
+      getPeriodTotals(userId, startOfCurrentMonth, endOfCurrentMonth),
+      // Year to date totals (aggregated)
+      getPeriodTotals(userId, startOfYearDate, now),
+      // Category expenses for current month (aggregated)
+      getCategoryTotals(userId, startOfCurrentMonth, endOfCurrentMonth, "expense"),
+      // Spending trend over 6 months (aggregated)
+      getSpendingTrend(userId, 6),
       // Investments
       prisma.investment.findMany({
         where: { userId },
@@ -68,39 +74,19 @@ export async function GET() {
       prisma.recurringExpense.findMany({
         where: { userId, isActive: true },
       }),
-      // Last 6 months transactions for trends
-      prisma.transaction.findMany({
-        where: {
-          userId,
-          date: { gte: sixMonthsAgo, lte: now },
-        },
-        orderBy: { date: "asc" },
-      }),
     ]);
 
     // === CALCULATE SAVINGS RATE ===
-    const monthlyIncome = monthlyTransactions
-      .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + t.value, 0);
-
-    const monthlyExpenses = monthlyTransactions
-      .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + t.value, 0);
-
-    const monthlySavings = monthlyIncome - monthlyExpenses;
+    const monthlyIncome = monthlyTotals.income;
+    const monthlyExpenses = monthlyTotals.expense;
+    const monthlySavings = monthlyTotals.balance;
     const monthlySavingsRate = monthlyIncome > 0
       ? (monthlySavings / monthlyIncome) * 100
       : 0;
 
-    const yearlyIncome = yearlyTransactions
-      .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + t.value, 0);
-
-    const yearlyExpenses = yearlyTransactions
-      .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + t.value, 0);
-
-    const yearlySavings = yearlyIncome - yearlyExpenses;
+    const yearlyIncome = yearlyTotals.income;
+    const yearlyExpenses = yearlyTotals.expense;
+    const yearlySavings = yearlyTotals.balance;
     const yearlySavingsRate = yearlyIncome > 0
       ? (yearlySavings / yearlyIncome) * 100
       : 0;
@@ -142,17 +128,16 @@ export async function GET() {
     const diversificationScore = Math.min(investmentTypes / 5, 1) * 100; // Max 5 types for 100%
 
     // === CALCULATE BUDGET ADHERENCE ===
-    const categoryExpenses = monthlyTransactions
-      .filter((t) => t.type === "expense")
-      .reduce((acc, t) => {
-        acc[t.category] = (acc[t.category] || 0) + t.value;
-        return acc;
-      }, {} as Record<string, number>);
+    // Convert categoryExpenses array to map for O(1) lookup
+    const categoryExpensesMap: Record<string, number> = {};
+    for (const cat of categoryExpenses) {
+      categoryExpensesMap[cat.category] = cat.total;
+    }
 
     let budgetAdherence = 100;
     if (budgets.length > 0) {
       const budgetStatuses = budgets.map((budget) => {
-        const spent = categoryExpenses[budget.category] || 0;
+        const spent = categoryExpensesMap[budget.category] || 0;
         const percentage = budget.limit > 0 ? (spent / budget.limit) * 100 : 0;
         return Math.min(percentage, 200); // Cap at 200% to avoid extreme values
       });
@@ -160,28 +145,8 @@ export async function GET() {
       budgetAdherence = Math.max(0, 100 - Math.max(0, avgBudgetUsage - 100));
     }
 
-    // === CALCULATE SPENDING TREND ===
-    const monthlyData = new Map<string, { income: number; expense: number }>();
-    last6MonthsTransactions.forEach((t) => {
-      const monthKey = `${t.date.getFullYear()}-${t.date.getMonth()}`;
-      if (!monthlyData.has(monthKey)) {
-        monthlyData.set(monthKey, { income: 0, expense: 0 });
-      }
-      const data = monthlyData.get(monthKey)!;
-      if (t.type === "income") {
-        data.income += t.value;
-      } else {
-        data.expense += t.value;
-      }
-    });
-
-    const monthlyArray = Array.from(monthlyData.values());
-    let spendingTrend = 0;
-    if (monthlyArray.length >= 2) {
-      const recentExpenses = monthlyArray.slice(-3).reduce((a, b) => a + b.expense, 0) / 3;
-      const olderExpenses = monthlyArray.slice(0, -3).reduce((a, b) => a + b.expense, 0) / Math.max(monthlyArray.length - 3, 1);
-      spendingTrend = olderExpenses > 0 ? ((recentExpenses - olderExpenses) / olderExpenses) * 100 : 0;
-    }
+    // === SPENDING TREND (already calculated via aggregation) ===
+    const spendingTrend = spendingTrendData.trend;
 
     // === CALCULATE FINANCIAL HEALTH SCORE (0-1000) ===
     const scores = {
@@ -246,7 +211,7 @@ export async function GET() {
       tips.push("Revise seus orçamentos - você está gastando além do planejado");
     }
 
-    return NextResponse.json({
+    const result = {
       score: finalScore,
       scoreLevel,
       scoreMessage,
@@ -292,12 +257,22 @@ export async function GET() {
         spendingTrend,
       },
       componentScores: scores,
+    };
+
+    // Cache the result for 5 minutes
+    serverCache.set(cacheKey, result, {
+      ttl: CacheTTL.MEDIUM,
+      tags: [CacheTags.HEALTH_SCORE, CacheTags.TRANSACTIONS, CacheTags.INVESTMENTS, CacheTags.CARDS, CacheTags.GOALS, CacheTags.BUDGETS],
     });
-  } catch (error) {
-    console.error("Erro ao calcular saúde financeira:", error);
-    return NextResponse.json(
-      { error: "Erro ao calcular saúde financeira" },
-      { status: 500 }
-    );
-  }
+
+    return NextResponse.json(result, {
+      headers: {
+        "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+      },
+    });
+    } catch (error) {
+      console.error("Erro ao calcular saúde financeira:", error);
+      return errorResponse("Erro ao calcular saúde financeira", 500, "HEALTH_SCORE_ERROR");
+    }
+  });
 }

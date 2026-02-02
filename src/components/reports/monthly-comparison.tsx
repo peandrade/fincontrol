@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useId } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -29,6 +29,7 @@ const MONTH_NAMES = [
 
 export function MonthlyComparison({ transactions, currentMonth, currentYear }: MonthlyComparisonProps) {
   const { privacy } = usePreferences();
+  const descriptionId = useId();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
   const { chartData, comparison } = useMemo(() => {
 
@@ -222,8 +223,15 @@ export function MonthlyComparison({ transactions, currentMonth, currentYear }: M
         </div>
       </div>
 
-      {}
-      <div className="h-64">
+      {/* Chart */}
+      <p id={descriptionId} className="sr-only">
+        Gráfico de barras comparando receitas e despesas dos últimos 3 meses.
+        {privacy.hideValues
+          ? " Valores ocultos."
+          : ` Mês atual: receitas ${formatCurrency(comparison.receitas.current)}, despesas ${formatCurrency(comparison.despesas.current)}.`
+        }
+      </p>
+      <div className="h-64" role="img" aria-describedby={descriptionId}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} barGap={8}>
             <XAxis

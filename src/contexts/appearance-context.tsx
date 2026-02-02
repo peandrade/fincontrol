@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-export type ColorPalette = "violet" | "blue" | "emerald" | "amber" | "pink" | "red" | "cyan" | "indigo";
+export type ColorPalette = "purple" | "blue" | "emerald" | "amber" | "pink" | "red" | "cyan" | "indigo";
 export type FontWeight = "light" | "regular" | "medium" | "semibold" | "bold";
 export type FontSize = "small" | "normal" | "large";
 
@@ -19,13 +19,13 @@ interface AppearanceContextType {
 }
 
 const defaultSettings: AppearanceSettings = {
-  colorPalette: "violet",
+  colorPalette: "purple",
   fontWeight: "regular",
   fontSize: "normal",
 };
 
 const colorPalettes: Record<ColorPalette, { primary: string; secondary: string; name: string }> = {
-  violet: { primary: "#8B5CF6", secondary: "#6366F1", name: "Violeta" },
+  purple: { primary: "#9333EA", secondary: "#7C3AED", name: "Roxo" },
   blue: { primary: "#3B82F6", secondary: "#2563EB", name: "Azul" },
   emerald: { primary: "#10B981", secondary: "#059669", name: "Verde" },
   amber: { primary: "#F59E0B", secondary: "#D97706", name: "Laranja" },

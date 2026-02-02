@@ -156,16 +156,18 @@ export function CardList({
                       onClick={(e) => handleDeleteClick(e, card)}
                       disabled={deletingId === card.id}
                       className="p-1.5 sm:p-2 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all"
+                      title="Excluir cartão"
+                      aria-label="Excluir cartão"
                     >
                       {deletingId === card.id ? (
-                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" aria-label="Excluindo..." />
                       ) : (
-                        <Trash2 className="w-4 h-4 text-red-400" />
+                        <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
                       )}
                     </button>
                     <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${
                       isSelected ? "rotate-90" : ""
-                    }`} style={{ color: "var(--text-dimmed)" }} />
+                    }`} style={{ color: "var(--text-dimmed)" }} aria-hidden="true" />
                   </div>
                 </div>
               </div>

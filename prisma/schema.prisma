@@ -73,6 +73,9 @@ model Transaction {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, date])
+  @@index([userId, type])
+  @@index([userId, category])
   @@map("transactions")
 }
 
@@ -154,6 +157,8 @@ model Investment {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([userId, type])
   @@map("investments")
 }
 
@@ -170,6 +175,8 @@ model Operation {
   notes        String?
   createdAt    DateTime   @default(now())
 
+  @@index([investmentId, date])
+  @@index([investmentId, type])
   @@map("operations")
 }
 
@@ -201,6 +208,7 @@ model CreditCard {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, isActive])
   @@map("credit_cards")
 }
 
@@ -220,6 +228,7 @@ model Invoice {
 
   purchases Purchase[]
 
+  @@index([creditCardId, status])
   @@unique([creditCardId, month, year])
   @@map("invoices")
 }
@@ -240,6 +249,7 @@ model Purchase {
   notes              String?
   createdAt          DateTime @default(now())
 
+  @@index([invoiceId, date])
   @@map("purchases")
 }
 
@@ -259,6 +269,7 @@ model Budget {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, month, year])
   @@unique([category, month, year, userId])
   @@map("budgets")
 }
@@ -319,6 +330,9 @@ model FinancialGoal {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([userId, isCompleted])
+  @@index([userId, category])
   @@map("financial_goals")
 }
 
@@ -331,5 +345,6 @@ model GoalContribution {
   notes     String?
   createdAt DateTime      @default(now())
 
+  @@index([goalId, date])
   @@map("goal_contributions")
 }

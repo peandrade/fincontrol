@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   TrendingUp,
   TrendingDown,
@@ -17,64 +17,10 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { usePreferences } from "@/contexts";
+import { useFinancialHealth } from "@/hooks";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const HIDDEN = "•••••";
-
-interface FinancialHealthData {
-  score: number;
-  scoreLevel: "excellent" | "good" | "fair" | "poor";
-  scoreMessage: string;
-  tips: string[];
-  details: {
-    savingsRate: {
-      monthly: {
-        income: number;
-        expenses: number;
-        savings: number;
-        rate: number;
-      };
-      yearly: {
-        income: number;
-        expenses: number;
-        savings: number;
-        rate: number;
-      };
-    };
-    creditUtilization: {
-      limit: number;
-      used: number;
-      percentage: number;
-    };
-    emergencyFund: {
-      current: number;
-      monthlyExpenses: number;
-      monthsCovered: number;
-      target: number;
-    };
-    goals: {
-      total: number;
-      completed: number;
-      progress: number;
-    };
-    investments: {
-      total: number;
-      types: number;
-      diversification: number;
-      byType: Record<string, number>;
-    };
-    budgetAdherence: number;
-    spendingTrend: number;
-  };
-  componentScores: {
-    savingsRate: number;
-    creditUtilization: number;
-    emergencyFund: number;
-    goalsProgress: number;
-    diversification: number;
-    budgetAdherence: number;
-    spendingTrend: number;
-  };
-}
 
 const scoreColors = {
   excellent: { bg: "from-emerald-500 to-teal-500", text: "text-emerald-400", ring: "ring-emerald-500/30" },
@@ -84,36 +30,41 @@ const scoreColors = {
 };
 
 export function FinancialHealthScore() {
-  const [data, setData] = useState<FinancialHealthData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading, refresh } = useFinancialHealth();
   const [isExpanded, setIsExpanded] = useState(false);
   const { privacy } = usePreferences();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/financial-health");
-      if (response.ok) {
-        const result = await response.json();
-        setData(result);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar saúde financeira:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   if (isLoading) {
     return (
-      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] p-4 sm:p-6">
-        <div className="flex items-center justify-center py-8">
-          <RefreshCw className="w-6 h-6 text-[var(--text-dimmed)] animate-spin" />
+      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden">
+        {/* Header skeleton */}
+        <div className="bg-gradient-to-br from-gray-500/50 to-gray-600/50 p-4 sm:p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Skeleton className="h-9 w-9 rounded-lg" />
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          </div>
+          <div className="flex items-center justify-center">
+            <Skeleton className="h-24 w-24 sm:h-32 sm:w-32 rounded-full" />
+          </div>
+        </div>
+        {/* Content skeleton */}
+        <div className="p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-6 w-16" />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-[var(--bg-hover)] rounded-lg p-2">
+                <Skeleton className="h-3 w-12 mb-1 mx-auto" />
+                <Skeleton className="h-4 w-16 mx-auto" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -139,10 +90,12 @@ export function FinancialHealthScore() {
             </div>
           </div>
           <button
-            onClick={fetchData}
+            onClick={refresh}
             className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+            title="Atualizar"
+            aria-label="Atualizar score financeiro"
           >
-            <RefreshCw className="w-4 h-4 text-white/80" />
+            <RefreshCw className="w-4 h-4 text-white/80" aria-hidden="true" />
           </button>
         </div>
 

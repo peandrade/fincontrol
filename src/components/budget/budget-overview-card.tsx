@@ -136,7 +136,7 @@ export function BudgetOverviewCard({ refreshTrigger = 0 }: BudgetOverviewCardPro
 
   if (isLoading) {
     return (
-      <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
+      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] p-4 sm:p-6">
         <div className="flex items-center justify-center py-4">
           <RefreshCw className="w-5 h-5 text-[var(--text-dimmed)] animate-spin" />
         </div>
@@ -155,19 +155,19 @@ export function BudgetOverviewCard({ refreshTrigger = 0 }: BudgetOverviewCardPro
 
   return (
     <>
-      <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[420px]">
+      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[420px]">
         {/* Header */}
-        <div className="p-4 sm:p-5 flex-shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary-soft rounded-lg">
-                <Wallet className="w-5 h-5 text-primary-color" />
+        <div className="p-3 sm:p-5 flex-shrink-0">
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="p-1.5 sm:p-2 bg-primary-soft rounded-lg flex-shrink-0">
+                <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-primary-color" />
               </div>
-              <div>
-                <h3 className="text-base font-semibold text-[var(--text-primary)]">
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] truncate">
                   Orçamento Mensal
                 </h3>
-                <p className="text-xs text-[var(--text-dimmed)]">
+                <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)] truncate">
                   {new Date(data?.year || 0, (data?.month || 1) - 1).toLocaleDateString("pt-BR", {
                     month: "long",
                     year: "numeric",
@@ -177,23 +177,23 @@ export function BudgetOverviewCard({ refreshTrigger = 0 }: BudgetOverviewCardPro
             </div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary text-xs"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary text-[10px] sm:text-xs flex-shrink-0"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               Novo
             </button>
           </div>
 
           {/* Progress bar geral */}
           {hasBudgets && (
-            <div className="bg-[var(--bg-hover)] rounded-xl p-3">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs text-[var(--text-muted)]">Total do mês</span>
-                <div className="text-right">
-                  <span className="text-sm font-bold text-[var(--text-primary)]">
+            <div className="bg-[var(--bg-hover)] rounded-lg sm:rounded-xl p-2.5 sm:p-3">
+              <div className="flex items-center justify-between mb-1.5 gap-2">
+                <span className="text-[10px] sm:text-xs text-[var(--text-muted)]">Total do mês</span>
+                <div className="text-right min-w-0">
+                  <span className="text-xs sm:text-sm font-bold text-[var(--text-primary)]">
                     {fmt(summary.totalSpent)}
                   </span>
-                  <span className="text-xs text-[var(--text-dimmed)]">
+                  <span className="text-[10px] sm:text-xs text-[var(--text-dimmed)]">
                     {" "}/ {fmt(summary.totalLimit)}
                   </span>
                 </div>

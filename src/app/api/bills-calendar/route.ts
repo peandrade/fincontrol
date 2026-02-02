@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { addMonths, startOfMonth, endOfMonth, format } from "date-fns";
+import { withAuth, errorResponse } from "@/lib/api-utils";
+import { addMonths, endOfMonth, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export interface BillEvent {
@@ -38,21 +38,16 @@ export interface CashFlowProjection {
 }
 
 export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
+  return withAuth(async (session, req) => {
+    try {
+      const userId = session.user.id;
+      const now = new Date();
+      const todayDate = now.getDate();
+      const todayMonth = now.getMonth();
+      const todayYear = now.getFullYear();
 
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
-    const userId = session.user.id;
-    const now = new Date();
-    const todayDate = now.getDate();
-    const todayMonth = now.getMonth();
-    const todayYear = now.getFullYear();
-
-    // Accept month/year query params for navigation
-    const searchParams = request.nextUrl.searchParams;
+      // Accept month/year query params for navigation
+      const searchParams = (req as NextRequest).nextUrl.searchParams;
     const reqMonth = parseInt(searchParams.get("month") || String(todayMonth + 1));
     const reqYear = parseInt(searchParams.get("year") || String(todayYear));
 
@@ -282,13 +277,11 @@ export async function GET(request: NextRequest) {
           : null,
       },
       currentMonth: reqMonth,
-      currentYear: reqYear,
-    });
-  } catch (error) {
-    console.error("Erro ao buscar calendário de contas:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar calendário de contas" },
-      { status: 500 }
-    );
-  }
+        currentYear: reqYear,
+      });
+    } catch (error) {
+      console.error("Erro ao buscar calendário de contas:", error);
+      return errorResponse("Erro ao buscar calendário de contas", 500, "BILLS_CALENDAR_ERROR");
+    }
+  }, request);
 }

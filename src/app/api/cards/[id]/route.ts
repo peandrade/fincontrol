@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateCardCache } from "@/lib/api-utils";
+import { updateCreditCardSchema, validateBody } from "@/lib/schemas";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const { id } = await params;
 
     const card = await prisma.creditCard.findUnique({
@@ -20,9 +16,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       include: {
         invoices: {
           orderBy: [{ year: "desc" }, { month: "desc" }],
+          take: 12, // Limit invoices to prevent N+1
           include: {
             purchases: {
               orderBy: { date: "desc" },
+              take: 50, // Limit purchases per invoice
             },
           },
         },
@@ -30,54 +28,43 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!card) {
-      return NextResponse.json(
-        { error: "Cartão não encontrado" },
-        { status: 404 }
-      );
+      return errorResponse("Cartão não encontrado", 404, "NOT_FOUND");
     }
 
     if (card.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Não autorizado", 403, "FORBIDDEN");
     }
 
     return NextResponse.json(card);
-  } catch (error) {
-    console.error("Erro ao buscar cartão:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar cartão" },
-      { status: 500 }
-    );
-  }
+  });
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session, req) => {
     const { id } = await params;
-    const body = await request.json();
+    const body = await req.json();
+
+    // Validate with Zod schema
+    const validation = validateBody(updateCreditCardSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
+    }
 
     const existing = await prisma.creditCard.findUnique({
       where: { id },
     });
 
     if (!existing) {
-      return NextResponse.json(
-        { error: "Cartão não encontrado" },
-        { status: 404 }
-      );
+      return errorResponse("Cartão não encontrado", 404, "NOT_FOUND");
     }
 
     if (existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Não autorizado", 403, "FORBIDDEN");
     }
 
     const card = await prisma.creditCard.update({
       where: { id },
-      data: body,
+      data: validation.data,
       include: {
         invoices: {
           orderBy: [{ year: "desc" }, { month: "desc" }],
@@ -86,23 +73,15 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       },
     });
 
+    // Invalidate related caches
+    invalidateCardCache(session.user.id);
+
     return NextResponse.json(card);
-  } catch (error) {
-    console.error("Erro ao atualizar cartão:", error);
-    return NextResponse.json(
-      { error: "Erro ao atualizar cartão" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const { id } = await params;
 
     const existing = await prisma.creditCard.findUnique({
@@ -110,26 +89,20 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!existing) {
-      return NextResponse.json(
-        { error: "Cartão não encontrado" },
-        { status: 404 }
-      );
+      return errorResponse("Cartão não encontrado", 404, "NOT_FOUND");
     }
 
     if (existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Não autorizado", 403, "FORBIDDEN");
     }
 
     await prisma.creditCard.delete({
       where: { id },
     });
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Erro ao deletar cartão:", error);
-    return NextResponse.json(
-      { error: "Erro ao deletar cartão" },
-      { status: 500 }
-    );
-  }
+    // Invalidate related caches
+    invalidateCardCache(session.user.id);
+
+    return new NextResponse(null, { status: 204 });
+  });
 }

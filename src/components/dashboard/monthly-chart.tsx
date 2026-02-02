@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import {
   AreaChart,
   Area,
@@ -77,13 +78,18 @@ function ChartTooltip({
 export function MonthlyChart({ data, period, onPeriodChange }: MonthlyChartProps) {
   const { theme } = useTheme();
   const { privacy } = usePreferences();
+  const descriptionId = useId();
   const currentPeriodLabel = PERIOD_OPTIONS.find(p => p.value === period)?.label || "6 Meses";
 
   const axisTickColor = theme === "dark" ? "#9CA3AF" : "#4B5563";
 
+  // Calculate totals for accessibility description
+  const totalIncome = data.reduce((sum, d) => sum + d.income, 0);
+  const totalExpense = data.reduce((sum, d) => sum + d.expense, 0);
+
   return (
     <div
-      className="backdrop-blur rounded-2xl p-6 transition-colors duration-300 h-full"
+      className="backdrop-blur rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-colors duration-300 h-full overflow-hidden"
       style={{
         backgroundColor: "var(--card-bg)",
         borderWidth: "1px",
@@ -106,15 +112,15 @@ export function MonthlyChart({ data, period, onPeriodChange }: MonthlyChartProps
           color: ${theme === "dark" ? "#f3f4f6" : "#1f2937"};
         }
       `}</style>
-      <div className="flex items-center justify-between mb-1">
-        <h3 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+      <div className="flex items-center justify-between mb-1 gap-2">
+        <h3 className="text-base sm:text-lg font-semibold truncate" style={{ color: "var(--text-primary)" }}>
           Evolução Financeira
         </h3>
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <select
             value={period}
             onChange={(e) => onPeriodChange(e.target.value as EvolutionPeriod)}
-            className="period-select appearance-none cursor-pointer px-3 py-1.5 pr-8 rounded-lg text-sm font-medium transition-colors"
+            className="period-select appearance-none cursor-pointer px-2 sm:px-3 py-1 sm:py-1.5 pr-6 sm:pr-8 rounded-lg text-xs sm:text-sm font-medium transition-colors"
             style={{
               backgroundColor: "var(--bg-hover)",
               color: "var(--text-primary)",
@@ -130,15 +136,19 @@ export function MonthlyChart({ data, period, onPeriodChange }: MonthlyChartProps
             ))}
           </select>
           <ChevronDown
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+            className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 pointer-events-none"
             style={{ color: "var(--text-muted)" }}
           />
         </div>
       </div>
-      <p className="text-sm mb-6" style={{ color: "var(--text-dimmed)" }}>
-        Receitas vs Despesas ({currentPeriodLabel.toLowerCase()})
+      <p className="text-xs sm:text-sm mb-4 sm:mb-6" style={{ color: "var(--text-dimmed)" }}>
+        Receitas vs Despesas
       </p>
-      <div className="h-64">
+      <p id={descriptionId} className="sr-only">
+        Gráfico de evolução financeira mostrando receitas e despesas no período de {currentPeriodLabel.toLowerCase()}.
+        {privacy.hideValues ? " Valores ocultos." : ` Total de receitas: ${formatCurrency(totalIncome)}. Total de despesas: ${formatCurrency(totalExpense)}.`}
+      </p>
+      <div className="h-48 sm:h-64" role="img" aria-describedby={descriptionId}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data}>
             <defs>
@@ -187,14 +197,14 @@ export function MonthlyChart({ data, period, onPeriodChange }: MonthlyChartProps
           </AreaChart>
         </ResponsiveContainer>
       </div>
-      <div className="flex items-center justify-center gap-6 mt-4">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-emerald-500" />
-          <span className="text-sm" style={{ color: "var(--text-muted)" }}>Receitas</span>
+      <div className="flex items-center justify-center gap-4 sm:gap-6 mt-3 sm:mt-4">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500" />
+          <span className="text-xs sm:text-sm" style={{ color: "var(--text-muted)" }}>Receitas</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-indigo-500" />
-          <span className="text-sm" style={{ color: "var(--text-muted)" }}>Despesas</span>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-indigo-500" />
+          <span className="text-xs sm:text-sm" style={{ color: "var(--text-muted)" }}>Despesas</span>
         </div>
       </div>
     </div>

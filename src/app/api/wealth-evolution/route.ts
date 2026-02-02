@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse } from "@/lib/api-utils";
+import { Prisma } from "@prisma/client";
+import { serverCache, CacheTags, CacheTTL } from "@/lib/server-cache";
+import { toNumber } from "@/lib/decimal-utils";
 
 interface WealthDataPoint {
   month: string;
@@ -12,15 +15,45 @@ interface WealthDataPoint {
   goalsSaved: number;
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
+interface TransactionAggregate {
+  period: Date;
+  type: string;
+  total: Prisma.Decimal;
+}
 
-    const { searchParams } = new URL(request.url);
-    const period = searchParams.get("period") || "1y";
+interface OperationAggregate {
+  period: Date;
+  type: string;
+  total: Prisma.Decimal;
+}
+
+const VALID_PERIODS = ["1w", "1m", "3m", "6m", "1y"] as const;
+type ValidPeriod = (typeof VALID_PERIODS)[number];
+
+function isValidPeriod(value: string): value is ValidPeriod {
+  return VALID_PERIODS.includes(value as ValidPeriod);
+}
+
+export async function GET(request: NextRequest) {
+  return withAuth(async (session, req) => {
+    try {
+      const userId = session.user.id;
+      const { searchParams } = new URL(req.url);
+      const periodParam = searchParams.get("period") || "1y";
+
+      // Validate period against whitelist
+      const period = isValidPeriod(periodParam) ? periodParam : "1y";
+
+      // Check cache first
+      const cacheKey = serverCache.userKey(userId, `wealth-evolution:${period}`);
+      const cached = serverCache.get(cacheKey);
+      if (cached) {
+        return NextResponse.json(cached, {
+          headers: {
+            "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+          },
+        });
+      }
 
     const now = new Date();
     let startDate: Date;
@@ -44,89 +77,120 @@ export async function GET(request: NextRequest) {
       case "1y":
         startDate = new Date(now.getFullYear() - 1, now.getMonth(), 1);
         break;
-      default:
-        startDate = new Date(now.getFullYear() - 1, now.getMonth(), 1);
     }
 
-    const [transactions, operations, invoices, goals] = await Promise.all([
-      prisma.transaction.findMany({
-        where: {
-          userId: session.user.id,
-          date: { gte: startDate },
-        },
-        orderBy: { date: "asc" },
-      }),
-      prisma.operation.findMany({
-        where: {
-          date: { gte: startDate },
-          investment: {
-            userId: session.user.id,
-          },
-        },
-        orderBy: { date: "asc" },
-      }),
+    // All queries in parallel - including initial balances
+    const [
+      initialTransactionBalance,
+      initialInvestmentBalance,
+      transactionsByPeriod,
+      operationsByPeriod,
+      unpaidInvoices,
+      goals,
+    ] = await Promise.all([
+      // Initial transaction balance (before startDate)
+      prisma.$queryRaw<[{ balance: Prisma.Decimal | null }]>`
+        SELECT COALESCE(
+          SUM(CASE WHEN type = 'income' THEN value ELSE -value END),
+          0
+        ) as balance
+        FROM transactions
+        WHERE "userId" = ${userId} AND date < ${startDate}
+      `,
+
+      // Initial investment balance (before startDate)
+      prisma.$queryRaw<[{ balance: Prisma.Decimal | null }]>`
+        SELECT COALESCE(
+          SUM(CASE
+            WHEN o.type IN ('buy', 'deposit') THEN o.total
+            WHEN o.type IN ('sell', 'withdraw') THEN -o.total
+            ELSE 0
+          END),
+          0
+        ) as balance
+        FROM operations o
+        JOIN investments i ON o."investmentId" = i.id
+        WHERE i."userId" = ${userId} AND o.date < ${startDate}
+      `,
+
+      // Transactions grouped by period
+      groupByDay
+        ? prisma.$queryRaw<TransactionAggregate[]>`
+            SELECT
+              DATE_TRUNC('day', date) as period,
+              type::text,
+              SUM(value) as total
+            FROM transactions
+            WHERE "userId" = ${userId} AND date >= ${startDate}
+            GROUP BY DATE_TRUNC('day', date), type
+            ORDER BY period
+          `
+        : prisma.$queryRaw<TransactionAggregate[]>`
+            SELECT
+              DATE_TRUNC('month', date) as period,
+              type::text,
+              SUM(value) as total
+            FROM transactions
+            WHERE "userId" = ${userId} AND date >= ${startDate}
+            GROUP BY DATE_TRUNC('month', date), type
+            ORDER BY period
+          `,
+
+      // Operations grouped by period
+      groupByDay
+        ? prisma.$queryRaw<OperationAggregate[]>`
+            SELECT
+              DATE_TRUNC('day', o.date) as period,
+              o.type,
+              SUM(o.total) as total
+            FROM operations o
+            JOIN investments i ON o."investmentId" = i.id
+            WHERE i."userId" = ${userId} AND o.date >= ${startDate}
+            GROUP BY DATE_TRUNC('day', o.date), o.type
+            ORDER BY period
+          `
+        : prisma.$queryRaw<OperationAggregate[]>`
+            SELECT
+              DATE_TRUNC('month', o.date) as period,
+              o.type,
+              SUM(o.total) as total
+            FROM operations o
+            JOIN investments i ON o."investmentId" = i.id
+            WHERE i."userId" = ${userId} AND o.date >= ${startDate}
+            GROUP BY DATE_TRUNC('month', o.date), o.type
+            ORDER BY period
+          `,
+
+      // Unpaid invoices (for card debt)
       prisma.invoice.findMany({
         where: {
-          creditCard: {
-            userId: session.user.id,
-          },
-          OR: [
-            { year: { gt: startDate.getFullYear() } },
-            {
-              AND: [
-                { year: startDate.getFullYear() },
-                { month: { gte: startDate.getMonth() + 1 } },
-              ],
-            },
-          ],
+          creditCard: { userId },
+          status: { not: "paid" },
         },
-        include: { purchases: true },
+        select: {
+          month: true,
+          year: true,
+          total: true,
+          paidAmount: true,
+        },
       }),
-      prisma.financialGoal.findMany({
-        where: { userId: session.user.id },
+
+      // Financial goals
+      prisma.financialGoal.aggregate({
+        where: { userId },
+        _sum: { currentValue: true },
       }),
     ]);
 
-    const initialTransactions = await prisma.transaction.findMany({
-      where: {
-        userId: session.user.id,
-        date: { lt: startDate },
-      },
-    });
-
-    const initialOperations = await prisma.operation.findMany({
-      where: {
-        date: { lt: startDate },
-        investment: {
-          userId: session.user.id,
-        },
-      },
-    });
-
-    let initialTransactionBalance = 0;
-    for (const t of initialTransactions) {
-      if (t.type === "income") {
-        initialTransactionBalance += t.value;
-      } else {
-        initialTransactionBalance -= t.value;
-      }
-    }
-
-    let initialInvestmentValue = 0;
-    for (const op of initialOperations) {
-      if (op.type === "buy" || op.type === "deposit") {
-        initialInvestmentValue += op.total;
-      } else if (op.type === "sell" || op.type === "withdraw") {
-        initialInvestmentValue -= op.total;
-      }
-    }
-
+    // Build period keys and initialize data structure
     const periods: string[] = [];
     const dataByPeriod: Record<string, WealthDataPoint> = {};
     const dayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
+    const initBalance = toNumber(initialTransactionBalance[0]?.balance);
+    const initInvestment = toNumber(initialInvestmentBalance[0]?.balance);
+
     if (groupByDay) {
-      // Group by day for short periods
       const current = new Date(startDate);
       current.setHours(0, 0, 0, 0);
 
@@ -141,8 +205,8 @@ export async function GET(request: NextRequest) {
         dataByPeriod[key] = {
           month: key,
           label,
-          transactionBalance: initialTransactionBalance,
-          investmentValue: initialInvestmentValue,
+          transactionBalance: initBalance,
+          investmentValue: initInvestment,
           cardDebt: 0,
           totalWealth: 0,
           goalsSaved: 0,
@@ -151,7 +215,6 @@ export async function GET(request: NextRequest) {
         current.setDate(current.getDate() + 1);
       }
     } else {
-      // Group by month for longer periods
       const current = new Date(startDate);
       while (current <= now) {
         const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}`;
@@ -165,8 +228,8 @@ export async function GET(request: NextRequest) {
         dataByPeriod[key] = {
           month: key,
           label: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
-          transactionBalance: initialTransactionBalance,
-          investmentValue: initialInvestmentValue,
+          transactionBalance: initBalance,
+          investmentValue: initInvestment,
           cardDebt: 0,
           totalWealth: 0,
           goalsSaved: 0,
@@ -176,60 +239,61 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Process transactions
-    let runningTransactionBalance = initialTransactionBalance;
-    for (const key of periods) {
-      const filteredTransactions = transactions.filter((t) => {
-        const d = new Date(t.date);
-        if (groupByDay) {
-          const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          return dateKey === key;
-        } else {
-          const [year, monthNum] = key.split("-").map(Number);
-          return d.getFullYear() === year && d.getMonth() + 1 === monthNum;
-        }
-      });
+    // Process aggregated transactions - O(aggregates) instead of O(periods × transactions)
+    const transactionDeltas: Record<string, number> = {};
+    for (const row of transactionsByPeriod) {
+      const d = new Date(row.period);
+      const key = groupByDay
+        ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+        : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
-      for (const t of filteredTransactions) {
-        if (t.type === "income") {
-          runningTransactionBalance += t.value;
-        } else {
-          runningTransactionBalance -= t.value;
-        }
-      }
-
-      dataByPeriod[key].transactionBalance = runningTransactionBalance;
+      if (!transactionDeltas[key]) transactionDeltas[key] = 0;
+      const amount = toNumber(row.total);
+      transactionDeltas[key] += row.type === "income" ? amount : -amount;
     }
 
-    // Process operations
-    let runningInvestmentValue = initialInvestmentValue;
+    // Apply running balance for transactions
+    let runningBalance = initBalance;
     for (const key of periods) {
-      const filteredOperations = operations.filter((op) => {
-        const d = new Date(op.date);
-        if (groupByDay) {
-          const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          return dateKey === key;
-        } else {
-          const [year, monthNum] = key.split("-").map(Number);
-          return d.getFullYear() === year && d.getMonth() + 1 === monthNum;
-        }
-      });
-
-      for (const op of filteredOperations) {
-        if (op.type === "buy" || op.type === "deposit") {
-          runningInvestmentValue += op.total;
-        } else if (op.type === "sell" || op.type === "withdraw") {
-          runningInvestmentValue -= op.total;
-        }
-      }
-
-      dataByPeriod[key].investmentValue = runningInvestmentValue;
+      runningBalance += transactionDeltas[key] || 0;
+      dataByPeriod[key].transactionBalance = runningBalance;
     }
 
-    // Process card debt
+    // Process aggregated operations - O(aggregates) instead of O(periods × operations)
+    const operationDeltas: Record<string, number> = {};
+    for (const row of operationsByPeriod) {
+      const d = new Date(row.period);
+      const key = groupByDay
+        ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+        : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+      if (!operationDeltas[key]) operationDeltas[key] = 0;
+      const amount = toNumber(row.total);
+      if (row.type === "buy" || row.type === "deposit") {
+        operationDeltas[key] += amount;
+      } else if (row.type === "sell" || row.type === "withdraw") {
+        operationDeltas[key] -= amount;
+      }
+    }
+
+    // Apply running balance for investments
+    let runningInvestment = initInvestment;
+    for (const key of periods) {
+      runningInvestment += operationDeltas[key] || 0;
+      dataByPeriod[key].investmentValue = runningInvestment;
+    }
+
+    // Index unpaid invoices by month for O(1) lookup
+    const invoiceDebtByMonth: Record<string, number> = {};
+    for (const inv of unpaidInvoices) {
+      const key = `${inv.year}-${String(inv.month).padStart(2, "0")}`;
+      const debt = Math.max(inv.total - inv.paidAmount, 0);
+      invoiceDebtByMonth[key] = (invoiceDebtByMonth[key] || 0) + debt;
+    }
+
+    // Calculate cumulative card debt for each period
     for (const key of periods) {
       let keyDate: Date;
-
       if (groupByDay) {
         const [year, month, day] = key.split("-").map(Number);
         keyDate = new Date(year, month - 1, day);
@@ -238,19 +302,20 @@ export async function GET(request: NextRequest) {
         keyDate = new Date(year, month - 1);
       }
 
-      const relevantInvoices = invoices.filter((inv) => {
-        const invDate = new Date(inv.year, inv.month - 1);
-        return invDate <= keyDate && inv.status !== "paid";
-      });
-
-      dataByPeriod[key].cardDebt = relevantInvoices.reduce(
-        (sum, inv) => sum + Math.max(inv.total - inv.paidAmount, 0),
-        0
-      );
+      // Sum debt from invoices up to this period
+      let totalDebt = 0;
+      for (const [invKey, debt] of Object.entries(invoiceDebtByMonth)) {
+        const [invYear, invMonth] = invKey.split("-").map(Number);
+        const invDate = new Date(invYear, invMonth - 1);
+        if (invDate <= keyDate) {
+          totalDebt += debt;
+        }
+      }
+      dataByPeriod[key].cardDebt = totalDebt;
     }
 
     // Add goals saved
-    const totalGoalsSaved = goals.reduce((sum, g) => sum + g.currentValue, 0);
+    const totalGoalsSaved = goals._sum.currentValue || 0;
     for (const key of periods) {
       dataByPeriod[key].goalsSaved = totalGoalsSaved;
     }
@@ -279,7 +344,7 @@ export async function GET(request: NextRequest) {
       ? ((current_data.totalWealth - previousPeriod.totalWealth) / Math.abs(previousPeriod.totalWealth)) * 100
       : 0;
 
-    return NextResponse.json({
+    const result = {
       evolution,
       summary: {
         currentWealth: current_data.totalWealth,
@@ -291,12 +356,22 @@ export async function GET(request: NextRequest) {
         wealthChangePercent,
       },
       period,
+    };
+
+    // Cache for 1 minute
+    serverCache.set(cacheKey, result, {
+      ttl: CacheTTL.DEFAULT,
+      tags: [CacheTags.WEALTH, CacheTags.TRANSACTIONS, CacheTags.INVESTMENTS, CacheTags.CARDS, CacheTags.GOALS],
     });
-  } catch (error) {
-    console.error("Erro ao calcular evolução patrimonial:", error);
-    return NextResponse.json(
-      { error: "Erro ao calcular evolução patrimonial" },
-      { status: 500 }
-    );
-  }
+
+    return NextResponse.json(result, {
+      headers: {
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+      },
+    });
+    } catch (error) {
+      console.error("Erro ao calcular evolução patrimonial:", error);
+      return errorResponse("Erro ao calcular evolução patrimonial", 500, "WEALTH_EVOLUTION_ERROR");
+    }
+  }, request);
 }

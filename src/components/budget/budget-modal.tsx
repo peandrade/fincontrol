@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { X, Wallet } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
@@ -22,6 +22,7 @@ export function BudgetModal({
   existingCategories,
   editData,
 }: BudgetModalProps) {
+  const titleId = useId();
   const [category, setCategory] = useState("");
   const [limit, setLimit] = useState("");
   const [isFixed, setIsFixed] = useState(true);
@@ -63,15 +64,20 @@ export function BudgetModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp"
+      >
         {}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)]">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary-soft rounded-lg">
-              <Wallet className="w-5 h-5 text-primary-color" />
+              <Wallet className="w-5 h-5 text-primary-color" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+              <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">
                 {isEditing ? "Editar Orçamento" : "Novo Orçamento"}
               </h2>
               <p className="text-[var(--text-dimmed)] text-sm">
@@ -82,8 +88,9 @@ export function BudgetModal({
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Fechar"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
         </div>
 

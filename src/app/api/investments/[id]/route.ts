@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateInvestmentCache } from "@/lib/api-utils";
+import { updateInvestmentSchema, validateBody } from "@/lib/schemas";
 
 const VARIABLE_INCOME_TYPES = ["stock", "fii", "etf", "crypto"];
 
@@ -9,12 +10,7 @@ interface RouteParams {
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const { id } = await params;
 
     const investment = await prisma.investment.findUnique({
@@ -25,70 +21,59 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!investment) {
-      return NextResponse.json(
-        { error: "Investimento não encontrado" },
-        { status: 404 }
-      );
+      return errorResponse("Investimento não encontrado", 404, "NOT_FOUND");
     }
 
     if (investment.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Não autorizado", 403, "FORBIDDEN");
     }
 
     return NextResponse.json(investment);
-  } catch (error) {
-    console.error("Erro ao buscar investimento:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar investimento" },
-      { status: 500 }
-    );
-  }
+  });
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session, req) => {
     const { id } = await params;
-    const body = await request.json();
+    const body = await req.json();
+
+    // Validate with Zod schema
+    const validation = validateBody(updateInvestmentSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
+    }
 
     const existing = await prisma.investment.findUnique({
       where: { id },
     });
 
     if (!existing) {
-      return NextResponse.json(
-        { error: "Investimento não encontrado" },
-        { status: 404 }
-      );
+      return errorResponse("Investimento não encontrado", 404, "NOT_FOUND");
     }
 
     if (existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Não autorizado", 403, "FORBIDDEN");
     }
 
+    const validatedData = validation.data;
     const isVariable = VARIABLE_INCOME_TYPES.includes(existing.type);
     const updateData: Record<string, unknown> = {};
 
-    if (body.name !== undefined) updateData.name = body.name;
-    if (body.ticker !== undefined) updateData.ticker = body.ticker;
-    if (body.institution !== undefined) updateData.institution = body.institution;
-    if (body.notes !== undefined) updateData.notes = body.notes;
-    if (body.goalValue !== undefined) updateData.goalValue = body.goalValue;
+    if (validatedData.name !== undefined) updateData.name = validatedData.name;
+    if (validatedData.ticker !== undefined) updateData.ticker = validatedData.ticker;
+    if (validatedData.institution !== undefined) updateData.institution = validatedData.institution;
+    if (validatedData.notes !== undefined) updateData.notes = validatedData.notes;
+    if (validatedData.goalValue !== undefined) updateData.goalValue = validatedData.goalValue;
 
-    if (body.interestRate !== undefined) updateData.interestRate = body.interestRate;
-    if (body.indexer !== undefined) updateData.indexer = body.indexer;
-    if (body.maturityDate !== undefined) {
-      updateData.maturityDate = body.maturityDate ? new Date(body.maturityDate) : null;
+    if (validatedData.interestRate !== undefined) updateData.interestRate = validatedData.interestRate;
+    if (validatedData.indexer !== undefined) updateData.indexer = validatedData.indexer;
+    if (validatedData.maturityDate !== undefined) {
+      updateData.maturityDate = validatedData.maturityDate ? new Date(validatedData.maturityDate) : null;
     }
 
     if (isVariable) {
-
-      if (body.currentPrice !== undefined) {
-        const currentPrice = Number(body.currentPrice);
+      if (validatedData.currentPrice !== undefined) {
+        const currentPrice = Number(validatedData.currentPrice);
         const currentValue = existing.quantity * currentPrice;
         const profitLoss = currentValue - existing.totalInvested;
         const profitLossPercent = existing.totalInvested > 0
@@ -101,23 +86,22 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         updateData.profitLossPercent = profitLossPercent;
       }
     } else {
-
-      const newTotalInvested = body.totalInvested !== undefined
-        ? Number(body.totalInvested)
+      const newTotalInvested = validatedData.totalInvested !== undefined
+        ? Number(validatedData.totalInvested)
         : existing.totalInvested;
-      const newCurrentValue = body.currentValue !== undefined
-        ? Number(body.currentValue)
+      const newCurrentValue = validatedData.currentValue !== undefined
+        ? Number(validatedData.currentValue)
         : existing.currentValue;
 
-      if (body.totalInvested !== undefined) {
+      if (validatedData.totalInvested !== undefined) {
         updateData.totalInvested = newTotalInvested;
       }
 
-      if (body.currentValue !== undefined) {
+      if (validatedData.currentValue !== undefined) {
         updateData.currentValue = newCurrentValue;
       }
 
-      if (body.totalInvested !== undefined || body.currentValue !== undefined) {
+      if (validatedData.totalInvested !== undefined || validatedData.currentValue !== undefined) {
         const profitLoss = newCurrentValue - newTotalInvested;
         const profitLossPercent = newTotalInvested > 0
           ? (profitLoss / newTotalInvested) * 100
@@ -136,23 +120,15 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       },
     });
 
+    // Invalidate related caches
+    invalidateInvestmentCache(session.user.id);
+
     return NextResponse.json(investment);
-  } catch (error) {
-    console.error("Erro ao atualizar investimento:", error);
-    return NextResponse.json(
-      { error: "Erro ao atualizar investimento" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const { id } = await params;
 
     const existing = await prisma.investment.findUnique({
@@ -160,26 +136,20 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!existing) {
-      return NextResponse.json(
-        { error: "Investimento não encontrado" },
-        { status: 404 }
-      );
+      return errorResponse("Investimento não encontrado", 404, "NOT_FOUND");
     }
 
     if (existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Não autorizado", 403, "FORBIDDEN");
     }
 
     await prisma.investment.delete({
       where: { id },
     });
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Erro ao deletar investimento:", error);
-    return NextResponse.json(
-      { error: "Erro ao deletar investimento" },
-      { status: 500 }
-    );
-  }
+    // Invalidate related caches
+    invalidateInvestmentCache(session.user.id);
+
+    return new NextResponse(null, { status: 204 });
+  });
 }

@@ -192,9 +192,9 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
 
   if (isLoading) {
     return (
-      <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
+      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] p-4 sm:p-6">
         <div className="flex items-center justify-center py-8">
-          <RefreshCw className="w-6 h-6 text-[var(--text-dimmed)] animate-spin" />
+          <RefreshCw className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--text-dimmed)] animate-spin" />
         </div>
       </div>
     );
@@ -214,19 +214,19 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
 
   return (
     <>
-      <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] overflow-hidden max-h-[420px] flex flex-col">
+      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden max-h-[420px] flex flex-col">
         {}
-        <div className="p-4 sm:p-5 border-b border-[var(--border-color)] flex-shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-500/10 rounded-lg">
-                <Repeat className="w-5 h-5 text-amber-400" />
+        <div className="p-3 sm:p-5 border-b border-[var(--border-color)] flex-shrink-0">
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="p-1.5 sm:p-2 bg-amber-500/10 rounded-lg flex-shrink-0">
+                <Repeat className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
               </div>
-              <div>
-                <h3 className="text-base font-semibold text-[var(--text-primary)]">
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] truncate">
                   Despesas Fixas
                 </h3>
-                <p className="text-xs text-[var(--text-dimmed)]">
+                <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)] truncate">
                   {summary.pendingCount > 0
                     ? `${summary.pendingCount} pendente(s) este mês`
                     : "Todas lançadas este mês"}
@@ -235,9 +235,9 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
             </div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-medium bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/25 text-xs"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl font-medium bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/25 text-[10px] sm:text-xs flex-shrink-0"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               Nova
             </button>
           </div>
@@ -245,15 +245,15 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
           {}
           {data && data.expenses.length > 0 && (
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-[var(--bg-hover)] rounded-xl p-2.5 text-center">
-                <p className="text-[11px] text-[var(--text-dimmed)] mb-0.5">Total Mensal</p>
-                <p className="text-sm font-bold text-[var(--text-primary)]">
+              <div className="bg-[var(--bg-hover)] rounded-lg sm:rounded-xl p-2 sm:p-2.5 text-center">
+                <p className="text-[10px] sm:text-[11px] text-[var(--text-dimmed)] mb-0.5">Total Mensal</p>
+                <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
                   {privacy.hideValues ? "•••••" : formatCurrency(summary.totalMonthly)}
                 </p>
               </div>
-              <div className="bg-[var(--bg-hover)] rounded-xl p-2.5 text-center">
-                <p className="text-[11px] text-[var(--text-dimmed)] mb-0.5">Pendente</p>
-                <p className={`text-sm font-bold ${summary.totalPending > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+              <div className="bg-[var(--bg-hover)] rounded-lg sm:rounded-xl p-2 sm:p-2.5 text-center">
+                <p className="text-[10px] sm:text-[11px] text-[var(--text-dimmed)] mb-0.5">Pendente</p>
+                <p className={`text-xs sm:text-sm font-bold truncate ${summary.totalPending > 0 ? "text-amber-400" : "text-emerald-400"}`}>
                   {privacy.hideValues ? "•••••" : formatCurrency(summary.totalPending)}
                 </p>
               </div>
@@ -422,8 +422,9 @@ function ExpenseItem({
               disabled={isLaunching}
               className="p-1.5 bg-amber-500/10 hover:bg-amber-500/20 rounded-lg transition-all disabled:opacity-50"
               title="Lançar agora"
+              aria-label="Lançar despesa"
             >
-              <Zap className="w-4 h-4 text-amber-400" />
+              <Zap className="w-4 h-4 text-amber-400" aria-hidden="true" />
             </button>
           )}
 
@@ -435,8 +436,9 @@ function ExpenseItem({
               }}
               className="p-1.5 hover:bg-amber-500/20 active:bg-amber-500/30 rounded-lg transition-all"
               title="Editar"
+              aria-label="Editar despesa"
             >
-              <Pencil className="w-4 h-4 text-amber-400" />
+              <Pencil className="w-4 h-4 text-amber-400" aria-hidden="true" />
             </button>
           )}
           <button
@@ -446,8 +448,9 @@ function ExpenseItem({
             }}
             className="p-1.5 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all"
             title="Remover"
+            aria-label="Remover despesa"
           >
-            <Trash2 className="w-4 h-4 text-red-400" />
+            <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
           </button>
         </div>
       </div>

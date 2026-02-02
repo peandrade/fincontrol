@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse } from "@/lib/api-utils";
 import {
   fetchCDIHistory,
   calculateFixedIncomeYield,
@@ -32,19 +32,11 @@ export interface YieldsResponse {
 }
 
 export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const cdiHistory = await fetchCDIHistory(1500);
 
     if (!cdiHistory) {
-      return NextResponse.json(
-        { error: "Não foi possível buscar histórico do CDI" },
-        { status: 503 }
-      );
+      return errorResponse("Não foi possível buscar histórico do CDI", 503, "CDI_UNAVAILABLE");
     }
 
     const investments = await prisma.investment.findMany({
@@ -215,11 +207,5 @@ export async function GET() {
     };
 
     return NextResponse.json(response);
-  } catch (error) {
-    console.error("Erro ao calcular rendimentos:", error);
-    return NextResponse.json(
-      { error: "Erro ao calcular rendimentos" },
-      { status: 500 }
-    );
-  }
+  });
 }

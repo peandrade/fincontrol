@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth } from "@/lib/api-utils";
 
 export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const now = new Date();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
 
@@ -87,11 +82,5 @@ export async function GET() {
         recurringMonthly: totalRecurring,
       },
     });
-  } catch (error) {
-    console.error("Erro ao calcular sugestão de emergência:", error);
-    return NextResponse.json(
-      { error: "Erro ao calcular sugestão de emergência" },
-      { status: 500 }
-    );
-  }
+  });
 }

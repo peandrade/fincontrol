@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { X } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { useCategoryStore } from "@/store/category-store";
@@ -27,6 +27,7 @@ export function TemplateModal({
   template,
   isSubmitting,
 }: TemplateModalProps) {
+  const titleId = useId();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<TransactionType>("expense");
@@ -96,17 +97,23 @@ export function TemplateModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp"
+      >
         {}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)]">
-          <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+          <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">
             {template ? "Editar Atalho" : "Novo Atalho"}
           </h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Fechar"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
         </div>
 

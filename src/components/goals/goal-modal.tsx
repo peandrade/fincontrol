@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
 import { X, Target, Sparkles } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import {
@@ -42,6 +42,24 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
   const [targetDate, setTargetDate] = useState("");
   const [emergencySuggestion, setEmergencySuggestion] = useState<EmergencySuggestion | null>(null);
   const [loadingSuggestion, setLoadingSuggestion] = useState(false);
+  const titleId = useId();
+
+  // Handle Escape key to close modal
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSubmitting) {
+        onClose();
+      }
+    },
+    [onClose, isSubmitting]
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [isOpen, handleKeyDown]);
 
   useEffect(() => {
     if (category === "emergency" && !emergencySuggestion) {
@@ -94,16 +112,30 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp max-h-[90vh] flex flex-col">
-        {}
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp max-h-[90vh] flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)] flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary-soft rounded-lg">
-              <Target className="w-5 h-5 text-primary-color" />
+              <Target className="w-5 h-5 text-primary-color" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+              <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">
                 Nova Meta
               </h2>
               <p className="text-[var(--text-dimmed)] text-sm">
@@ -113,9 +145,11 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            disabled={isSubmitting}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+            aria-label="Fechar modal"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
         </div>
 

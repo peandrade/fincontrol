@@ -56,8 +56,14 @@
 }
 
 /* Base styles */
-html,
+html {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
 body {
+  width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -69,6 +75,35 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Prevent horizontal overflow on all elements */
+* {
+  box-sizing: border-box;
+}
+
+/* Mobile overflow protection */
+@media (max-width: 640px) {
+  * {
+    max-width: 100vw;
+  }
+
+  /* Force text elements to wrap or truncate */
+  p, span, h1, h2, h3, h4, h5, h6 {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Ensure flex containers don't overflow */
+  .flex {
+    min-width: 0;
+  }
+
+  /* Grid items should not overflow */
+  [class*="grid"] > * {
+    min-width: 0;
+    overflow: hidden;
+  }
 }
 
 /* Scrollbar customizada */
