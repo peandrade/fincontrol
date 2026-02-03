@@ -1,7 +1,9 @@
 import { BaseRepository, calculatePagination, type PaginatedResult, type PaginationOptions } from "./base-repository";
 import type { EncryptedModel } from "@/lib/encryption";
-import { decryptRecord, encryptRecord } from "@/lib/encryption";
 import type { Prisma, GoalCategory } from "@prisma/client";
+
+// NOTE: Prisma extension handles encryption/decryption automatically.
+// Do NOT call encryptRecord/decryptRecord manually - it causes double encryption.
 
 /**
  * Filters for goal queries.
@@ -24,19 +26,12 @@ export class GoalRepository extends BaseRepository {
   protected readonly modelName: EncryptedModel = "FinancialGoal";
 
   /**
-   * Decrypt a goal and its contributions if present.
+   * @deprecated Prisma extension handles decryption automatically.
+   * This method now returns data unchanged.
    */
-  private decryptGoalWithContributions<T extends Record<string, unknown>>(goal: T): T {
-    const decrypted = this.decryptData(goal) as Record<string, unknown>;
-
-    // Also decrypt contributions if present
-    if (decrypted.contributions && Array.isArray(decrypted.contributions)) {
-      decrypted.contributions = (decrypted.contributions as Record<string, unknown>[]).map(
-        (contrib) => decryptRecord(contrib, "GoalContribution")
-      );
-    }
-
-    return decrypted as T;
+  private decryptGoalWithContributions<T>(goal: T): T {
+    // Prisma extension handles decryption automatically - return as-is
+    return goal;
   }
 
   /**
@@ -190,6 +185,7 @@ export class GoalRepository extends BaseRepository {
 
   /**
    * Add a contribution to a goal.
+   * Note: Prisma extension handles encryption/decryption automatically.
    */
   async addContribution(
     goalId: string,
@@ -200,7 +196,7 @@ export class GoalRepository extends BaseRepository {
       notes?: string;
     }
   ) {
-    // Verify ownership
+    // Verify ownership - Prisma extension handles decryption automatically
     const goal = await this.db.financialGoal.findFirst({
       where: { id: goalId, userId },
     });
@@ -209,48 +205,38 @@ export class GoalRepository extends BaseRepository {
       throw new Error("Goal not found");
     }
 
-    // Decrypt goal values
-    const decryptedGoal = this.decryptData(goal as unknown as Record<string, unknown>) as typeof goal;
-
-    // Encrypt contribution data
-    const encryptedContribData = encryptRecord(
-      { goalId, ...data } as Record<string, unknown>,
-      "GoalContribution"
-    );
+    // Values are already decrypted by Prisma extension
+    const currentValue = goal.currentValue as unknown as number;
+    const targetValue = goal.targetValue as unknown as number;
 
     return this.transaction(async (tx) => {
-      // Create contribution
+      // Create contribution - Prisma extension handles encryption automatically
       const contribution = await tx.goalContribution.create({
-        data: encryptedContribData as typeof data & { goalId: string },
+        data: { goalId, ...data } as any,
       });
 
       // Update goal current value
-      const newCurrentValue = decryptedGoal.currentValue + data.value;
-      const isCompleted = newCurrentValue >= decryptedGoal.targetValue;
+      const newCurrentValue = currentValue + data.value;
+      const isCompleted = newCurrentValue >= targetValue;
 
-      const updateData = this.encryptData({
-        currentValue: newCurrentValue,
-        isCompleted,
-        ...(isCompleted && { completedAt: new Date() }),
-      } as Record<string, unknown>);
-
+      // Prisma extension handles encryption automatically
       await tx.financialGoal.update({
         where: { id: goalId },
-        data: updateData,
+        data: {
+          currentValue: newCurrentValue,
+          isCompleted,
+          ...(isCompleted && { completedAt: new Date() }),
+        } as any,
       });
 
-      // Decrypt contribution before returning
-      const decryptedContrib = decryptRecord(
-        contribution as unknown as Record<string, unknown>,
-        "GoalContribution"
-      );
-
-      return decryptedContrib as unknown as typeof contribution;
+      // Prisma extension handles decryption automatically
+      return contribution;
     });
   }
 
   /**
    * Get contributions for a goal.
+   * Note: Prisma extension handles decryption automatically.
    */
   async getContributions(goalId: string, userId: string) {
     // Verify ownership
@@ -262,21 +248,21 @@ export class GoalRepository extends BaseRepository {
       throw new Error("Goal not found");
     }
 
+    // Prisma extension handles decryption automatically
     const contributions = await this.db.goalContribution.findMany({
       where: { goalId },
       orderBy: { date: "desc" },
     });
 
-    return contributions.map((c) =>
-      decryptRecord(c as unknown as Record<string, unknown>, "GoalContribution")
-    ) as unknown as typeof contributions;
+    return contributions;
   }
 
   /**
    * Delete a contribution.
+   * Note: Prisma extension handles encryption/decryption automatically.
    */
   async deleteContribution(contributionId: string, userId: string) {
-    // Verify ownership through goal
+    // Verify ownership through goal - Prisma extension handles decryption automatically
     const contribution = await this.db.goalContribution.findUnique({
       where: { id: contributionId },
       include: { goal: true },
@@ -286,14 +272,9 @@ export class GoalRepository extends BaseRepository {
       throw new Error("Contribution not found");
     }
 
-    // Decrypt values
-    const decryptedContrib = decryptRecord(
-      contribution as unknown as Record<string, unknown>,
-      "GoalContribution"
-    ) as typeof contribution;
-    const decryptedGoal = this.decryptData(
-      contribution.goal as unknown as Record<string, unknown>
-    ) as typeof contribution.goal;
+    // Values are already decrypted by Prisma extension
+    const contribValue = contribution.value as unknown as number;
+    const goalCurrentValue = contribution.goal.currentValue as unknown as number;
 
     return this.transaction(async (tx) => {
       // Delete contribution
@@ -302,17 +283,16 @@ export class GoalRepository extends BaseRepository {
       });
 
       // Update goal current value
-      const newCurrentValue = Math.max(0, (decryptedGoal.currentValue as unknown as number) - (decryptedContrib.value as unknown as number));
+      const newCurrentValue = Math.max(0, goalCurrentValue - contribValue);
 
-      const updateData = this.encryptData({
-        currentValue: newCurrentValue,
-        isCompleted: false,
-        completedAt: null,
-      } as Record<string, unknown>);
-
+      // Prisma extension handles encryption automatically
       await tx.financialGoal.update({
         where: { id: contribution.goalId },
-        data: updateData,
+        data: {
+          currentValue: newCurrentValue,
+          isCompleted: false,
+          completedAt: null,
+        } as any,
       });
     });
   }

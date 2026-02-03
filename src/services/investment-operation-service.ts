@@ -4,8 +4,10 @@ import {
   fetchCDIHistory,
   calculateFixedIncomeYield,
 } from "@/lib/cdi-history-service";
-import { encryptRecord, decryptRecord } from "@/lib/encryption";
 import { investmentRepository, operationRepository } from "@/repositories";
+
+// NOTE: Prisma extension handles encryption/decryption automatically.
+// Do NOT call encryptRecord/decryptRecord manually - it causes double encryption.
 
 /**
  * Service error for business logic failures.
@@ -102,18 +104,12 @@ export class InvestmentOperationService {
   }
 
   /**
-   * Decrypt an investment and its operations.
+   * @deprecated Prisma extension handles decryption automatically.
+   * This method now returns data unchanged.
    */
-  private decryptInvestmentWithOperations<T extends Record<string, unknown>>(investment: T): T {
-    const decrypted = decryptRecord(investment, "Investment") as Record<string, unknown>;
-
-    if (decrypted.operations && Array.isArray(decrypted.operations)) {
-      decrypted.operations = (decrypted.operations as Record<string, unknown>[]).map((op) =>
-        decryptRecord(op, "Operation")
-      );
-    }
-
-    return decrypted as T;
+  private decryptInvestmentWithOperations<T>(investment: T): T {
+    // Prisma extension handles decryption automatically - return as-is
+    return investment;
   }
 
   /**
@@ -136,9 +132,9 @@ export class InvestmentOperationService {
     const dividendTotal = Number(input.total);
 
     const result = await prisma.$transaction(async (tx) => {
-      // Encrypt operation data before saving
-      const operationData = encryptRecord(
-        {
+      // Prisma extension handles encryption automatically
+      const operation = await tx.operation.create({
+        data: {
           investmentId: investment.id,
           type: "dividend",
           quantity: 0,
@@ -147,36 +143,24 @@ export class InvestmentOperationService {
           date: operationDate,
           fees: 0,
           notes: input.notes || null,
-        } as Record<string, unknown>,
-        "Operation"
-      );
-
-      // Create the operation
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const operation = await tx.operation.create({
-        data: operationData as any,
+        } as any,
       });
 
-      // Encrypt transaction data before saving
-      const transactionData = encryptRecord(
-        {
+      // Create income transaction for the dividend
+      // Prisma extension handles encryption automatically
+      await tx.transaction.create({
+        data: {
           type: "income",
           value: dividendTotal,
           category: "Dividendo",
           description: `Provento: ${investment.name}${investment.ticker ? ` (${investment.ticker})` : ""}`,
           date: operationDate,
           userId,
-        } as Record<string, unknown>,
-        "Transaction"
-      );
-
-      // Create income transaction for the dividend
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await tx.transaction.create({
-        data: transactionData as any,
+        } as any,
       });
 
       // Return updated investment
+      // Prisma extension handles decryption automatically
       const updatedInvestment = await tx.investment.findUnique({
         where: { id: investment.id },
         include: {
@@ -184,13 +168,7 @@ export class InvestmentOperationService {
         },
       });
 
-      // Decrypt before returning
-      const decryptedOperation = decryptRecord(operation as unknown as Record<string, unknown>, "Operation");
-      const decryptedInvestment = updatedInvestment
-        ? this.decryptInvestmentWithOperations(updatedInvestment as unknown as Record<string, unknown>)
-        : null;
-
-      return { operation: decryptedOperation, investment: decryptedInvestment };
+      return { operation, investment: updatedInvestment };
     });
 
     return result as { operation: unknown; investment: unknown };
@@ -266,10 +244,11 @@ export class InvestmentOperationService {
     const metrics = this.calculateMetrics(investment, { type, quantity, price, fees, total }, isFixed);
 
     // Execute transaction
+    // Prisma extension handles encryption/decryption automatically
     const result = await prisma.$transaction(async (tx) => {
-      // Encrypt operation data before saving
-      const operationData = encryptRecord(
-        {
+      // Create the operation
+      const operation = await tx.operation.create({
+        data: {
           investmentId: investment.id,
           type,
           quantity: isFixed ? 1 : quantity,
@@ -278,59 +257,41 @@ export class InvestmentOperationService {
           date: operationDate,
           fees,
           notes: notes || null,
-        } as Record<string, unknown>,
-        "Operation"
-      );
-
-      // Create the operation
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const operation = await tx.operation.create({
-        data: operationData as any,
+        } as any,
       });
 
       // Create transaction record for buy (expense)
       if (type === "buy" && !options.skipBalanceCheck) {
-        const buyTransactionData = encryptRecord(
-          {
+        await tx.transaction.create({
+          data: {
             type: "expense",
             value: total,
             category: "Investimento",
             description: `${isFixed ? "Depósito" : "Compra"}: ${investment.name}`,
             date: operationDate,
             userId,
-          } as Record<string, unknown>,
-          "Transaction"
-        );
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await tx.transaction.create({
-          data: buyTransactionData as any,
+          } as any,
         });
       }
 
       // Create transaction record for sell (income)
       if (type === "sell") {
-        const sellTransactionData = encryptRecord(
-          {
+        await tx.transaction.create({
+          data: {
             type: "income",
             value: total - fees,
             category: "Investimento",
             description: `${isFixed ? "Resgate" : "Venda"}: ${investment.name}`,
             date: operationDate,
             userId,
-          } as Record<string, unknown>,
-          "Transaction"
-        );
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await tx.transaction.create({
-          data: sellTransactionData as any,
+          } as any,
         });
       }
 
-      // Encrypt investment update data
-      const investmentUpdateData = encryptRecord(
-        {
+      // Update investment values
+      const updatedInvestment = await tx.investment.update({
+        where: { id: investment.id },
+        data: {
           quantity: metrics.quantity,
           averagePrice: metrics.averagePrice,
           totalInvested: metrics.totalInvested,
@@ -338,37 +299,26 @@ export class InvestmentOperationService {
           currentValue: metrics.currentValue,
           profitLoss: metrics.profitLoss,
           profitLossPercent: metrics.profitLossPercent,
-        } as Record<string, unknown>,
-        "Investment"
-      );
-
-      // Update investment values
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const updatedInvestment = await tx.investment.update({
-        where: { id: investment.id },
-        data: investmentUpdateData as any,
+        } as any,
         include: {
           operations: { orderBy: { date: "desc" } },
         },
       });
 
-      // Decrypt before returning
-      const decryptedOperation = decryptRecord(operation as unknown as Record<string, unknown>, "Operation");
-      const decryptedInvestment = this.decryptInvestmentWithOperations(
-        updatedInvestment as unknown as Record<string, unknown>
-      );
-
-      return { operation: decryptedOperation, investment: decryptedInvestment };
+      return { operation, investment: updatedInvestment };
     });
 
     // Post-transaction: recalculate yield for fixed income
-    let finalInvestment = result.investment;
+    let finalInvestment: unknown = result.investment;
     if (isFixed && investment.indexer && investment.indexer !== "NA") {
-      finalInvestment = await this.recalculateFixedIncomeYield(
+      const recalculated = await this.recalculateFixedIncomeYield(
         investment.id,
         investment.interestRate || 100,
         investment.indexer
-      ) || result.investment;
+      );
+      if (recalculated) {
+        finalInvestment = recalculated;
+      }
     }
 
     return { operation: result.operation, investment: finalInvestment };

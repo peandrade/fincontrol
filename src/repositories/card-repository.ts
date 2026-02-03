@@ -1,6 +1,5 @@
 import { BaseRepository, calculatePagination, type PaginatedResult, type PaginationOptions } from "./base-repository";
-import type { EncryptedModel, Decrypted, CardWithDecryptedInvoicesAndPurchases } from "@/lib/encryption";
-import { decryptNested, NESTED_CONFIGS } from "@/lib/encryption";
+import type { EncryptedModel } from "@/lib/encryption";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -18,45 +17,19 @@ type CreditCard = Prisma.CreditCardGetPayload<{ include: { invoices: true } }>;
 
 /**
  * Repository for credit card data access.
+ * Note: Prisma extension handles encryption/decryption automatically.
  */
 export class CardRepository extends BaseRepository {
   protected readonly modelName: EncryptedModel = "CreditCard";
 
   /**
-   * Decrypt a card and its nested relations (invoices and purchases).
-   * Uses the nested decryption helper for proper recursive decryption.
-   */
-  private decryptCardWithRelations<T extends Record<string, unknown>>(
-    card: T,
-    includesPurchases = false
-  ): T {
-    const config = includesPurchases
-      ? NESTED_CONFIGS.CardWithInvoicesAndPurchases
-      : NESTED_CONFIGS.CardWithInvoices;
-
-    return decryptNested(card, config);
-  }
-
-  /**
-   * Decrypt a card and its invoices if present.
-   * @deprecated Use decryptCardWithRelations instead for proper nested decryption
-   */
-  private decryptCardWithInvoices<T extends Record<string, unknown>>(card: T): T {
-    return this.decryptCardWithRelations(card, false);
-  }
-
-  /**
    * Find a credit card by ID with ownership check.
    */
   async findById(id: string, userId: string, includeInvoices = false) {
-    const result = await this.db.creditCard.findFirst({
+    return this.db.creditCard.findFirst({
       where: { id, userId },
       include: includeInvoices ? { invoices: { orderBy: [{ year: "desc" }, { month: "desc" }] } } : undefined,
     });
-
-    if (!result) return null;
-
-    return this.decryptCardWithInvoices(result as unknown as Record<string, unknown>) as unknown as typeof result;
   }
 
   /**
@@ -70,15 +43,11 @@ export class CardRepository extends BaseRepository {
       ...(isActive !== undefined && { isActive }),
     };
 
-    const results = await this.db.creditCard.findMany({
+    return this.db.creditCard.findMany({
       where,
       include: includeInvoices ? { invoices: { orderBy: [{ year: "desc" }, { month: "desc" }] } } : undefined,
       orderBy: { createdAt: "desc" },
     });
-
-    return results.map((r) =>
-      this.decryptCardWithInvoices(r as unknown as Record<string, unknown>)
-    ) as unknown as typeof results;
   }
 
   /**
@@ -106,12 +75,9 @@ export class CardRepository extends BaseRepository {
       take,
     });
 
-    const decrypted = cards.map((r) =>
-      this.decryptCardWithInvoices(r as unknown as Record<string, unknown>)
-    );
-
+    // Prisma extension handles decryption automatically
     return {
-      data: decrypted as unknown as CreditCard[],
+      data: cards as CreditCard[],
       pagination,
     };
   }
@@ -128,12 +94,9 @@ export class CardRepository extends BaseRepository {
     dueDay?: number;
     color?: string;
   }) {
-    const encryptedData = this.encryptData(data as unknown as Record<string, unknown>);
-
+    // Prisma extension handles encryption on create and decryption on return
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await this.db.creditCard.create({ data: encryptedData as any });
-
-    return this.decryptData(result as unknown as Record<string, unknown>) as unknown as typeof result;
+    return this.db.creditCard.create({ data: data as any });
   }
 
   /**
@@ -152,14 +115,11 @@ export class CardRepository extends BaseRepository {
       isActive: boolean;
     }>
   ) {
-    const encryptedData = this.encryptUpdateData(
-      data as Record<string, unknown>,
-      Object.keys(data)
-    );
-
+    // Prisma extension handles encryption on update
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this.db.creditCard.updateMany({
       where: { id, userId },
-      data: encryptedData,
+      data: data as any,
     });
   }
 
@@ -174,6 +134,7 @@ export class CardRepository extends BaseRepository {
 
   /**
    * Get summary of all cards for a user.
+   * Prisma extension handles decryption automatically.
    */
   async getSummary(userId: string) {
     const cards = await this.db.creditCard.findMany({
@@ -185,24 +146,16 @@ export class CardRepository extends BaseRepository {
       },
     });
 
-    // Decrypt values using nested decryption
-    const decrypted = cards.map((card) =>
-      this.decryptCardWithRelations(card as unknown as Record<string, unknown>, false)
-    );
-
+    // Prisma extension already decrypted the values
+    // TypeScript thinks fields are strings (from schema), but they're numbers after decryption
     let totalLimit = 0;
     let totalUsed = 0;
 
-    for (const card of decrypted) {
-      // After decryption, limit is a number
-      const cardLimit = card.limit as number;
-      totalLimit += cardLimit;
+    for (const card of cards) {
+      totalLimit += card.limit as unknown as number;
 
-      const invoices = card.invoices as Array<Record<string, unknown>>;
-      for (const invoice of invoices) {
-        // After nested decryption, total is a number
-        const invoiceTotal = invoice.total as number;
-        totalUsed += invoiceTotal;
+      for (const invoice of card.invoices) {
+        totalUsed += invoice.total as unknown as number;
       }
     }
 
@@ -216,10 +169,10 @@ export class CardRepository extends BaseRepository {
   }
 
   /**
-   * Find a card by ID with full nested decryption (including purchases).
+   * Find a card by ID with invoices and purchases.
    */
   async findByIdWithPurchases(id: string, userId: string) {
-    const result = await this.db.creditCard.findFirst({
+    return this.db.creditCard.findFirst({
       where: { id, userId },
       include: {
         invoices: {
@@ -228,14 +181,6 @@ export class CardRepository extends BaseRepository {
         },
       },
     });
-
-    if (!result) return null;
-
-    // Use nested decryption that includes purchases
-    return this.decryptCardWithRelations(
-      result as unknown as Record<string, unknown>,
-      true
-    ) as unknown as typeof result;
   }
 }
 

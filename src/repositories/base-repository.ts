@@ -47,49 +47,54 @@ export abstract class BaseRepository {
   }
 
   /**
-   * Encrypt sensitive fields in data before saving.
-   * Writes to encrypted columns while preserving original values.
+   * @deprecated Prisma extension handles encryption automatically.
+   * This method now returns data unchanged to prevent double encryption.
    */
   protected encryptData<T extends Record<string, unknown>>(data: T): T {
-    return encryptRecord(data, this.modelName);
+    // Prisma extension handles encryption automatically - do nothing here
+    return data;
   }
 
   /**
-   * Decrypt sensitive fields after reading from database.
-   * Reads from encrypted columns and populates original fields.
+   * @deprecated Prisma extension handles decryption automatically.
+   * This method now returns data unchanged to prevent double decryption.
    */
   protected decryptData<T extends Record<string, unknown>>(data: T): T {
-    return decryptRecord(data, this.modelName);
+    // Prisma extension handles decryption automatically - do nothing here
+    return data;
   }
 
   /**
-   * Encrypt specific fields in update data.
+   * @deprecated Prisma extension handles encryption automatically.
+   * This method now returns data unchanged to prevent double encryption.
    */
   protected encryptUpdateData<T extends Record<string, unknown>>(
     data: T,
-    fields?: string[]
+    _fields?: string[]
   ): T {
-    return encryptFields(data, this.modelName, fields);
+    // Prisma extension handles encryption automatically - do nothing here
+    return data;
   }
 
   /**
-   * Decrypt specific fields from a record.
+   * @deprecated Prisma extension handles decryption automatically.
+   * This method now returns data unchanged to prevent double decryption.
    */
   protected decryptSpecificFields<T extends Record<string, unknown>>(
     data: T,
-    fields?: string[]
+    _fields?: string[]
   ): T {
-    return decryptFields(data, this.modelName, fields);
+    // Prisma extension handles decryption automatically - do nothing here
+    return data;
   }
 
   /**
-   * Decrypt an array of records.
+   * @deprecated Prisma extension handles decryption automatically.
+   * This method now returns data unchanged to prevent double decryption.
    */
   protected decryptMany<T extends Record<string, unknown>>(records: T[]): T[] {
-    if (!USE_ENCRYPTION) {
-      return records;
-    }
-    return records.map((record) => this.decryptData(record));
+    // Prisma extension handles decryption automatically - do nothing here
+    return records;
   }
 }
 

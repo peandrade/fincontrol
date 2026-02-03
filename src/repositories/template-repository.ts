@@ -24,19 +24,17 @@ export class TemplateRepository extends BaseRepository {
 
   /**
    * Find a template by ID with ownership check.
+   * Note: Prisma extension handles decryption automatically.
    */
   async findById(id: string, userId: string) {
-    const result = await this.db.transactionTemplate.findFirst({
+    return this.db.transactionTemplate.findFirst({
       where: { id, userId },
     });
-
-    if (!result) return null;
-
-    return this.decryptData(result as unknown as Record<string, unknown>) as unknown as typeof result;
   }
 
   /**
    * Find all templates for a user.
+   * Note: Prisma extension handles decryption automatically.
    */
   async findByUser(userId: string, filters: TemplateFilters = {}) {
     const { type, category, searchTerm } = filters;
@@ -53,12 +51,10 @@ export class TemplateRepository extends BaseRepository {
       }),
     };
 
-    const results = await this.db.transactionTemplate.findMany({
+    return this.db.transactionTemplate.findMany({
       where,
       orderBy: [{ usageCount: "desc" }, { updatedAt: "desc" }],
     });
-
-    return this.decryptMany(results as unknown as Record<string, unknown>[]) as unknown as typeof results;
   }
 
   /**
@@ -92,16 +88,16 @@ export class TemplateRepository extends BaseRepository {
       take,
     });
 
-    const decrypted = this.decryptMany(templates as unknown as Record<string, unknown>[]);
-
+    // Prisma extension handles decryption automatically
     return {
-      data: decrypted as unknown as TransactionTemplate[],
+      data: templates,
       pagination,
     };
   }
 
   /**
    * Create a new template.
+   * Note: Prisma extension handles encryption/decryption automatically.
    */
   async create(data: {
     userId: string;
@@ -111,16 +107,14 @@ export class TemplateRepository extends BaseRepository {
     description?: string | null;
     value?: number | null;
   }) {
-    const encryptedData = this.encryptData(data as unknown as Record<string, unknown>);
-
+    // Prisma extension handles encryption on create and decryption on return
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await this.db.transactionTemplate.create({ data: encryptedData as any });
-
-    return this.decryptData(result as unknown as Record<string, unknown>) as unknown as typeof result;
+    return this.db.transactionTemplate.create({ data: data as any });
   }
 
   /**
    * Update a template by ID (with ownership check).
+   * Note: Prisma extension handles encryption/decryption automatically.
    */
   async update(
     id: string,
@@ -142,17 +136,12 @@ export class TemplateRepository extends BaseRepository {
       return null;
     }
 
-    const encryptedData = this.encryptUpdateData(
-      data as Record<string, unknown>,
-      Object.keys(data)
-    );
-
-    const result = await this.db.transactionTemplate.update({
+    // Prisma extension handles encryption on update and decryption on return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.db.transactionTemplate.update({
       where: { id },
-      data: encryptedData,
+      data: data as any,
     });
-
-    return this.decryptData(result as unknown as Record<string, unknown>) as unknown as typeof result;
   }
 
   /**
@@ -166,6 +155,7 @@ export class TemplateRepository extends BaseRepository {
 
   /**
    * Increment usage count for a template.
+   * Note: Prisma extension handles decryption automatically.
    */
   async incrementUsage(id: string, userId: string) {
     // Verify ownership first
@@ -177,27 +167,26 @@ export class TemplateRepository extends BaseRepository {
       return null;
     }
 
-    const result = await this.db.transactionTemplate.update({
+    // Prisma extension handles decryption on return
+    return this.db.transactionTemplate.update({
       where: { id },
       data: {
         usageCount: { increment: 1 },
       },
     });
-
-    return this.decryptData(result as unknown as Record<string, unknown>) as unknown as typeof result;
   }
 
   /**
    * Get most used templates for a user.
+   * Note: Prisma extension handles decryption automatically.
    */
   async getMostUsed(userId: string, limit = 5) {
-    const results = await this.db.transactionTemplate.findMany({
+    // Prisma extension handles decryption automatically
+    return this.db.transactionTemplate.findMany({
       where: { userId },
       orderBy: { usageCount: "desc" },
       take: limit,
     });
-
-    return this.decryptMany(results as unknown as Record<string, unknown>[]) as unknown as typeof results;
   }
 }
 

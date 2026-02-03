@@ -2,7 +2,9 @@ import { BaseRepository, calculatePagination, type PaginatedResult, type Paginat
 import type { Investment, InvestmentType } from "@/types";
 import type { Prisma } from "@prisma/client";
 import type { EncryptedModel } from "@/lib/encryption";
-import { decryptRecord, encryptRecord } from "@/lib/encryption";
+
+// NOTE: Prisma extension handles encryption/decryption automatically.
+// Do NOT call encryptRecord/decryptRecord manually - it causes double encryption.
 
 /**
  * Filters for investment queries.
@@ -19,19 +21,12 @@ export interface InvestmentFilters extends PaginationOptions {
 export class InvestmentRepository extends BaseRepository {
   protected readonly modelName: EncryptedModel = "Investment";
   /**
-   * Decrypt an investment and its operations if present.
+   * @deprecated Prisma extension handles decryption automatically.
+   * This method now returns data unchanged.
    */
-  private decryptInvestmentWithOperations<T extends Record<string, unknown>>(investment: T): T {
-    const decrypted = this.decryptData(investment) as Record<string, unknown>;
-
-    // Also decrypt operations if present
-    if (decrypted.operations && Array.isArray(decrypted.operations)) {
-      decrypted.operations = (decrypted.operations as Record<string, unknown>[]).map((op) =>
-        decryptRecord(op, "Operation")
-      );
-    }
-
-    return decrypted as T;
+  private decryptInvestmentWithOperations<T>(investment: T): T {
+    // Prisma extension handles decryption automatically - return as-is
+    return investment;
   }
 
   /**
@@ -139,6 +134,7 @@ export class InvestmentRepository extends BaseRepository {
 
   /**
    * Add an operation to an investment.
+   * Note: Prisma extension handles encryption/decryption automatically.
    */
   async addOperation(
     investmentId: string,
@@ -162,24 +158,12 @@ export class InvestmentRepository extends BaseRepository {
       throw new Error("Investment not found");
     }
 
-    // Encrypt operation data
-    const encryptedOpData = encryptRecord(
-      { investmentId, ...data } as Record<string, unknown>,
-      "Operation"
-    );
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Prisma extension handles encryption/decryption automatically
     const operation = await this.db.operation.create({
-      data: encryptedOpData as any,
+      data: { investmentId, ...data } as any,
     });
 
-    // Decrypt before returning
-    const decryptedOperation = decryptRecord(
-      operation as unknown as Record<string, unknown>,
-      "Operation"
-    );
-
-    return decryptedOperation as unknown as typeof operation;
+    return operation;
   }
 
   /**
@@ -301,6 +285,7 @@ export class InvestmentRepository extends BaseRepository {
 
   /**
    * Add an operation to an investment and update its metrics.
+   * Note: Prisma extension handles encryption/decryption automatically.
    */
   async addOperationWithUpdate(
     investmentId: string,
@@ -323,25 +308,17 @@ export class InvestmentRepository extends BaseRepository {
       profitLossPercent: number;
     }
   ) {
-    // Encrypt operation data
-    const encryptedOpData = encryptRecord(
-      { investmentId, ...operationData } as Record<string, unknown>,
-      "Operation"
-    );
-
-    // Encrypt investment update data
-    const encryptedInvUpdate = this.encryptData(investmentUpdate as Record<string, unknown>);
-
+    // Prisma extension handles encryption/decryption automatically
     return this.transaction(async (tx) => {
-      // Create the operation with encrypted data
+      // Create the operation
       const operation = await tx.operation.create({
-        data: encryptedOpData as typeof operationData & { investmentId: string },
+        data: { investmentId, ...operationData } as any,
       });
 
-      // Update the investment metrics with encrypted data
+      // Update the investment metrics
       await tx.investment.update({
         where: { id: investmentId },
-        data: encryptedInvUpdate as typeof investmentUpdate,
+        data: investmentUpdate as any,
       });
 
       // Return updated investment with operations
@@ -350,16 +327,7 @@ export class InvestmentRepository extends BaseRepository {
         include: { operations: { orderBy: { date: "desc" } } },
       });
 
-      // Decrypt before returning
-      const decryptedOperation = decryptRecord(operation as unknown as Record<string, unknown>, "Operation");
-      const decryptedInvestment = investment
-        ? this.decryptInvestmentWithOperations(investment as unknown as Record<string, unknown>)
-        : null;
-
-      return {
-        operation: decryptedOperation as unknown as typeof operation,
-        investment: decryptedInvestment as unknown as typeof investment,
-      };
+      return { operation, investment };
     });
   }
 }

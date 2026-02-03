@@ -29,20 +29,18 @@ export interface TransactionSummary {
 /**
  * Repository for transaction data access.
  * Centralizes all transaction-related database queries.
+ * Note: Prisma extension handles encryption/decryption automatically.
  */
 export class TransactionRepository extends BaseRepository {
   protected readonly modelName: EncryptedModel = "Transaction";
+
   /**
    * Find a transaction by ID with ownership check.
    */
   async findById(id: string, userId: string) {
-    const result = await this.db.transaction.findFirst({
+    return this.db.transaction.findFirst({
       where: { id, userId },
     });
-
-    if (!result) return null;
-
-    return this.decryptData(result as unknown as Record<string, unknown>) as unknown as typeof result;
   }
 
   /**
@@ -51,12 +49,10 @@ export class TransactionRepository extends BaseRepository {
   async findByUser(userId: string, filters: TransactionFilters = {}) {
     const where = this.buildWhereClause(userId, filters);
 
-    const results = await this.db.transaction.findMany({
+    return this.db.transaction.findMany({
       where,
       orderBy: { date: "desc" },
     });
-
-    return this.decryptMany(results as unknown as Record<string, unknown>[]) as unknown as typeof results;
   }
 
   /**
@@ -79,10 +75,9 @@ export class TransactionRepository extends BaseRepository {
       take,
     });
 
-    const decrypted = this.decryptMany(transactions as unknown as Record<string, unknown>[]);
-
+    // Prisma extension handles decryption automatically
     return {
-      data: decrypted as unknown as Transaction[],
+      data: transactions as unknown as Transaction[],
       pagination,
     };
   }
@@ -98,13 +93,9 @@ export class TransactionRepository extends BaseRepository {
     description?: string;
     date: Date;
   }) {
-    // Encrypt sensitive fields before saving
-    const encryptedData = this.encryptData(data as unknown as Record<string, unknown>);
-
+    // Prisma extension handles encryption on create and decryption on return
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await this.db.transaction.create({ data: encryptedData as any });
-
-    return this.decryptData(result as unknown as Record<string, unknown>) as unknown as typeof result;
+    return this.db.transaction.create({ data: data as any });
   }
 
   /**
@@ -121,15 +112,11 @@ export class TransactionRepository extends BaseRepository {
       date: Date;
     }>
   ) {
-    // Encrypt sensitive fields in update data
-    const encryptedData = this.encryptUpdateData(
-      data as Record<string, unknown>,
-      Object.keys(data)
-    );
-
+    // Prisma extension handles encryption on update
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this.db.transaction.updateMany({
       where: { id, userId },
-      data: encryptedData,
+      data: data as any,
     });
   }
 
@@ -144,7 +131,7 @@ export class TransactionRepository extends BaseRepository {
 
   /**
    * Get monthly summary for a user.
-   * Uses app-level aggregation to support encrypted values.
+   * Prisma extension handles decryption automatically.
    */
   async getMonthlySummary(userId: string, year: number, month: number): Promise<TransactionSummary> {
     const startDate = new Date(year, month - 1, 1);
@@ -157,14 +144,13 @@ export class TransactionRepository extends BaseRepository {
       },
     });
 
-    // Decrypt values if encryption is enabled
-    const decrypted = this.decryptMany(transactions as unknown as Record<string, unknown>[]) as unknown as typeof transactions;
-
-    const income = decrypted
+    // Prisma extension already decrypted the values
+    // TypeScript thinks value is string (from schema), but it's number after decryption
+    const income = transactions
       .filter((t) => t.type === "income")
       .reduce((sum, t) => sum + (t.value as unknown as number), 0);
 
-    const expenses = decrypted
+    const expenses = transactions
       .filter((t) => t.type === "expense")
       .reduce((sum, t) => sum + (t.value as unknown as number), 0);
 
@@ -178,21 +164,19 @@ export class TransactionRepository extends BaseRepository {
 
   /**
    * Get the current balance (all-time income - expenses).
-   * Uses app-level aggregation to support encrypted values.
+   * Prisma extension handles decryption automatically.
    */
   async getBalance(userId: string): Promise<number> {
-    // Fetch all transactions
     const transactions = await this.db.transaction.findMany({
       where: { userId },
     });
 
-    // Decrypt and calculate
-    const decrypted = this.decryptMany(transactions as unknown as Record<string, unknown>[]) as unknown as typeof transactions;
-
+    // Prisma extension already decrypted the values
+    // TypeScript thinks value is string (from schema), but it's number after decryption
     let income = 0;
     let expenses = 0;
 
-    for (const t of decrypted) {
+    for (const t of transactions) {
       if (t.type === "income") {
         income += t.value as unknown as number;
       } else if (t.type === "expense") {
@@ -205,7 +189,7 @@ export class TransactionRepository extends BaseRepository {
 
   /**
    * Get category breakdown for a period.
-   * Uses app-level aggregation to support encrypted values.
+   * Prisma extension handles decryption automatically.
    */
   async getCategoryBreakdown(
     userId: string,
@@ -221,12 +205,11 @@ export class TransactionRepository extends BaseRepository {
       },
     });
 
-    // Decrypt and aggregate by category
-    const decrypted = this.decryptMany(transactions as unknown as Record<string, unknown>[]) as unknown as typeof transactions;
-
+    // Prisma extension already decrypted the values
+    // TypeScript thinks value is string (from schema), but it's number after decryption
     const categoryMap = new Map<string, { sum: number; count: number }>();
 
-    for (const t of decrypted) {
+    for (const t of transactions) {
       const existing = categoryMap.get(t.category) || { sum: 0, count: 0 };
       existing.sum += t.value as unknown as number;
       existing.count += 1;

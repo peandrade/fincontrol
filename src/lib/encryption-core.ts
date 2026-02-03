@@ -40,19 +40,27 @@ function getKey(): Buffer {
 /**
  * Encrypt a value (number or string) using AES-256-GCM.
  * Returns format: iv:authTag:ciphertext
+ * Prevents double encryption by checking if value is already encrypted.
  */
 export function encrypt(value: number | string): string {
   if (!USE_ENCRYPTION) {
     return String(value);
   }
 
+  const stringValue = String(value);
+
+  // Prevent double encryption
+  if (isEncrypted(stringValue)) {
+    console.warn("[ENCRYPT] Value is already encrypted, returning as-is");
+    return stringValue;
+  }
+
   const key = getKey();
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
 
-  const plaintext = String(value);
   const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
+    cipher.update(stringValue, "utf8"),
     cipher.final(),
   ]);
 
@@ -68,29 +76,46 @@ export function encrypt(value: number | string): string {
 /**
  * Decrypt a value encrypted with encrypt().
  * Returns the original string value.
+ * Handles double-encrypted values by decrypting recursively.
  */
 export function decryptToString(encrypted: string): string {
-  if (!USE_ENCRYPTION || !isEncrypted(encrypted)) {
+  if (!USE_ENCRYPTION) {
     return encrypted;
   }
 
-  const key = getKey();
-  const [ivHex, tagHex, dataHex] = encrypted.split(SEPARATOR);
-
-  if (!ivHex || !tagHex || !dataHex) {
-    throw new Error("Invalid encrypted format");
+  if (!isEncrypted(encrypted)) {
+    return encrypted;
   }
 
-  const iv = Buffer.from(ivHex, "hex");
-  const authTag = Buffer.from(tagHex, "hex");
-  const data = Buffer.from(dataHex, "hex");
+  try {
+    const key = getKey();
+    const [ivHex, tagHex, dataHex] = encrypted.split(SEPARATOR);
 
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAuthTag(authTag);
+    if (!ivHex || !tagHex || !dataHex) {
+      throw new Error("Invalid encrypted format");
+    }
 
-  const decrypted = Buffer.concat([decipher.update(data), decipher.final()]);
+    const iv = Buffer.from(ivHex, "hex");
+    const authTag = Buffer.from(tagHex, "hex");
+    const data = Buffer.from(dataHex, "hex");
 
-  return decrypted.toString("utf8");
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+    decipher.setAuthTag(authTag);
+
+    const decrypted = Buffer.concat([decipher.update(data), decipher.final()]);
+    const result = decrypted.toString("utf8");
+
+    // Handle double-encrypted values (decrypt again if result is still encrypted)
+    if (isEncrypted(result)) {
+      console.warn("[DECRYPT] Detected double-encrypted value, decrypting again...");
+      return decryptToString(result);
+    }
+
+    return result;
+  } catch (error) {
+    console.error("[DECRYPT] Crypto error:", error);
+    throw error;
+  }
 }
 
 /**
