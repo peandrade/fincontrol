@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { fetchQuotes } from "@/lib/quotes-service";
 import { withAuth, errorResponse } from "@/lib/api-utils";
-import { getErrorMessage } from "@/lib/utils";
 import { InvestmentType } from "@prisma/client";
 import { checkRateLimit, getClientIp, rateLimitPresets } from "@/lib/rate-limit";
+import { investmentRepository } from "@/repositories";
 
 const QUOTABLE_TYPES: InvestmentType[] = [
   InvestmentType.stock,
@@ -26,20 +25,12 @@ export async function POST(request: Request) {
 
   return withAuth(async (session) => {
     try {
-      const investments = await prisma.investment.findMany({
-        where: {
-          userId: session.user.id,
-          ticker: { not: null },
-          type: { in: QUOTABLE_TYPES },
-        },
-        select: {
-          id: true,
-          ticker: true,
-          type: true,
-          quantity: true,
-          totalInvested: true,
-        },
-      });
+      // Use repository for proper decryption of encrypted fields
+      const investments = await investmentRepository.findByType(
+        session.user.id,
+        QUOTABLE_TYPES,
+        { withTicker: true }
+      );
 
       if (investments.length === 0) {
         return NextResponse.json({
@@ -70,21 +61,18 @@ export async function POST(request: Request) {
         }
 
         const currentPrice = quote.price;
-        const currentValue = investment.quantity * currentPrice;
-        const profitLoss = currentValue - investment.totalInvested;
-        const profitLossPercent =
-          investment.totalInvested > 0
-            ? (profitLoss / investment.totalInvested) * 100
-            : 0;
+        const quantity = investment.quantity as unknown as number;
+        const totalInvested = investment.totalInvested as unknown as number;
+        const currentValue = quantity * currentPrice;
+        const profitLoss = currentValue - totalInvested;
+        const profitLossPercent = totalInvested > 0 ? (profitLoss / totalInvested) * 100 : 0;
 
-        await prisma.investment.update({
-          where: { id: investment.id },
-          data: {
-            currentPrice,
-            currentValue,
-            profitLoss,
-            profitLossPercent,
-          },
+        // Use repository for update with encryption
+        await investmentRepository.updateById(investment.id, {
+          currentPrice,
+          currentValue,
+          profitLoss,
+          profitLossPercent,
         });
 
         updated.push(investment.ticker!);
@@ -117,20 +105,12 @@ export async function GET(request: Request) {
 
   return withAuth(async (session) => {
     try {
-      const investments = await prisma.investment.findMany({
-        where: {
-          userId: session.user.id,
-          ticker: { not: null },
-          type: { in: QUOTABLE_TYPES },
-        },
-        select: {
-          id: true,
-          ticker: true,
-          type: true,
-          name: true,
-          currentPrice: true,
-        },
-      });
+      // Use repository for proper decryption of encrypted fields
+      const investments = await investmentRepository.findByType(
+        session.user.id,
+        QUOTABLE_TYPES,
+        { withTicker: true }
+      );
 
       if (investments.length === 0) {
         return NextResponse.json({

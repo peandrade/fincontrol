@@ -5,9 +5,15 @@
  * Centralizes complex analytics logic that was previously spread across routes.
  */
 
-import { prisma } from "@/lib/prisma";
 import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
 import { createServiceLogger } from "@/lib/logger";
+import {
+  transactionRepository,
+  investmentRepository,
+  cardRepository,
+  goalRepository,
+  budgetRepository,
+} from "@/repositories";
 
 const log = createServiceLogger("analytics");
 
@@ -103,21 +109,19 @@ export class AnalyticsService {
     startDate: Date,
     endDate: Date
   ): Promise<PeriodTotals> {
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        userId,
-        date: { gte: startDate, lte: endDate },
-      },
-      select: { type: true, value: true },
+    // Use repository for proper decryption
+    const transactions = await transactionRepository.findByUser(userId, {
+      startDate,
+      endDate,
     });
 
     const income = transactions
       .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + t.value, 0);
+      .reduce((sum, t) => sum + (t.value as unknown as number), 0);
 
     const expense = transactions
       .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + t.value, 0);
+      .reduce((sum, t) => sum + (t.value as unknown as number), 0);
 
     return {
       income,
@@ -129,6 +133,8 @@ export class AnalyticsService {
 
   /**
    * Get category breakdown for a period.
+   * Note: With encrypted values, we can't use groupBy at database level.
+   * Aggregation is done in-memory after decryption.
    */
   async getCategoryBreakdown(
     userId: string,
@@ -136,26 +142,38 @@ export class AnalyticsService {
     endDate: Date,
     type: "income" | "expense" = "expense"
   ): Promise<CategoryTotal[]> {
-    const result = await prisma.transaction.groupBy({
-      by: ["category"],
-      where: {
-        userId,
-        type,
-        date: { gte: startDate, lte: endDate },
-      },
-      _sum: { value: true },
-      _count: true,
-      orderBy: { _sum: { value: "desc" } },
+    // Use repository for proper decryption
+    const transactions = await transactionRepository.findByUser(userId, {
+      type,
+      startDate,
+      endDate,
     });
 
-    const total = result.reduce((sum, r) => sum + (r._sum.value || 0), 0);
+    // Aggregate by category in memory
+    const categoryMap = new Map<string, { total: number; count: number }>();
 
-    return result.map((r) => ({
-      category: r.category,
-      total: r._sum.value || 0,
-      count: r._count,
-      percentage: total > 0 ? ((r._sum.value || 0) / total) * 100 : 0,
-    }));
+    for (const t of transactions) {
+      const value = t.value as unknown as number;
+      const existing = categoryMap.get(t.category) || { total: 0, count: 0 };
+      categoryMap.set(t.category, {
+        total: existing.total + value,
+        count: existing.count + 1,
+      });
+    }
+
+    const total = [...categoryMap.values()].reduce((sum, cat) => sum + cat.total, 0);
+
+    // Convert to array and sort by total descending
+    const result: CategoryTotal[] = [...categoryMap.entries()]
+      .map(([category, data]) => ({
+        category,
+        total: data.total,
+        count: data.count,
+        percentage: total > 0 ? (data.total / total) * 100 : 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+
+    return result;
   }
 
   /**
@@ -165,12 +183,9 @@ export class AnalyticsService {
     const now = new Date();
     const startDate = startOfMonth(subMonths(now, months - 1));
 
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        userId,
-        date: { gte: startDate },
-      },
-      select: { type: true, value: true, date: true },
+    // Use repository for proper decryption
+    const transactions = await transactionRepository.findByUser(userId, {
+      startDate,
     });
 
     // Group by month
@@ -185,10 +200,11 @@ export class AnalyticsService {
     for (const t of transactions) {
       const key = format(new Date(t.date), "yyyy-MM");
       if (monthlyData[key]) {
+        const value = t.value as unknown as number;
         if (t.type === "income") {
-          monthlyData[key].income += t.value;
+          monthlyData[key].income += value;
         } else {
-          monthlyData[key].expense += t.value;
+          monthlyData[key].expense += value;
         }
       }
     }
@@ -236,6 +252,7 @@ export class AnalyticsService {
     const monthStart = startOfMonth(now);
     const monthEnd = endOfMonth(now);
 
+    // Use repositories for proper decryption
     const [
       allTransactions,
       monthlyTransactions,
@@ -243,66 +260,73 @@ export class AnalyticsService {
       creditCards,
       goals,
     ] = await Promise.all([
-      prisma.transaction.findMany({
-        where: { userId },
-        select: { type: true, value: true },
+      transactionRepository.findByUser(userId),
+      transactionRepository.findByUser(userId, {
+        startDate: monthStart,
+        endDate: monthEnd,
       }),
-      prisma.transaction.findMany({
-        where: {
-          userId,
-          date: { gte: monthStart, lte: monthEnd },
-        },
-        select: { type: true, value: true },
-      }),
-      prisma.investment.findMany({
-        where: { userId },
-        select: { currentValue: true, totalInvested: true, profitLoss: true },
-      }),
-      prisma.creditCard.findMany({
-        where: { userId, isActive: true },
-        include: {
-          invoices: {
-            where: { status: { in: ["open", "closed", "overdue"] } },
-          },
-        },
-      }),
-      prisma.financialGoal.findMany({
-        where: { userId },
-        select: { targetValue: true, currentValue: true, isCompleted: true },
-      }),
+      investmentRepository.findByUser(userId),
+      cardRepository.findByUser(userId, { isActive: true, includeInvoices: true }),
+      goalRepository.findByUser(userId),
     ]);
 
     // Calculate balances
     const balance = allTransactions.reduce((acc, t) => {
-      return t.type === "income" ? acc + t.value : acc - t.value;
+      const value = t.value as unknown as number;
+      return t.type === "income" ? acc + value : acc - value;
     }, 0);
 
     const monthlyIncome = monthlyTransactions
       .filter((t) => t.type === "income")
-      .reduce((acc, t) => acc + t.value, 0);
+      .reduce((acc, t) => acc + (t.value as unknown as number), 0);
 
     const monthlyExpenses = monthlyTransactions
       .filter((t) => t.type === "expense")
-      .reduce((acc, t) => acc + t.value, 0);
+      .reduce((acc, t) => acc + (t.value as unknown as number), 0);
 
     // Investments
-    const totalInvested = investments.reduce((acc, i) => acc + i.totalInvested, 0);
-    const currentInvestmentValue = investments.reduce((acc, i) => acc + i.currentValue, 0);
-    const investmentProfitLoss = investments.reduce((acc, i) => acc + i.profitLoss, 0);
+    const totalInvested = investments.reduce((acc, i) => acc + (i.totalInvested as unknown as number), 0);
+    const currentInvestmentValue = investments.reduce((acc, i) => acc + (i.currentValue as unknown as number), 0);
+    const investmentProfitLoss = investments.reduce((acc, i) => acc + (i.profitLoss as unknown as number), 0);
 
-    // Credit cards
-    const totalCardLimit = creditCards.reduce((acc, c) => acc + c.limit, 0);
-    const usedCardLimit = creditCards.reduce((acc, c) => {
-      const used = c.invoices.reduce((sum, inv) => sum + (inv.total - inv.paidAmount), 0);
+    // Credit cards - filter invoices by status in memory since repository returns all
+    // Type assertion for cards with invoices
+    type CardWithInvoices = typeof creditCards[number] & {
+      invoices?: Array<{
+        status: string;
+        total: unknown;
+        paidAmount: unknown;
+        year: number;
+        month: number;
+        dueDate: Date;
+      }>;
+    };
+    const cardsWithInvoices = creditCards as CardWithInvoices[];
+
+    const totalCardLimit = cardsWithInvoices.reduce((acc: number, c) => acc + (c.limit as unknown as number), 0);
+    const usedCardLimit = cardsWithInvoices.reduce((acc: number, c) => {
+      const relevantInvoices = (c.invoices || []).filter(
+        (inv) => inv.status === "open" || inv.status === "closed" || inv.status === "overdue"
+      );
+      const used = relevantInvoices.reduce(
+        (sum: number, inv) => sum + ((inv.total as unknown as number) - (inv.paidAmount as unknown as number)),
+        0
+      );
       return acc + used;
     }, 0);
 
-    // Calculate overdue debts
-    const overdueDebts = this.calculateOverdueDebts(creditCards, now);
+    // Calculate overdue debts - filter for relevant invoices
+    const cardsWithFilteredInvoices = cardsWithInvoices.map((c) => ({
+      ...c,
+      invoices: (c.invoices || []).filter(
+        (inv) => inv.status === "open" || inv.status === "closed" || inv.status === "overdue"
+      ),
+    }));
+    const overdueDebts = this.calculateOverdueDebts(cardsWithFilteredInvoices as any, now);
 
     // Goals
-    const totalGoalTarget = goals.reduce((acc, g) => acc + g.targetValue, 0);
-    const totalGoalCurrent = goals.reduce((acc, g) => acc + g.currentValue, 0);
+    const totalGoalTarget = goals.reduce((acc, g) => acc + (g.targetValue as unknown as number), 0);
+    const totalGoalCurrent = goals.reduce((acc, g) => acc + (g.currentValue as unknown as number), 0);
 
     const summary = {
       balance: {
@@ -363,6 +387,7 @@ export class AnalyticsService {
     const monthStart = startOfMonth(now);
     const monthEnd = endOfMonth(now);
 
+    // Use repositories for proper decryption
     const [
       monthlyTotals,
       investments,
@@ -372,24 +397,10 @@ export class AnalyticsService {
       categoryExpenses,
     ] = await Promise.all([
       this.getPeriodTotals(userId, monthStart, monthEnd),
-      prisma.investment.findMany({
-        where: { userId },
-        select: { type: true, currentValue: true },
-      }),
-      prisma.creditCard.findMany({
-        where: { userId },
-        include: {
-          invoices: { where: { status: { not: "paid" } } },
-        },
-      }),
-      prisma.financialGoal.findMany({
-        where: { userId },
-        select: { category: true, currentValue: true, targetValue: true },
-      }),
-      prisma.budget.findMany({
-        where: { userId },
-        select: { category: true, limit: true },
-      }),
+      investmentRepository.findByUser(userId),
+      cardRepository.findByUser(userId, { includeInvoices: true }),
+      goalRepository.findByUser(userId),
+      budgetRepository.findByUser(userId),
       this.getCategoryBreakdown(userId, monthStart, monthEnd, "expense"),
     ]);
 
@@ -400,9 +411,17 @@ export class AnalyticsService {
     const savingsScore = Math.min(Math.max(savingsRate, 0), 50) * 2;
 
     // Credit utilization (0-100, where 30%+ = 0 score)
-    const totalCreditLimit = creditCards.reduce((sum, c) => sum + c.limit, 0);
-    const totalCreditUsed = creditCards.reduce((sum, c) => {
-      return sum + c.invoices.reduce((invSum, inv) => invSum + inv.total - inv.paidAmount, 0);
+    // Type assertion for cards with invoices
+    type HealthCardWithInvoices = typeof creditCards[number] & {
+      invoices?: Array<{ status: string; total: unknown; paidAmount: unknown }>;
+    };
+    const healthCardsWithInvoices = creditCards as HealthCardWithInvoices[];
+
+    const totalCreditLimit = healthCardsWithInvoices.reduce((sum: number, c) => sum + (c.limit as unknown as number), 0);
+    const totalCreditUsed = healthCardsWithInvoices.reduce((sum: number, c) => {
+      // Filter for unpaid invoices (status !== "paid")
+      const unpaidInvoices = (c.invoices || []).filter((inv) => inv.status !== "paid");
+      return sum + unpaidInvoices.reduce((invSum: number, inv) => invSum + (inv.total as unknown as number) - (inv.paidAmount as unknown as number), 0);
     }, 0);
     const creditUtilization = totalCreditLimit > 0 ? (totalCreditUsed / totalCreditLimit) * 100 : 0;
     const creditScore = Math.max(0, 100 - creditUtilization * 3.33);
@@ -410,14 +429,14 @@ export class AnalyticsService {
     // Emergency fund (0-100, where 6 months = max)
     const emergencyGoal = goals.find((g) => g.category === "emergency");
     const emergencyFundMonths = monthlyTotals.expense > 0 && emergencyGoal
-      ? emergencyGoal.currentValue / monthlyTotals.expense
+      ? (emergencyGoal.currentValue as unknown as number) / monthlyTotals.expense
       : 0;
     const emergencyScore = Math.min(emergencyFundMonths / 6, 1) * 100;
 
     // Goals progress
-    const totalGoalTarget = goals.reduce((sum, g) => sum + g.targetValue, 0);
-    const totalGoalCurrent = goals.reduce((sum, g) => sum + g.currentValue, 0);
-    const goalsScore = totalGoalTarget > 0 ? (totalGoalCurrent / totalGoalTarget) * 100 : 50;
+    const totalGoalTarget2 = goals.reduce((sum, g) => sum + (g.targetValue as unknown as number), 0);
+    const totalGoalCurrent2 = goals.reduce((sum, g) => sum + (g.currentValue as unknown as number), 0);
+    const goalsScore = totalGoalTarget2 > 0 ? (totalGoalCurrent2 / totalGoalTarget2) * 100 : 50;
 
     // Diversification (0-100, where 5 types = max)
     const investmentTypes = new Set(investments.map((i) => i.type)).size;
@@ -433,7 +452,7 @@ export class AnalyticsService {
 
       const budgetStatuses = budgets.map((b) => {
         const spent = categoryMap[b.category] || 0;
-        return Math.min((spent / b.limit) * 100, 200);
+        return Math.min((spent / (b.limit as unknown as number)) * 100, 200);
       });
 
       const avgUsage = budgetStatuses.reduce((a, b) => a + b, 0) / budgetStatuses.length;
@@ -530,7 +549,9 @@ export class AnalyticsService {
     return creditCards.reduce((acc, c) => {
       const overdue = c.invoices
         .filter((inv) => {
-          if (inv.status === "paid" || inv.total <= inv.paidAmount) return false;
+          const total = inv.total as unknown as number;
+          const paidAmount = inv.paidAmount as unknown as number;
+          if (inv.status === "paid" || total <= paidAmount) return false;
           if (inv.status === "overdue") return true;
 
           const isPastMonth = inv.year < currentYear ||
@@ -541,7 +562,7 @@ export class AnalyticsService {
 
           return isPastMonth || isCurrentMonthOverdue;
         })
-        .reduce((sum, inv) => sum + (inv.total - inv.paidAmount), 0);
+        .reduce((sum, inv) => sum + ((inv.total as unknown as number) - (inv.paidAmount as unknown as number)), 0);
       return acc + overdue;
     }, 0);
   }

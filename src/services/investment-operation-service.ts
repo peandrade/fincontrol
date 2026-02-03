@@ -4,6 +4,8 @@ import {
   fetchCDIHistory,
   calculateFixedIncomeYield,
 } from "@/lib/cdi-history-service";
+import { encryptRecord, decryptRecord } from "@/lib/encryption";
+import { investmentRepository, operationRepository } from "@/repositories";
 
 /**
  * Service error for business logic failures.
@@ -63,28 +65,19 @@ export class InvestmentOperationService {
       skipBalanceCheck?: boolean;
     } = {}
   ) {
-    // 1. Fetch and validate ownership
-    const investment = await prisma.investment.findUnique({
-      where: { id: investmentId },
-      include: {
-        operations: {
-          orderBy: { date: "desc" },
-          take: 1,
-        },
-      },
-    });
+    // 1. Fetch and validate ownership using repository for proper decryption
+    const investment = await investmentRepository.findById(investmentId, userId, true);
 
     if (!investment) {
       throw new InvestmentOperationError("Investimento não encontrado", "NOT_FOUND");
     }
 
-    if (investment.userId !== userId) {
-      throw new InvestmentOperationError("Não autorizado", "FORBIDDEN");
-    }
+    // Get the last operation for date validation
+    const operations = (investment as unknown as { operations?: Array<{ date: Date }> }).operations || [];
 
     // 2. Parse and validate date
     const operationDate = this.parseOperationDate(input.date);
-    this.validateOperationDate(operationDate, investment.operations[0]?.date);
+    this.validateOperationDate(operationDate, operations[0]?.date);
 
     // 3. Handle different operation types
     const isFixed = isFixedIncome(investment.type as InvestmentType);
@@ -100,12 +93,27 @@ export class InvestmentOperationService {
 
     return this.handleBuySellOperation(
       userId,
-      investment,
+      investment as any,
       input,
       operationDate,
       isFixed,
       options
     );
+  }
+
+  /**
+   * Decrypt an investment and its operations.
+   */
+  private decryptInvestmentWithOperations<T extends Record<string, unknown>>(investment: T): T {
+    const decrypted = decryptRecord(investment, "Investment") as Record<string, unknown>;
+
+    if (decrypted.operations && Array.isArray(decrypted.operations)) {
+      decrypted.operations = (decrypted.operations as Record<string, unknown>[]).map((op) =>
+        decryptRecord(op, "Operation")
+      );
+    }
+
+    return decrypted as T;
   }
 
   /**
@@ -128,9 +136,9 @@ export class InvestmentOperationService {
     const dividendTotal = Number(input.total);
 
     const result = await prisma.$transaction(async (tx) => {
-      // Create the operation
-      const operation = await tx.operation.create({
-        data: {
+      // Encrypt operation data before saving
+      const operationData = encryptRecord(
+        {
           investmentId: investment.id,
           type: "dividend",
           quantity: 0,
@@ -139,19 +147,33 @@ export class InvestmentOperationService {
           date: operationDate,
           fees: 0,
           notes: input.notes || null,
-        },
+        } as Record<string, unknown>,
+        "Operation"
+      );
+
+      // Create the operation
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const operation = await tx.operation.create({
+        data: operationData as any,
       });
 
-      // Create income transaction for the dividend
-      await tx.transaction.create({
-        data: {
+      // Encrypt transaction data before saving
+      const transactionData = encryptRecord(
+        {
           type: "income",
           value: dividendTotal,
           category: "Dividendo",
           description: `Provento: ${investment.name}${investment.ticker ? ` (${investment.ticker})` : ""}`,
           date: operationDate,
           userId,
-        },
+        } as Record<string, unknown>,
+        "Transaction"
+      );
+
+      // Create income transaction for the dividend
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await tx.transaction.create({
+        data: transactionData as any,
       });
 
       // Return updated investment
@@ -162,10 +184,16 @@ export class InvestmentOperationService {
         },
       });
 
-      return { operation, investment: updatedInvestment };
+      // Decrypt before returning
+      const decryptedOperation = decryptRecord(operation as unknown as Record<string, unknown>, "Operation");
+      const decryptedInvestment = updatedInvestment
+        ? this.decryptInvestmentWithOperations(updatedInvestment as unknown as Record<string, unknown>)
+        : null;
+
+      return { operation: decryptedOperation, investment: decryptedInvestment };
     });
 
-    return result;
+    return result as { operation: unknown; investment: unknown };
   }
 
   /**
@@ -205,16 +233,18 @@ export class InvestmentOperationService {
     // Validate sell operations
     if (type === "sell") {
       if (isFixed) {
-        if (price > investment.currentValue) {
+        const currentValue = investment.currentValue as unknown as number;
+        if (price > currentValue) {
           throw new InvestmentOperationError(
-            `Valor do resgate (R$ ${price.toFixed(2)}) excede o saldo disponível (R$ ${investment.currentValue.toFixed(2)})`,
+            `Valor do resgate (R$ ${price.toFixed(2)}) excede o saldo disponível (R$ ${currentValue.toFixed(2)})`,
             "INSUFFICIENT_BALANCE"
           );
         }
       } else {
-        if (quantity > investment.quantity) {
+        const investmentQuantity = investment.quantity as unknown as number;
+        if (quantity > investmentQuantity) {
           throw new InvestmentOperationError(
-            `Quantidade (${quantity}) excede o disponível (${investment.quantity} cotas)`,
+            `Quantidade (${quantity}) excede o disponível (${investmentQuantity} cotas)`,
             "INSUFFICIENT_QUANTITY"
           );
         }
@@ -237,9 +267,9 @@ export class InvestmentOperationService {
 
     // Execute transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create the operation
-      const operation = await tx.operation.create({
-        data: {
+      // Encrypt operation data before saving
+      const operationData = encryptRecord(
+        {
           investmentId: investment.id,
           type,
           quantity: isFixed ? 1 : quantity,
@@ -248,41 +278,59 @@ export class InvestmentOperationService {
           date: operationDate,
           fees,
           notes: notes || null,
-        },
+        } as Record<string, unknown>,
+        "Operation"
+      );
+
+      // Create the operation
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const operation = await tx.operation.create({
+        data: operationData as any,
       });
 
       // Create transaction record for buy (expense)
       if (type === "buy" && !options.skipBalanceCheck) {
-        await tx.transaction.create({
-          data: {
+        const buyTransactionData = encryptRecord(
+          {
             type: "expense",
             value: total,
             category: "Investimento",
             description: `${isFixed ? "Depósito" : "Compra"}: ${investment.name}`,
             date: operationDate,
             userId,
-          },
+          } as Record<string, unknown>,
+          "Transaction"
+        );
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await tx.transaction.create({
+          data: buyTransactionData as any,
         });
       }
 
       // Create transaction record for sell (income)
       if (type === "sell") {
-        await tx.transaction.create({
-          data: {
+        const sellTransactionData = encryptRecord(
+          {
             type: "income",
             value: total - fees,
             category: "Investimento",
             description: `${isFixed ? "Resgate" : "Venda"}: ${investment.name}`,
             date: operationDate,
             userId,
-          },
+          } as Record<string, unknown>,
+          "Transaction"
+        );
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await tx.transaction.create({
+          data: sellTransactionData as any,
         });
       }
 
-      // Update investment values
-      const updatedInvestment = await tx.investment.update({
-        where: { id: investment.id },
-        data: {
+      // Encrypt investment update data
+      const investmentUpdateData = encryptRecord(
+        {
           quantity: metrics.quantity,
           averagePrice: metrics.averagePrice,
           totalInvested: metrics.totalInvested,
@@ -290,13 +338,27 @@ export class InvestmentOperationService {
           currentValue: metrics.currentValue,
           profitLoss: metrics.profitLoss,
           profitLossPercent: metrics.profitLossPercent,
-        },
+        } as Record<string, unknown>,
+        "Investment"
+      );
+
+      // Update investment values
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updatedInvestment = await tx.investment.update({
+        where: { id: investment.id },
+        data: investmentUpdateData as any,
         include: {
           operations: { orderBy: { date: "desc" } },
         },
       });
 
-      return { operation, investment: updatedInvestment };
+      // Decrypt before returning
+      const decryptedOperation = decryptRecord(operation as unknown as Record<string, unknown>, "Operation");
+      const decryptedInvestment = this.decryptInvestmentWithOperations(
+        updatedInvestment as unknown as Record<string, unknown>
+      );
+
+      return { operation: decryptedOperation, investment: decryptedInvestment };
     });
 
     // Post-transaction: recalculate yield for fixed income
@@ -380,6 +442,13 @@ export class InvestmentOperationService {
   ): InvestmentMetrics {
     const { type, quantity, price, total } = operation;
 
+    // Cast encrypted fields to numbers
+    const invQuantity = investment.quantity as unknown as number;
+    const invAveragePrice = investment.averagePrice as unknown as number;
+    const invCurrentPrice = investment.currentPrice as unknown as number;
+    const invTotalInvested = investment.totalInvested as unknown as number;
+    const invCurrentValue = investment.currentValue as unknown as number;
+
     let newQuantity: number;
     let newTotalInvested: number;
     let newAveragePrice: number;
@@ -388,13 +457,13 @@ export class InvestmentOperationService {
 
     if (isFixed) {
       if (type === "buy") {
-        newTotalInvested = investment.totalInvested + total;
-        currentValue = investment.currentValue + total;
+        newTotalInvested = invTotalInvested + total;
+        currentValue = invCurrentValue + total;
       } else {
-        const percentResgatado = total / investment.currentValue;
-        const totalInvestidoResgatado = investment.totalInvested * percentResgatado;
-        newTotalInvested = Math.max(0, investment.totalInvested - totalInvestidoResgatado);
-        currentValue = Math.max(0, investment.currentValue - total);
+        const percentResgatado = total / invCurrentValue;
+        const totalInvestidoResgatado = invTotalInvested * percentResgatado;
+        newTotalInvested = Math.max(0, invTotalInvested - totalInvestidoResgatado);
+        currentValue = Math.max(0, invCurrentValue - total);
       }
 
       newQuantity = 1;
@@ -402,17 +471,17 @@ export class InvestmentOperationService {
       currentPrice = currentValue;
     } else {
       if (type === "buy") {
-        newQuantity = investment.quantity + quantity;
-        newTotalInvested = investment.totalInvested + total;
+        newQuantity = invQuantity + quantity;
+        newTotalInvested = invTotalInvested + total;
         newAveragePrice = newQuantity > 0 ? newTotalInvested / newQuantity : 0;
       } else {
-        newQuantity = Math.max(0, investment.quantity - quantity);
-        const soldValue = quantity * investment.averagePrice;
-        newTotalInvested = Math.max(0, investment.totalInvested - soldValue);
+        newQuantity = Math.max(0, invQuantity - quantity);
+        const soldValue = quantity * invAveragePrice;
+        newTotalInvested = Math.max(0, invTotalInvested - soldValue);
         newAveragePrice = newQuantity > 0 ? newTotalInvested / newQuantity : 0;
       }
 
-      currentPrice = investment.currentPrice || price;
+      currentPrice = invCurrentPrice || price;
       currentValue = newQuantity * currentPrice;
     }
 
@@ -442,10 +511,8 @@ export class InvestmentOperationService {
       const cdiHistory = await fetchCDIHistory(1500);
       if (!cdiHistory) return null;
 
-      const allOperations = await prisma.operation.findMany({
-        where: { investmentId },
-        orderBy: { date: "asc" },
-      });
+      // Use repository for proper decryption
+      const allOperations = await operationRepository.findByInvestment(investmentId);
 
       const deposits = allOperations.filter(op => op.type === "deposit" || op.type === "buy");
       const withdrawals = allOperations.filter(op => op.type === "sell" || op.type === "withdraw");
@@ -456,7 +523,7 @@ export class InvestmentOperationService {
 
       for (const deposit of deposits) {
         const depositDate = new Date(deposit.date).toISOString().split("T")[0];
-        const depositValue = deposit.price;
+        const depositValue = deposit.price as unknown as number;
 
         const yieldResult = calculateFixedIncomeYield(
           depositValue,
@@ -478,7 +545,7 @@ export class InvestmentOperationService {
 
       let totalWithdrawals = 0;
       for (const withdrawal of withdrawals) {
-        totalWithdrawals += withdrawal.price;
+        totalWithdrawals += withdrawal.price as unknown as number;
       }
 
       const finalGrossValue = totalGrossValue - totalWithdrawals;
@@ -488,18 +555,16 @@ export class InvestmentOperationService {
         ? (finalProfitLoss / effectivePrincipal) * 100
         : 0;
 
-      return prisma.investment.update({
-        where: { id: investmentId },
-        data: {
-          currentValue: finalGrossValue,
-          currentPrice: finalGrossValue,
-          profitLoss: finalProfitLoss,
-          profitLossPercent: finalProfitLossPercent,
-        },
-        include: {
-          operations: { orderBy: { date: "desc" } },
-        },
+      // Use repository to update with encryption
+      const updated = await investmentRepository.updateById(investmentId, {
+        currentValue: finalGrossValue,
+        currentPrice: finalGrossValue,
+        profitLoss: finalProfitLoss,
+        profitLossPercent: finalProfitLossPercent,
       });
+
+      // Return updated investment with operations
+      return investmentRepository.findById(investmentId, "", true) || updated;
     } catch (error) {
       console.error("Erro ao recalcular rendimento:", error);
       return null;

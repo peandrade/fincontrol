@@ -1,25 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse, invalidateCardCache } from "@/lib/api-utils";
 import { createCreditCardSchema, validateBody } from "@/lib/schemas";
+import { cardRepository } from "@/repositories";
 
 export async function GET() {
   return withAuth(async (session) => {
-    const cards = await prisma.creditCard.findMany({
-      where: { isActive: true, userId: session.user.id },
-      include: {
-        invoices: {
-          orderBy: [{ year: "desc" }, { month: "desc" }],
-          take: 12,
-          include: {
-            purchases: {
-              orderBy: { date: "desc" },
-              take: 100,
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
+    // Use repository for proper decryption
+    const cards = await cardRepository.findByUser(session.user.id, {
+      isActive: true,
+      includeInvoices: true,
     });
 
     return NextResponse.json(cards);
@@ -38,24 +27,20 @@ export async function POST(request: NextRequest) {
 
     const { name, lastDigits, limit, closingDay, dueDay, color } = validation.data;
 
-    const card = await prisma.creditCard.create({
-      data: {
-        name,
-        lastDigits: lastDigits || null,
-        limit: limit || 0,
-        closingDay,
-        dueDay,
-        color: color || "#8B5CF6",
-        userId: session.user.id,
-      },
-      include: {
-        invoices: true,
-      },
+    // Use repository for proper encryption
+    const card = await cardRepository.create({
+      name,
+      lastDigits: lastDigits || undefined,
+      limit: limit || 0,
+      closingDay,
+      dueDay,
+      color: color || "#8B5CF6",
+      userId: session.user.id,
     });
 
     // Invalidate related caches
     invalidateCardCache(session.user.id);
 
-    return NextResponse.json(card, { status: 201 });
+    return NextResponse.json({ ...card, invoices: [] }, { status: 201 });
   }, request);
 }

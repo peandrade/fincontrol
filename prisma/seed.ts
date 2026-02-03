@@ -523,7 +523,8 @@ async function main() {
 
   // Batch insert transactions
   console.log(`   Inserindo ${allTransactions.length} transações...`);
-  await prisma.transaction.createMany({ data: allTransactions });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.transaction.createMany({ data: allTransactions as any });
 
   console.log("📋 Criando templates...");
 
@@ -540,8 +541,9 @@ async function main() {
     { name: "Combustível", description: "Gasolina", category: "Transporte", type: "expense" as const, value: 200 },
   ];
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await prisma.transactionTemplate.createMany({
-    data: templates.map(t => ({ ...t, usageCount: Math.floor(Math.random() * 30), userId: USER_ID })),
+    data: templates.map(t => ({ ...t, usageCount: Math.floor(Math.random() * 30), userId: USER_ID })) as any,
   });
 
   console.log("📊 Criando orçamentos...");
@@ -557,8 +559,9 @@ async function main() {
     { category: "Pets", limit: 300 },
   ];
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await prisma.budget.createMany({
-    data: budgets.map(b => ({ ...b, month: 0, year: 0, userId: USER_ID })),
+    data: budgets.map(b => ({ ...b, month: 0, year: 0, userId: USER_ID })) as any,
   });
 
   console.log("🔄 Criando despesas recorrentes...");
@@ -577,8 +580,9 @@ async function main() {
     { description: "GitHub Copilot", value: 50.00, category: "Assinaturas", dueDay: 10 },
   ];
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await prisma.recurringExpense.createMany({
-    data: recurringExpenses.map(e => ({ ...e, isActive: true, userId: USER_ID })),
+    data: recurringExpenses.map(e => ({ ...e, isActive: true, userId: USER_ID })) as any,
   });
 
   console.log("📈 Criando investimentos com histórico de operações...");
@@ -653,6 +657,7 @@ async function main() {
     const profitLoss = currentValue - totalCost;
     const profitLossPercent = totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const investment = await prisma.investment.create({
       data: {
         type: "stock",
@@ -667,7 +672,7 @@ async function main() {
         profitLoss,
         profitLossPercent,
         userId: USER_ID,
-      },
+      } as any,
     });
 
     for (const op of stock.operations) {
@@ -728,6 +733,7 @@ async function main() {
     const profitLoss = currentValue - totalCost;
     const profitLossPercent = (profitLoss / totalCost) * 100;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const investment = await prisma.investment.create({
       data: {
         type: "fii",
@@ -742,7 +748,7 @@ async function main() {
         profitLoss,
         profitLossPercent,
         userId: USER_ID,
-      },
+      } as any,
     });
 
     for (const op of fii.operations) {
@@ -795,6 +801,7 @@ async function main() {
     const profitLoss = currentValue - totalInvested;
     const profitLossPercent = (profitLoss / totalInvested) * 100;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const investment = await prisma.investment.create({
       data: {
         type: "cdb",
@@ -808,7 +815,7 @@ async function main() {
         indexer: cdb.indexer,
         maturityDate,
         userId: USER_ID,
-      },
+      } as any,
     });
 
     for (const dep of cdb.deposits) {
@@ -850,6 +857,7 @@ async function main() {
     const profitLoss = currentValue - totalInvested;
     const profitLossPercent = (profitLoss / totalInvested) * 100;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const investment = await prisma.investment.create({
       data: {
         type: "treasury",
@@ -863,7 +871,7 @@ async function main() {
         indexer: treasury.indexer,
         maturityDate: treasury.maturity,
         userId: USER_ID,
-      },
+      } as any,
     });
 
     for (const dep of treasury.deposits) {
@@ -917,6 +925,7 @@ async function main() {
     const profitLoss = currentValue - totalCost;
     const profitLossPercent = totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const investment = await prisma.investment.create({
       data: {
         type: "crypto",
@@ -931,7 +940,7 @@ async function main() {
         profitLoss,
         profitLossPercent,
         userId: USER_ID,
-      },
+      } as any,
     });
 
     for (const op of crypto.operations) {
@@ -949,10 +958,12 @@ async function main() {
 
   // Batch insert operations
   console.log(`   Inserindo ${allOperations.length} operações...`);
-  await prisma.operation.createMany({ data: allOperations });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.operation.createMany({ data: allOperations as any });
 
   console.log("💳 Criando cartões de crédito com histórico extenso...");
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const nubank = await prisma.creditCard.create({
     data: {
       name: "Nubank",
@@ -963,9 +974,10 @@ async function main() {
       color: "#8B5CF6",
       isActive: true,
       userId: USER_ID,
-    },
+    } as any,
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const inter = await prisma.creditCard.create({
     data: {
       name: "Banco Inter",
@@ -976,9 +988,10 @@ async function main() {
       color: "#F97316",
       isActive: true,
       userId: USER_ID,
-    },
+    } as any,
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const c6 = await prisma.creditCard.create({
     data: {
       name: "C6 Bank",
@@ -989,9 +1002,10 @@ async function main() {
       color: "#1F2937",
       isActive: true,
       userId: USER_ID,
-    },
+    } as any,
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const xp = await prisma.creditCard.create({
     data: {
       name: "XP Visa Infinite",
@@ -1002,7 +1016,7 @@ async function main() {
       color: "#10B981",
       isActive: true,
       userId: USER_ID,
-    },
+    } as any,
   });
 
   const cards = [
@@ -1053,6 +1067,7 @@ async function main() {
       if (monthOffset === 0) status = "open";
       else if (monthOffset === 1) status = "closed";
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const invoice = await prisma.invoice.create({
         data: {
           creditCardId: card.id,
@@ -1063,7 +1078,7 @@ async function main() {
           status,
           total: 0,
           paidAmount: status === "paid" ? avgSpend * randomBetween(0.85, 1.15) : 0,
-        },
+        } as any,
       });
 
       let invoiceTotal = 0;
@@ -1098,13 +1113,15 @@ async function main() {
 
   // Batch insert purchases
   console.log(`   Inserindo ${allPurchases.length} compras...`);
-  await prisma.purchase.createMany({ data: allPurchases });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.purchase.createMany({ data: allPurchases as any });
 
   // Update invoice totals
   for (const update of invoiceUpdates) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await prisma.invoice.update({
       where: { id: update.id },
-      data: { total: update.total },
+      data: { total: update.total } as any,
     });
   }
 
@@ -1190,6 +1207,7 @@ async function main() {
   }> = [];
 
   for (const goalData of goals) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const goal = await prisma.financialGoal.create({
       data: {
         name: goalData.name,
@@ -1200,7 +1218,7 @@ async function main() {
         targetDate: goalData.targetDate,
         color: goalData.color,
         userId: USER_ID,
-      },
+      } as any,
     });
 
     const avgContribution = goalData.currentValue / goalData.contributions;
@@ -1216,7 +1234,8 @@ async function main() {
 
   // Batch insert contributions
   console.log(`   Inserindo ${allContributions.length} contribuições...`);
-  await prisma.goalContribution.createMany({ data: allContributions });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.goalContribution.createMany({ data: allContributions as any });
 
   console.log("");
   console.log("✅ Seed concluído com sucesso!");

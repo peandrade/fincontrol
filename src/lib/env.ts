@@ -19,6 +19,8 @@ const optionalVars = {
   BRAPI_API_KEY: "",
   RESEND_API_KEY: "",
   DIRECT_URL: "",
+  ENCRYPTION_KEY: "", // 64 hex chars (32 bytes) for AES-256
+  USE_ENCRYPTION: "true", // Set to "false" to disable encryption (rollback)
 } as const;
 
 type RequiredVar = (typeof requiredVars)[number];
@@ -33,6 +35,8 @@ interface EnvConfig {
   BRAPI_API_KEY: string;
   RESEND_API_KEY: string;
   DIRECT_URL: string;
+  ENCRYPTION_KEY: string;
+  USE_ENCRYPTION: boolean;
   // Computed
   isProduction: boolean;
   isDevelopment: boolean;
@@ -84,6 +88,8 @@ export function getEnv(): EnvConfig {
     BRAPI_API_KEY: process.env.BRAPI_API_KEY || optionalVars.BRAPI_API_KEY,
     RESEND_API_KEY: process.env.RESEND_API_KEY || optionalVars.RESEND_API_KEY,
     DIRECT_URL: process.env.DIRECT_URL || optionalVars.DIRECT_URL,
+    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || optionalVars.ENCRYPTION_KEY,
+    USE_ENCRYPTION: process.env.USE_ENCRYPTION !== "false",
 
     // Computed
     isProduction: process.env.NODE_ENV === "production",
@@ -96,7 +102,7 @@ export function getEnv(): EnvConfig {
 /**
  * Check if a specific optional service is configured.
  */
-export function isServiceConfigured(service: "brapi" | "resend" | "email"): boolean {
+export function isServiceConfigured(service: "brapi" | "resend" | "email" | "encryption"): boolean {
   const env = getEnv();
 
   switch (service) {
@@ -105,6 +111,8 @@ export function isServiceConfigured(service: "brapi" | "resend" | "email"): bool
     case "resend":
     case "email":
       return !!env.RESEND_API_KEY;
+    case "encryption":
+      return env.USE_ENCRYPTION && !!env.ENCRYPTION_KEY;
     default:
       return false;
   }
@@ -122,6 +130,9 @@ export function getMissingServicesWarning(): string | null {
   }
   if (!process.env.RESEND_API_KEY) {
     missing.push("RESEND_API_KEY (emails não serão enviados)");
+  }
+  if (!process.env.ENCRYPTION_KEY && process.env.USE_ENCRYPTION !== "false") {
+    missing.push("ENCRYPTION_KEY (criptografia de dados desabilitada)");
   }
 
   if (missing.length === 0) {

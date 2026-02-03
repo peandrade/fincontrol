@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse } from "@/lib/api-utils";
 import { z } from "zod";
 import { validateBody } from "@/lib/schemas";
+import { encryptRecord } from "@/lib/encryption";
 
 const transactionSchema = z.object({
   type: z.enum(["income", "expense"]),
@@ -78,17 +79,21 @@ export async function POST(request: Request) {
       if (transactions.length > 0) {
         const txData = transactions.map((t) => {
           const dateObj = new Date(t.date);
-          return {
-            type: t.type as "income" | "expense",
-            value: t.value,
-            category: t.category,
-            description: t.description,
-            date: dateObj,
-            userId,
-          };
+          // Encrypt sensitive fields before saving
+          return encryptRecord(
+            {
+              type: t.type as "income" | "expense",
+              value: t.value,
+              category: t.category,
+              description: t.description,
+              date: dateObj,
+              userId,
+            } as Record<string, unknown>,
+            "Transaction"
+          );
         });
 
-        const created = await tx.transaction.createMany({ data: txData });
+        const created = await tx.transaction.createMany({ data: txData as Parameters<typeof tx.transaction.createMany>[0]["data"] });
         transactionsCreated = created.count;
       }
 
@@ -99,8 +104,9 @@ export async function POST(request: Request) {
         const profitLossPercent =
           inv.totalInvested > 0 ? (profitLoss / inv.totalInvested) * 100 : 0;
 
-        await tx.investment.create({
-          data: {
+        // Encrypt sensitive fields before saving
+        const encryptedInvData = encryptRecord(
+          {
             type: inv.type as "stock" | "fii" | "etf" | "crypto" | "cdb" | "treasury" | "lci_lca" | "savings" | "other",
             name: inv.name,
             ticker: inv.ticker,
@@ -110,13 +116,18 @@ export async function POST(request: Request) {
             currentPrice: inv.averagePrice,
             totalInvested: inv.totalInvested,
             currentValue: inv.currentValue,
-            profitLoss,
-            profitLossPercent,
+            profitLoss: profitLoss,
+            profitLossPercent: profitLossPercent,
             interestRate: inv.interestRate,
             indexer: inv.indexer,
             maturityDate: inv.maturityDate ? new Date(inv.maturityDate) : null,
             userId,
-          },
+          } as Record<string, unknown>,
+          "Investment"
+        );
+
+        await tx.investment.create({
+          data: encryptedInvData as Parameters<typeof tx.investment.create>[0]["data"],
         });
         investmentsCreated++;
       }
@@ -124,6 +135,23 @@ export async function POST(request: Request) {
       // ── Budgets (upsert) ──
       let budgetsCreated = 0;
       for (const b of budgets) {
+        // Encrypt limit for create/update
+        const encryptedCreateData = encryptRecord(
+          {
+            category: b.category,
+            limit: b.limit,
+            month: b.month,
+            year: b.year,
+            userId,
+          } as Record<string, unknown>,
+          "Budget"
+        );
+
+        const encryptedUpdateData = encryptRecord(
+          { limit: b.limit } as Record<string, unknown>,
+          "Budget"
+        );
+
         await tx.budget.upsert({
           where: {
             category_month_year_userId: {
@@ -133,14 +161,8 @@ export async function POST(request: Request) {
               userId,
             },
           },
-          update: { limit: b.limit },
-          create: {
-            category: b.category,
-            limit: b.limit,
-            month: b.month,
-            year: b.year,
-            userId,
-          },
+          update: encryptedUpdateData,
+          create: encryptedCreateData as Parameters<typeof tx.budget.create>[0]["data"],
         });
         budgetsCreated++;
       }
@@ -148,8 +170,9 @@ export async function POST(request: Request) {
       // ── Goals ──
       let goalsCreated = 0;
       for (const g of goals) {
-        const goal = await tx.financialGoal.create({
-          data: {
+        // Encrypt sensitive fields before saving
+        const encryptedGoalData = encryptRecord(
+          {
             name: g.name,
             description: g.description,
             category: g.category as "emergency" | "travel" | "car" | "house" | "education" | "retirement" | "other",
@@ -158,17 +181,28 @@ export async function POST(request: Request) {
             targetDate: g.targetDate ? new Date(g.targetDate) : null,
             color: g.color || "#8B5CF6",
             userId,
-          },
+          } as Record<string, unknown>,
+          "FinancialGoal"
+        );
+
+        const goal = await tx.financialGoal.create({
+          data: encryptedGoalData as Parameters<typeof tx.financialGoal.create>[0]["data"],
         });
 
         if (g.currentValue > 0) {
-          await tx.goalContribution.create({
-            data: {
+          // Encrypt contribution data
+          const encryptedContributionData = encryptRecord(
+            {
               goalId: goal.id,
               value: g.currentValue,
               date: new Date(),
               notes: "Importado via planilha",
-            },
+            } as Record<string, unknown>,
+            "GoalContribution"
+          );
+
+          await tx.goalContribution.create({
+            data: encryptedContributionData as Parameters<typeof tx.goalContribution.create>[0]["data"],
           });
         }
         goalsCreated++;
@@ -177,17 +211,25 @@ export async function POST(request: Request) {
       // ── Recurring Expenses ──
       let recurringExpensesCreated = 0;
       if (recurringExpenses.length > 0) {
-        const recData = recurringExpenses.map((r) => ({
-          description: r.description,
-          value: r.value,
-          category: r.category,
-          dueDay: r.dueDay,
-          isActive: r.isActive,
-          notes: r.notes,
-          userId,
-        }));
+        const recData = recurringExpenses.map((r) =>
+          // Encrypt sensitive fields before saving
+          encryptRecord(
+            {
+              description: r.description,
+              value: r.value,
+              category: r.category,
+              dueDay: r.dueDay,
+              isActive: r.isActive,
+              notes: r.notes,
+              userId,
+            } as Record<string, unknown>,
+            "RecurringExpense"
+          )
+        );
 
-        const created = await tx.recurringExpense.createMany({ data: recData });
+        const created = await tx.recurringExpense.createMany({
+          data: recData as Parameters<typeof tx.recurringExpense.createMany>[0]["data"],
+        });
         recurringExpensesCreated = created.count;
       }
 

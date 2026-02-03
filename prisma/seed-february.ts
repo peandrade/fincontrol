@@ -546,7 +546,8 @@ async function main() {
   // ==================== INSERIR TRANSAÇÕES ====================
 
   console.log(`💰 Inserindo ${transactions.length} transações para Fevereiro 2026...`);
-  await prisma.transaction.createMany({ data: transactions });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.transaction.createMany({ data: transactions as any });
 
   // Calcular totais
   const totalIncome = transactions

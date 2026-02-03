@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/api-utils";
+import { budgetRepository, transactionRepository, purchaseRepository } from "@/repositories";
 
 export interface BudgetAlert {
   id: string;
@@ -33,16 +34,8 @@ export async function GET() {
     const startOfMonth = new Date(year, month - 1, 1);
     const endOfMonth = new Date(year, month, 0, 23, 59, 59);
 
-    // Get budgets
-    const budgets = await prisma.budget.findMany({
-      where: {
-        userId,
-        OR: [
-          { month: 0, year: 0 },
-          { month, year },
-        ],
-      },
-    });
+    // Get budgets using repository (handles decryption)
+    const budgets = await budgetRepository.getActiveBudgets(userId, month, year);
 
     if (budgets.length === 0) {
       return NextResponse.json({
@@ -56,62 +49,43 @@ export async function GET() {
       });
     }
 
-    // Get expenses from transactions
-    const expenses = await prisma.transaction.groupBy({
-      by: ["category"],
-      where: {
-        userId,
-        type: "expense",
-        category: {
-          not: "Fatura Cartão",
-        },
-        date: {
-          gte: startOfMonth,
-          lte: endOfMonth,
-        },
-      },
-      _sum: {
-        value: true,
-      },
+    // Get expenses using repository (handles decryption)
+    const expenses = await transactionRepository.findByUser(userId, {
+      type: "expense",
+      startDate: startOfMonth,
+      endDate: endOfMonth,
     });
 
-    // Get expenses from card purchases
-    const cardPurchases = await prisma.purchase.groupBy({
-      by: ["category"],
-      where: {
-        date: {
-          gte: startOfMonth,
-          lte: endOfMonth,
-        },
-        invoice: {
-          creditCard: {
-            userId,
-          },
-        },
-      },
-      _sum: {
-        value: true,
-      },
-    });
+    // Filter out "Fatura Cartão" category
+    const filteredExpenses = expenses.filter(e => e.category !== "Fatura Cartão");
+
+    // Get card purchases by category using repository (handles decryption)
+    const cardPurchases = await purchaseRepository.getCategoryBreakdownByUser(
+      userId,
+      startOfMonth,
+      endOfMonth
+    );
 
     // Combine expenses
     const spentByCategory: Record<string, number> = {};
 
-    for (const expense of expenses) {
-      spentByCategory[expense.category] = (spentByCategory[expense.category] || 0) + (expense._sum.value || 0);
+    for (const expense of filteredExpenses) {
+      const value = expense.value as unknown as number;
+      spentByCategory[expense.category] = (spentByCategory[expense.category] || 0) + value;
     }
 
     for (const purchase of cardPurchases) {
-      spentByCategory[purchase.category] = (spentByCategory[purchase.category] || 0) + (purchase._sum.value || 0);
+      spentByCategory[purchase.category] = (spentByCategory[purchase.category] || 0) + purchase.total;
     }
 
     // Generate alerts
     const alerts: BudgetAlert[] = [];
 
     for (const budget of budgets) {
+      const limit = budget.limit as unknown as number;
       const spent = spentByCategory[budget.category] || 0;
-      const percentage = budget.limit > 0 ? (spent / budget.limit) * 100 : 0;
-      const remaining = budget.limit - spent;
+      const percentage = limit > 0 ? (spent / limit) * 100 : 0;
+      const remaining = limit - spent;
 
       let alertLevel: "warning" | "danger" | "exceeded" | null = null;
       let message = "";
@@ -133,7 +107,7 @@ export async function GET() {
         alerts.push({
           id: budget.id,
           category: budget.category,
-          limit: budget.limit,
+          limit,
           spent,
           percentage,
           remaining,

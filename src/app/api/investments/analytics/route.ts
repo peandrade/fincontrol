@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/api-utils";
+import { investmentRepository } from "@/repositories";
 
 interface PerformanceData {
   investmentId: string;
@@ -58,14 +58,9 @@ export async function GET() {
   return withAuth(async (session) => {
     const userId = session.user.id;
 
-    // Fetch investments with operations
-    const investments = await prisma.investment.findMany({
-      where: { userId },
-      include: {
-        operations: {
-          orderBy: { date: "desc" },
-        },
-      },
+    // Fetch investments using repository (handles decryption)
+    const investments = await investmentRepository.findByUser(userId, {
+      includeOperations: true,
     });
 
     if (investments.length === 0) {
@@ -89,10 +84,10 @@ export async function GET() {
       name: inv.name,
       type: inv.type,
       ticker: inv.ticker || undefined,
-      profitLoss: inv.profitLoss,
-      profitLossPercent: inv.profitLossPercent,
-      currentValue: inv.currentValue,
-      totalInvested: inv.totalInvested,
+      profitLoss: inv.profitLoss as unknown as number,
+      profitLossPercent: inv.profitLossPercent as unknown as number,
+      currentValue: inv.currentValue as unknown as number,
+      totalInvested: inv.totalInvested as unknown as number,
     }));
 
     // Sort by profit/loss percent
@@ -107,11 +102,11 @@ export async function GET() {
       .slice(0, 5);
 
     // === ALLOCATION ANALYSIS ===
-    const totalValue = investments.reduce((sum, inv) => sum + inv.currentValue, 0);
+    const totalValue = investments.reduce((sum, inv) => sum + (inv.currentValue as unknown as number), 0);
 
     const allocationByType: Record<string, number> = {};
     for (const inv of investments) {
-      allocationByType[inv.type] = (allocationByType[inv.type] || 0) + inv.currentValue;
+      allocationByType[inv.type] = (allocationByType[inv.type] || 0) + (inv.currentValue as unknown as number);
     }
 
     const allocationTargets: AllocationTarget[] = Object.entries(defaultTargets)
@@ -141,8 +136,8 @@ export async function GET() {
     const insights: PortfolioInsight[] = [];
 
     // Calculate totals
-    const totalInvested = investments.reduce((sum, inv) => sum + inv.totalInvested, 0);
-    const totalProfitLoss = investments.reduce((sum, inv) => sum + inv.profitLoss, 0);
+    const totalInvested = investments.reduce((sum, inv) => sum + (inv.totalInvested as unknown as number), 0);
+    const totalProfitLoss = investments.reduce((sum, inv) => sum + (inv.profitLoss as unknown as number), 0);
     const totalProfitLossPercent = totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0;
 
     // Diversification score

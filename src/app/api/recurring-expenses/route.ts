@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse, invalidateRecurringCache } from "@/lib/api-utils";
 import { createRecurringExpenseSchema, validateBody } from "@/lib/schemas";
 import { checkRateLimit, getClientIp, rateLimitPresets } from "@/lib/rate-limit";
+import { recurringRepository } from "@/repositories";
 
 export interface RecurringExpenseWithStatus {
   id: string;
@@ -21,12 +21,15 @@ export interface RecurringExpenseWithStatus {
 
 export async function GET() {
   return withAuth(async (session) => {
-    const expenses = await prisma.recurringExpense.findMany({
-      where: { userId: session.user.id },
-      orderBy: [
-        { isActive: "desc" },
-        { dueDay: "asc" },
-      ],
+    // Get expenses using repository (handles decryption)
+    const expenses = await recurringRepository.findByUser(session.user.id);
+
+    // Sort by active status and due day
+    const sortedExpenses = [...expenses].sort((a, b) => {
+      if (a.isActive !== b.isActive) {
+        return a.isActive ? -1 : 1;
+      }
+      return a.dueDay - b.dueDay;
     });
 
     const now = new Date();
@@ -34,7 +37,10 @@ export async function GET() {
     const currentYear = now.getFullYear();
     const today = now.getDate();
 
-    const expensesWithStatus: RecurringExpenseWithStatus[] = expenses.map((expense) => {
+    const expensesWithStatus: RecurringExpenseWithStatus[] = sortedExpenses.map((expense) => {
+      const description = expense.description as string;
+      const value = expense.value as unknown as number;
+      const notes = expense.notes as string | null;
 
       const lastLaunched = expense.lastLaunchedAt
         ? new Date(expense.lastLaunchedAt)
@@ -49,13 +55,13 @@ export async function GET() {
 
       return {
         id: expense.id,
-        description: expense.description,
-        value: expense.value,
+        description,
+        value,
         category: expense.category,
         dueDay: expense.dueDay,
         isActive: expense.isActive,
         lastLaunchedAt: expense.lastLaunchedAt?.toISOString() || null,
-        notes: expense.notes,
+        notes,
         isLaunchedThisMonth,
         dueDate: dueDate.toISOString(),
         isPastDue,
@@ -114,16 +120,15 @@ export async function POST(request: NextRequest) {
 
     const { name, value, category, dueDay, description } = validation.data;
 
-    const expense = await prisma.recurringExpense.create({
-      data: {
-        description: name,
-        value,
-        category,
-        dueDay,
-        notes: description || null,
-        isActive: true,
-        userId: session.user.id,
-      },
+    // Create expense using repository (handles encryption)
+    const expense = await recurringRepository.create({
+      userId: session.user.id,
+      description: name,
+      value,
+      category,
+      dueDay,
+      notes: description || undefined,
+      isActive: true,
     });
 
     // Invalidate related caches

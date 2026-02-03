@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse, invalidateInvestmentCache } from "@/lib/api-utils";
 import { updateInvestmentSchema, validateBody } from "@/lib/schemas";
+import { investmentRepository } from "@/repositories";
 
 const VARIABLE_INCOME_TYPES = ["stock", "fii", "etf", "crypto"];
 
@@ -13,19 +13,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   return withAuth(async (session) => {
     const { id } = await params;
 
-    const investment = await prisma.investment.findUnique({
-      where: { id },
-      include: {
-        operations: { orderBy: { date: "desc" } },
-      },
-    });
+    // Get investment using repository (handles decryption)
+    const investment = await investmentRepository.findById(id, session.user.id, true);
 
     if (!investment) {
       return errorResponse("Investimento não encontrado", 404, "NOT_FOUND");
-    }
-
-    if (investment.userId !== session.user.id) {
-      return errorResponse("Não autorizado", 403, "FORBIDDEN");
     }
 
     return NextResponse.json(investment);
@@ -43,16 +35,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const existing = await prisma.investment.findUnique({
-      where: { id },
-    });
+    const existing = await investmentRepository.findById(id, session.user.id);
 
     if (!existing) {
       return errorResponse("Investimento não encontrado", 404, "NOT_FOUND");
-    }
-
-    if (existing.userId !== session.user.id) {
-      return errorResponse("Não autorizado", 403, "FORBIDDEN");
     }
 
     const validatedData = validation.data;
@@ -74,11 +60,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (isVariable) {
       if (validatedData.currentPrice !== undefined) {
         const currentPrice = Number(validatedData.currentPrice);
-        const currentValue = existing.quantity * currentPrice;
-        const profitLoss = currentValue - existing.totalInvested;
-        const profitLossPercent = existing.totalInvested > 0
-          ? (profitLoss / existing.totalInvested) * 100
-          : 0;
+        const quantity = existing.quantity as unknown as number;
+        const totalInvested = existing.totalInvested as unknown as number;
+        const currentValue = quantity * currentPrice;
+        const profitLoss = currentValue - totalInvested;
+        const profitLossPercent = totalInvested > 0 ? (profitLoss / totalInvested) * 100 : 0;
 
         updateData.currentPrice = currentPrice;
         updateData.currentValue = currentValue;
@@ -88,10 +74,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     } else {
       const newTotalInvested = validatedData.totalInvested !== undefined
         ? Number(validatedData.totalInvested)
-        : existing.totalInvested;
+        : (existing.totalInvested as unknown as number);
       const newCurrentValue = validatedData.currentValue !== undefined
         ? Number(validatedData.currentValue)
-        : existing.currentValue;
+        : (existing.currentValue as unknown as number);
 
       if (validatedData.totalInvested !== undefined) {
         updateData.totalInvested = newTotalInvested;
@@ -112,18 +98,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    const investment = await prisma.investment.update({
-      where: { id },
-      data: updateData,
-      include: {
-        operations: { orderBy: { date: "desc" } },
-      },
-    });
+    // Update using repository (handles encryption)
+    const investment = await investmentRepository.update(id, session.user.id, updateData);
+
+    // Fetch with operations for response
+    const updatedInvestment = await investmentRepository.findById(id, session.user.id, true);
 
     // Invalidate related caches
     invalidateInvestmentCache(session.user.id);
 
-    return NextResponse.json(investment);
+    return NextResponse.json(updatedInvestment);
   }, request);
 }
 
@@ -131,21 +115,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   return withAuth(async (session) => {
     const { id } = await params;
 
-    const existing = await prisma.investment.findUnique({
-      where: { id },
-    });
+    const existing = await investmentRepository.findById(id, session.user.id);
 
     if (!existing) {
       return errorResponse("Investimento não encontrado", 404, "NOT_FOUND");
     }
 
-    if (existing.userId !== session.user.id) {
-      return errorResponse("Não autorizado", 403, "FORBIDDEN");
-    }
-
-    await prisma.investment.delete({
-      where: { id },
-    });
+    await investmentRepository.delete(id, session.user.id);
 
     // Invalidate related caches
     invalidateInvestmentCache(session.user.id);

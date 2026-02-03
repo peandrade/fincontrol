@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/api-utils";
 import { differenceInMonths, differenceInDays, format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { goalRepository } from "@/repositories";
 
 interface GoalMilestone {
   percentage: number;
@@ -43,15 +43,17 @@ export async function GET() {
     const now = new Date();
     const sixMonthsAgo = subMonths(now, 6);
 
-    // Fetch goals with contributions
-    const goals = await prisma.financialGoal.findMany({
-      where: { userId },
-      include: {
-        contributions: {
-          orderBy: { date: "desc" },
-        },
-      },
+    // Fetch goals with contributions using repository (handles decryption)
+    const goalsRaw = await goalRepository.findByUser(userId, {
+      includeContributions: true,
     });
+
+    // Type assertion for encrypted fields that have been decrypted
+    const goals = goalsRaw as unknown as (Omit<typeof goalsRaw[number], 'targetValue' | 'currentValue'> & {
+      targetValue: number;
+      currentValue: number;
+      contributions?: { id: string; value: number; date: Date; notes: string | null }[];
+    })[];
 
     if (goals.length === 0) {
       return NextResponse.json({
@@ -74,6 +76,7 @@ export async function GET() {
     const insights: GoalInsight[] = [];
 
     for (const goal of goals) {
+      const contributions = goal.contributions || [];
       const progress = goal.targetValue > 0
         ? (goal.currentValue / goal.targetValue) * 100
         : 0;
@@ -86,9 +89,9 @@ export async function GET() {
 
         // Find when milestone was reached (if applicable)
         let reachedAt: string | undefined;
-        if (reached && goal.contributions.length > 0) {
+        if (reached && contributions.length > 0) {
           let runningTotal = 0;
-          const sortedContributions = [...goal.contributions].sort(
+          const sortedContributions = [...contributions].sort(
             (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
           );
 
@@ -116,7 +119,7 @@ export async function GET() {
         monthlyData[monthKey] = 0;
       }
 
-      for (const contrib of goal.contributions) {
+      for (const contrib of contributions) {
         const contribDate = new Date(contrib.date);
         if (contribDate >= sixMonthsAgo) {
           const monthKey = format(contribDate, "yyyy-MM");
@@ -260,7 +263,7 @@ export async function GET() {
     const overallProgress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
 
     const allContributions = goals.flatMap((g) =>
-      g.contributions.filter((c) => new Date(c.date) >= sixMonthsAgo)
+      (g.contributions || []).filter((c) => new Date(c.date) >= sixMonthsAgo)
     );
     const monthlyAverage = allContributions.reduce((sum, c) => sum + c.value, 0) / 6;
 

@@ -1,20 +1,19 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/api-utils";
+import { transactionRepository } from "@/repositories";
 
 export async function GET() {
   return withAuth(async (session) => {
-    const transactions = await prisma.transaction.findMany({
-      where: { userId: session.user.id },
-      orderBy: { date: "desc" },
-    });
+    // Use repository for proper decryption of encrypted fields
+    const transactions = await transactionRepository.findByUser(session.user.id);
 
     // CSV header
     const header = "Tipo,Valor,Categoria,Descrição,Data";
 
     const rows = transactions.map((t) => {
       const tipo = t.type === "income" ? "Receita" : "Despesa";
-      const valor = t.value.toFixed(2).replace(".", ",");
+      const value = t.value as unknown as number;
+      const valor = value.toFixed(2).replace(".", ",");
       const categoria = `"${t.category.replace(/"/g, '""')}"`;
       const descricao = `"${(t.description || "").replace(/"/g, '""')}"`;
       const data = new Date(t.date).toLocaleDateString("pt-BR");

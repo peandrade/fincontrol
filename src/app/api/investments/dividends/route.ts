@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/api-utils";
+import { investmentRepository } from "@/repositories";
 
 export interface DividendData {
   id: string;
@@ -49,15 +49,27 @@ export async function GET() {
   return withAuth(async (session) => {
     const userId = session.user.id;
 
-    // Buscar todos os investimentos do usuário com operações de dividendo
-    const investments = await prisma.investment.findMany({
-      where: { userId },
-      include: {
-        operations: {
-          where: { type: "dividend" },
-          orderBy: { date: "desc" },
-        },
-      },
+    // Use repository for proper decryption of encrypted fields
+    const investmentsRaw = await investmentRepository.findByUser(userId, {
+      includeOperations: true,
+    });
+
+    // Type assertion for operations
+    type OperationType = {
+      id: string;
+      type: string;
+      total: number;
+      date: Date;
+      notes: string | null;
+    };
+
+    // Filter to only include dividend operations (repository returns all operations)
+    const investmentsWithDividends = investmentsRaw.map(inv => {
+      const invWithOps = inv as typeof inv & { operations?: OperationType[] };
+      return {
+        ...invWithOps,
+        operations: (invWithOps.operations || []).filter(op => op.type === "dividend"),
+      };
     });
 
     // Datas de referência
@@ -86,8 +98,8 @@ export async function GET() {
 
     const monthlyMap = new Map<string, number>();
 
-    for (const inv of investments) {
-      totalInvested += inv.totalInvested;
+    for (const inv of investmentsWithDividends) {
+      totalInvested += inv.totalInvested as unknown as number;
 
       if (!byInvestmentMap.has(inv.id)) {
         byInvestmentMap.set(inv.id, {
@@ -109,32 +121,32 @@ export async function GET() {
           investmentName: inv.name,
           ticker: inv.ticker || undefined,
           type: inv.type,
-          value: op.total,
+          value: op.total as unknown as number,
           date: op.date.toISOString(),
           notes: op.notes || undefined,
         });
 
         // Acumular por período
         if (opDate >= startOfThisMonth) {
-          thisMonth += op.total;
+          thisMonth += op.total as unknown as number;
         }
         if (opDate >= startOfLastMonth && opDate <= endOfLastMonth) {
-          lastMonth += op.total;
+          lastMonth += op.total as unknown as number;
         }
         if (opDate >= startOfThisYear) {
-          thisYear += op.total;
+          thisYear += op.total as unknown as number;
         }
         if (opDate >= twelveMonthsAgo) {
-          last12Months += op.total;
+          last12Months += op.total as unknown as number;
         }
 
         // Acumular por investimento
         const invData = byInvestmentMap.get(inv.id)!;
-        invData.total += op.total;
+        invData.total += op.total as unknown as number;
         invData.count += 1;
 
         // Acumular por mês
-        monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + op.total);
+        monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + (op.total as unknown as number));
       }
     }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse, invalidateCardCache, invalidateTransactionCache } from "@/lib/api-utils";
 import { updateInvoiceSchema, validateBody } from "@/lib/schemas";
+import { invoiceRepository, transactionRepository, cardRepository } from "@/repositories";
 
 interface RouteParams {
   params: Promise<{ id: string; invoiceId: string }>;
@@ -17,21 +17,15 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const card = await prisma.creditCard.findFirst({
-      where: {
-        id: cardId,
-        userId: session.user.id,
-      },
-    });
+    // Use repository for proper ownership check
+    const card = await cardRepository.findById(cardId, session.user.id);
 
     if (!card) {
       return errorResponse("Cartão não encontrado", 404, "NOT_FOUND");
     }
 
-    const currentInvoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
-      include: { creditCard: true },
-    });
+    // Use repository for proper decryption of encrypted fields
+    const currentInvoice = await invoiceRepository.findById(invoiceId, true);
 
     if (!currentInvoice) {
       return errorResponse("Fatura não encontrada", 404, "NOT_FOUND");
@@ -42,47 +36,46 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const { status, paidAmount } = validation.data;
-    const updateData: Record<string, unknown> = {};
+    const updateData: Partial<{ status: string; paidAmount: number }> = {};
     let paymentAmount = 0;
+
+    // Values are already decrypted by repository
+    const invoiceTotal = currentInvoice.total as unknown as number;
+    const invoicePaidAmount = currentInvoice.paidAmount as unknown as number;
 
     if (status) {
       updateData.status = status;
 
       if (status === "paid") {
-        paymentAmount = currentInvoice.total - currentInvoice.paidAmount;
-        updateData.paidAmount = currentInvoice.total;
+        paymentAmount = invoiceTotal - invoicePaidAmount;
+        updateData.paidAmount = invoiceTotal;
       }
     }
 
-    if (paidAmount !== undefined && paidAmount > currentInvoice.paidAmount) {
-      paymentAmount = paidAmount - currentInvoice.paidAmount;
+    if (paidAmount !== undefined && paidAmount > invoicePaidAmount) {
+      paymentAmount = paidAmount - invoicePaidAmount;
       updateData.paidAmount = paidAmount;
     }
 
-    const invoice = await prisma.invoice.update({
-      where: { id: invoiceId },
-      data: updateData,
-      include: {
-        purchases: {
-          orderBy: { date: "desc" },
-        },
-      },
-    });
+    // Update invoice using repository
+    const invoice = await invoiceRepository.update(invoiceId, updateData as Parameters<typeof invoiceRepository.update>[1]);
+
+    // Fetch updated invoice with purchases for response
+    const updatedInvoice = await invoiceRepository.findById(invoiceId, true);
 
     if (paymentAmount > 0) {
       const cardName = currentInvoice.creditCard?.name || "Cartão";
       const monthName = new Date(currentInvoice.year, currentInvoice.month - 1)
         .toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
-      await prisma.transaction.create({
-        data: {
-          type: "expense",
-          value: paymentAmount,
-          category: "Fatura Cartão",
-          description: `Fatura ${cardName} - ${monthName}`,
-          date: new Date(),
-          userId: session.user.id,
-        },
+      // Create transaction using repository
+      await transactionRepository.create({
+        type: "expense",
+        value: paymentAmount,
+        category: "Fatura Cartão",
+        description: `Fatura ${cardName} - ${monthName}`,
+        date: new Date(),
+        userId: session.user.id,
       });
 
       // Invalidate transaction cache since we created a transaction
@@ -92,6 +85,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Invalidate card cache for invoice update
     invalidateCardCache(session.user.id);
 
-    return NextResponse.json(invoice);
+    return NextResponse.json(updatedInvoice);
   }, request);
 }

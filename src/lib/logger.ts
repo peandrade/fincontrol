@@ -249,4 +249,6 @@ export const loggers = {
   cache: createServiceLogger("cache"),
   email: createServiceLogger("email"),
   quotes: createServiceLogger("quotes"),
+  audit: createServiceLogger("audit"),
+  encryption: createServiceLogger("encryption"),
 };

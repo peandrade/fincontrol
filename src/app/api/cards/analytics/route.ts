@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse } from "@/lib/api-utils";
-import { startOfMonth, endOfMonth, subMonths, addMonths, format, differenceInDays } from "date-fns";
+import { startOfMonth, subMonths, addMonths, format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Prisma } from "@prisma/client";
-import { toNumber } from "@/lib/decimal-utils";
+import { purchaseRepository, invoiceRepository, cardRepository } from "@/repositories";
 
 interface CardSpendingByCategory {
   category: string;
@@ -35,20 +33,6 @@ interface CardAlert {
   daysUntil?: number;
 }
 
-interface CategoryAggregate {
-  category: string;
-  total: Prisma.Decimal;
-  count: bigint;
-}
-
-interface MonthlyCardAggregate {
-  card_id: string;
-  card_name: string;
-  card_color: string;
-  month: Date;
-  total: Prisma.Decimal;
-}
-
 interface InvoiceForFuture {
   creditCardId: string;
   month: number;
@@ -75,142 +59,98 @@ export async function GET() {
     const sixMonthsAgo = subMonths(now, 6);
     const twoMonthsAgo = startOfMonth(subMonths(now, 2));
 
-    // All queries in parallel
+    // All queries in parallel - using repositories for proper decryption of encrypted data
     const [
       creditCards,
-      categorySpending,
-      monthlyCardSpending,
+      purchasesForCategory,
+      purchasesForMonthly,
       futureInvoices,
       unpaidInvoicesForUsage,
       currentMonthInvoices,
     ] = await Promise.all([
-      // Basic card info (without nested data)
-      prisma.creditCard.findMany({
-        where: { userId, isActive: true },
-        select: {
-          id: true,
-          name: true,
-          color: true,
-          limit: true,
-          closingDay: true,
-          dueDay: true,
-        },
-      }),
+      // Basic card info using repository (handles decryption)
+      cardRepository.findByUser(userId, { isActive: true }),
 
-      // Category spending - aggregated with JOINs
-      prisma.$queryRaw<CategoryAggregate[]>`
-        SELECT
-          p.category,
-          SUM(p.value) as total,
-          COUNT(*) as count
-        FROM purchases p
-        JOIN invoices i ON p."invoiceId" = i.id
-        JOIN credit_cards c ON i."creditCardId" = c.id
-        WHERE c."userId" = ${userId}
-          AND c."isActive" = true
-          AND p.date >= ${sixMonthsAgo}
-        GROUP BY p.category
-        ORDER BY total DESC
-      `,
+      // Purchases for category spending (last 6 months) - using repository
+      purchaseRepository.findByUser(userId, { startDate: sixMonthsAgo }),
 
-      // Monthly spending by card (past 2 months + current)
-      prisma.$queryRaw<MonthlyCardAggregate[]>`
-        SELECT
-          c.id as card_id,
-          c.name as card_name,
-          c.color as card_color,
-          DATE_TRUNC('month', p.date) as month,
-          SUM(p.value) as total
-        FROM purchases p
-        JOIN invoices i ON p."invoiceId" = i.id
-        JOIN credit_cards c ON i."creditCardId" = c.id
-        WHERE c."userId" = ${userId}
-          AND c."isActive" = true
-          AND p.date >= ${twoMonthsAgo}
-        GROUP BY c.id, c.name, c.color, DATE_TRUNC('month', p.date)
-        ORDER BY month, c.name
-      `,
+      // Purchases for monthly spending (past 2 months + current) - using repository
+      purchaseRepository.findByUserWithCardInfo(userId, { startDate: twoMonthsAgo }),
 
-      // Future invoices (next 3 months)
-      prisma.invoice.findMany({
-        where: {
-          creditCard: { userId, isActive: true },
-          OR: [
-            { year: currentYear, month: { gt: currentMonth } },
-            { year: { gt: currentYear } },
-          ],
-        },
-        select: {
-          creditCardId: true,
-          month: true,
-          year: true,
-          total: true,
-        },
-        take: 50,
-      }),
+      // Future invoices (next 3 months) - using repository
+      invoiceRepository.getFutureByUser(userId, currentMonth, currentYear),
 
-      // Unpaid invoices for usage calculation
-      prisma.invoice.findMany({
-        where: {
-          creditCard: { userId, isActive: true },
-          status: { not: "paid" },
-        },
-        select: {
-          creditCardId: true,
-          total: true,
-          paidAmount: true,
-        },
-      }),
+      // Unpaid invoices for usage calculation - using repository
+      invoiceRepository.getUnpaidByUser(userId),
 
-      // Current month invoices for alerts
-      prisma.invoice.findMany({
-        where: {
-          creditCard: { userId, isActive: true },
-          month: currentMonth,
-          year: currentYear,
-        },
-        select: {
-          creditCardId: true,
-          status: true,
-          total: true,
-          paidAmount: true,
-          dueDate: true,
-        },
-      }),
+      // Current month invoices for alerts - using repository
+      invoiceRepository.getByMonthForUser(userId, currentMonth, currentYear),
     ]);
+
+    // Aggregate purchases by category (values are decrypted by repository)
+    const categoryAggregates: Record<string, { total: number; count: number }> = {};
+    for (const p of purchasesForCategory) {
+      const value = p.value as unknown as number;
+      if (!categoryAggregates[p.category]) {
+        categoryAggregates[p.category] = { total: 0, count: 0 };
+      }
+      categoryAggregates[p.category].total += value;
+      categoryAggregates[p.category].count += 1;
+    }
+
+    // Convert to sorted array
+    const categorySpending = Object.entries(categoryAggregates)
+      .map(([category, data]) => ({ category, total: data.total, count: data.count }))
+      .sort((a, b) => b.total - a.total);
+
+    // Aggregate purchases by card and month (values are decrypted by repository)
+    const monthlyCardAggregates: Record<string, Record<string, { total: number; name: string; color: string }>> = {};
+    for (const p of purchasesForMonthly) {
+      const value = p.value as unknown as number;
+      const monthKey = format(new Date(p.date), "yyyy-MM");
+      // Type assertion for nested invoice data
+      const invoice = p.invoice as unknown as { creditCard: { id: string; name: string; color: string } };
+      const cardId = invoice.creditCard.id;
+
+      if (!monthlyCardAggregates[monthKey]) {
+        monthlyCardAggregates[monthKey] = {};
+      }
+      if (!monthlyCardAggregates[monthKey][cardId]) {
+        monthlyCardAggregates[monthKey][cardId] = {
+          total: 0,
+          name: invoice.creditCard.name,
+          color: invoice.creditCard.color,
+        };
+      }
+      monthlyCardAggregates[monthKey][cardId].total += value;
+    }
 
     // Create card lookup map
     const cardMap = new Map(creditCards.map((c) => [c.id, c]));
 
     // === SPENDING BY CATEGORY ===
-    const totalSpending = categorySpending.reduce((sum, cat) => sum + toNumber(cat.total), 0);
+    const totalSpending = categorySpending.reduce((sum, cat) => sum + cat.total, 0);
 
     const spendingByCategory: CardSpendingByCategory[] = categorySpending.map((row) => ({
       category: row.category,
-      total: toNumber(row.total),
-      percentage: totalSpending > 0 ? (toNumber(row.total) / totalSpending) * 100 : 0,
-      transactionCount: toNumber(row.count),
+      total: row.total,
+      percentage: totalSpending > 0 ? (row.total / totalSpending) * 100 : 0,
+      transactionCount: row.count,
     }));
 
     // === MONTHLY SPENDING ===
-    // Index monthly spending by card and month
-    const monthlyIndex: Record<string, Record<string, number>> = {};
-    for (const row of monthlyCardSpending) {
-      const monthKey = format(new Date(row.month), "yyyy-MM");
-      if (!monthlyIndex[monthKey]) {
-        monthlyIndex[monthKey] = {};
-      }
-      monthlyIndex[monthKey][row.card_id] = toNumber(row.total);
-    }
+    // Index monthly spending by card and month (already aggregated above)
+    const monthlyIndex = monthlyCardAggregates;
 
-    // Index future invoices
+    // Index future invoices (values are decrypted by repository)
     const futureInvoiceIndex: Record<string, Record<string, number>> = {};
-    for (const inv of futureInvoices as InvoiceForFuture[]) {
+    for (const inv of futureInvoices) {
+      const total = inv.total as unknown as number;
       const monthKey = `${inv.year}-${String(inv.month).padStart(2, "0")}`;
       if (!futureInvoiceIndex[monthKey]) {
         futureInvoiceIndex[monthKey] = {};
       }
-      futureInvoiceIndex[monthKey][inv.creditCardId] = inv.total;
+      futureInvoiceIndex[monthKey][inv.creditCardId] = total;
     }
 
     const monthlySpending: CardMonthlySpending[] = [];
@@ -227,7 +167,7 @@ export async function GET() {
 
         if (i <= 0) {
           // Past and current: use aggregated purchase data
-          cardTotal = monthlyIndex[monthKey]?.[card.id] || 0;
+          cardTotal = monthlyIndex[monthKey]?.[card.id]?.total || 0;
         } else {
           // Future: use invoice total
           cardTotal = futureInvoiceIndex[monthKey]?.[card.id] || 0;
@@ -254,16 +194,24 @@ export async function GET() {
     // === ALERTS ===
     const alerts: CardAlert[] = [];
 
-    // Index unpaid invoices by card
+    // Index unpaid invoices by card (values are decrypted by repository)
     const unpaidByCard: Record<string, number> = {};
     for (const inv of unpaidInvoicesForUsage) {
-      const debt = inv.total - inv.paidAmount;
+      const total = inv.total as unknown as number;
+      const paidAmount = inv.paidAmount as unknown as number;
+      const debt = total - paidAmount;
       unpaidByCard[inv.creditCardId] = (unpaidByCard[inv.creditCardId] || 0) + debt;
     }
 
-    // Index current month invoices by card
-    const currentInvoiceByCard = new Map<string, CurrentMonthInvoice>(
-      (currentMonthInvoices as CurrentMonthInvoice[]).map((inv) => [inv.creditCardId, inv])
+    // Index current month invoices by card (values are decrypted by repository)
+    const currentInvoiceByCard = new Map(
+      currentMonthInvoices.map((inv) => [inv.creditCardId, {
+        creditCardId: inv.creditCardId,
+        status: inv.status,
+        total: inv.total as unknown as number,
+        paidAmount: inv.paidAmount as unknown as number,
+        dueDate: inv.dueDate,
+      }])
     );
 
     for (const card of creditCards) {
@@ -317,7 +265,8 @@ export async function GET() {
 
       // Check for high usage
       const usedLimit = unpaidByCard[card.id] || 0;
-      const usagePercent = card.limit > 0 ? (usedLimit / card.limit) * 100 : 0;
+      const cardLimit = card.limit as unknown as number;
+      const usagePercent = cardLimit > 0 ? (usedLimit / cardLimit) * 100 : 0;
 
       if (usagePercent >= 80) {
         alerts.push({
@@ -338,7 +287,7 @@ export async function GET() {
     });
 
     // === SUMMARY ===
-    const totalLimit = creditCards.reduce((sum, card) => sum + card.limit, 0);
+    const totalLimit = creditCards.reduce((sum, card) => sum + (card.limit as unknown as number), 0);
     const totalUsed = Object.values(unpaidByCard).reduce((sum, debt) => sum + debt, 0);
 
     const averageMonthlySpending =

@@ -10,6 +10,11 @@ import {
 } from "@/types/api";
 import { serverCache, CacheTags } from "@/lib/server-cache";
 import { API_VERSION, withVersion } from "@/lib/api-version";
+import {
+  isEncryptionError,
+  getEncryptionErrorMessage,
+  isKeyConfigurationError,
+} from "@/lib/encryption";
 
 // Re-export types for convenience
 export type { ApiError, ErrorCode, ValidationErrorDetail };
@@ -110,6 +115,42 @@ export function conflictResponse(message: string): NextResponse<ApiError> {
     { error: message, code: ErrorCodes.CONFLICT },
     { status: HttpStatus.CONFLICT }
   );
+}
+
+/**
+ * Create an encryption error response (500)
+ * Returns user-friendly message without exposing technical details.
+ */
+export function encryptionErrorResponse(error: unknown): NextResponse<ApiError> {
+  const message = getEncryptionErrorMessage(error);
+
+  // Key configuration errors are server configuration issues
+  if (isKeyConfigurationError(error)) {
+    console.error("Encryption key configuration error:", error);
+    return NextResponse.json(
+      { error: message, code: ErrorCodes.INTERNAL_ERROR },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR }
+    );
+  }
+
+  // Data errors may indicate corruption or tampering
+  console.error("Encryption error:", error);
+  return NextResponse.json(
+    { error: message, code: ErrorCodes.INTERNAL_ERROR },
+    { status: HttpStatus.INTERNAL_SERVER_ERROR }
+  );
+}
+
+/**
+ * Handle an error, returning appropriate response for encryption errors.
+ */
+export function handleApiError(error: unknown, operation: string): NextResponse<ApiError> {
+  if (isEncryptionError(error)) {
+    return encryptionErrorResponse(error);
+  }
+
+  console.error(`Erro ao ${operation}:`, error);
+  return serverErrorResponse(`Erro ao ${operation}`);
 }
 
 /**

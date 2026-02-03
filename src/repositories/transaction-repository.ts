@@ -1,5 +1,6 @@
 import { BaseRepository, calculatePagination, type PaginatedResult, type PaginationOptions } from "./base-repository";
 import type { Transaction, TransactionType } from "@/types";
+import type { EncryptedModel } from "@/lib/encryption";
 
 /**
  * Filters for transaction queries.
@@ -30,13 +31,18 @@ export interface TransactionSummary {
  * Centralizes all transaction-related database queries.
  */
 export class TransactionRepository extends BaseRepository {
+  protected readonly modelName: EncryptedModel = "Transaction";
   /**
    * Find a transaction by ID with ownership check.
    */
   async findById(id: string, userId: string) {
-    return this.db.transaction.findFirst({
+    const result = await this.db.transaction.findFirst({
       where: { id, userId },
     });
+
+    if (!result) return null;
+
+    return this.decryptData(result as unknown as Record<string, unknown>) as unknown as typeof result;
   }
 
   /**
@@ -45,10 +51,12 @@ export class TransactionRepository extends BaseRepository {
   async findByUser(userId: string, filters: TransactionFilters = {}) {
     const where = this.buildWhereClause(userId, filters);
 
-    return this.db.transaction.findMany({
+    const results = await this.db.transaction.findMany({
       where,
       orderBy: { date: "desc" },
     });
+
+    return this.decryptMany(results as unknown as Record<string, unknown>[]) as unknown as typeof results;
   }
 
   /**
@@ -71,8 +79,10 @@ export class TransactionRepository extends BaseRepository {
       take,
     });
 
+    const decrypted = this.decryptMany(transactions as unknown as Record<string, unknown>[]);
+
     return {
-      data: transactions as Transaction[],
+      data: decrypted as unknown as Transaction[],
       pagination,
     };
   }
@@ -88,7 +98,13 @@ export class TransactionRepository extends BaseRepository {
     description?: string;
     date: Date;
   }) {
-    return this.db.transaction.create({ data });
+    // Encrypt sensitive fields before saving
+    const encryptedData = this.encryptData(data as unknown as Record<string, unknown>);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await this.db.transaction.create({ data: encryptedData as any });
+
+    return this.decryptData(result as unknown as Record<string, unknown>) as unknown as typeof result;
   }
 
   /**
@@ -105,9 +121,15 @@ export class TransactionRepository extends BaseRepository {
       date: Date;
     }>
   ) {
+    // Encrypt sensitive fields in update data
+    const encryptedData = this.encryptUpdateData(
+      data as Record<string, unknown>,
+      Object.keys(data)
+    );
+
     return this.db.transaction.updateMany({
       where: { id, userId },
-      data,
+      data: encryptedData,
     });
   }
 
@@ -122,6 +144,7 @@ export class TransactionRepository extends BaseRepository {
 
   /**
    * Get monthly summary for a user.
+   * Uses app-level aggregation to support encrypted values.
    */
   async getMonthlySummary(userId: string, year: number, month: number): Promise<TransactionSummary> {
     const startDate = new Date(year, month - 1, 1);
@@ -132,16 +155,18 @@ export class TransactionRepository extends BaseRepository {
         userId,
         date: { gte: startDate, lte: endDate },
       },
-      select: { type: true, value: true },
     });
 
-    const income = transactions
-      .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + t.value, 0);
+    // Decrypt values if encryption is enabled
+    const decrypted = this.decryptMany(transactions as unknown as Record<string, unknown>[]) as unknown as typeof transactions;
 
-    const expenses = transactions
+    const income = decrypted
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + (t.value as unknown as number), 0);
+
+    const expenses = decrypted
       .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + t.value, 0);
+      .reduce((sum, t) => sum + (t.value as unknown as number), 0);
 
     return {
       income,
@@ -153,22 +178,34 @@ export class TransactionRepository extends BaseRepository {
 
   /**
    * Get the current balance (all-time income - expenses).
+   * Uses app-level aggregation to support encrypted values.
    */
   async getBalance(userId: string): Promise<number> {
-    const result = await this.db.$queryRaw<{ income: number; expenses: number }[]>`
-      SELECT
-        COALESCE(SUM(CASE WHEN type = 'income' THEN value ELSE 0 END), 0) as income,
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN value ELSE 0 END), 0) as expenses
-      FROM transactions
-      WHERE "userId" = ${userId}
-    `;
+    // Fetch all transactions
+    const transactions = await this.db.transaction.findMany({
+      where: { userId },
+    });
 
-    const { income = 0, expenses = 0 } = result[0] || {};
-    return Number(income) - Number(expenses);
+    // Decrypt and calculate
+    const decrypted = this.decryptMany(transactions as unknown as Record<string, unknown>[]) as unknown as typeof transactions;
+
+    let income = 0;
+    let expenses = 0;
+
+    for (const t of decrypted) {
+      if (t.type === "income") {
+        income += t.value as unknown as number;
+      } else if (t.type === "expense") {
+        expenses += t.value as unknown as number;
+      }
+    }
+
+    return income - expenses;
   }
 
   /**
    * Get category breakdown for a period.
+   * Uses app-level aggregation to support encrypted values.
    */
   async getCategoryBreakdown(
     userId: string,
@@ -176,17 +213,34 @@ export class TransactionRepository extends BaseRepository {
     startDate: Date,
     endDate: Date
   ) {
-    return this.db.transaction.groupBy({
-      by: ["category"],
+    const transactions = await this.db.transaction.findMany({
       where: {
         userId,
         type,
         date: { gte: startDate, lte: endDate },
       },
-      _sum: { value: true },
-      _count: true,
-      orderBy: { _sum: { value: "desc" } },
     });
+
+    // Decrypt and aggregate by category
+    const decrypted = this.decryptMany(transactions as unknown as Record<string, unknown>[]) as unknown as typeof transactions;
+
+    const categoryMap = new Map<string, { sum: number; count: number }>();
+
+    for (const t of decrypted) {
+      const existing = categoryMap.get(t.category) || { sum: 0, count: 0 };
+      existing.sum += t.value as unknown as number;
+      existing.count += 1;
+      categoryMap.set(t.category, existing);
+    }
+
+    // Convert to array format similar to groupBy result
+    return Array.from(categoryMap.entries())
+      .map(([category, data]) => ({
+        category,
+        _sum: { value: data.sum },
+        _count: data.count,
+      }))
+      .sort((a, b) => (b._sum.value || 0) - (a._sum.value || 0));
   }
 
   /**

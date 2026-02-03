@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse, invalidateInvestmentCache, invalidateTransactionCache } from "@/lib/api-utils";
 import { fetchSingleQuote } from "@/lib/quotes-service";
 import { isFixedIncome } from "@/types";
 import type { InvestmentType } from "@/types";
 import { createInvestmentSchema, validateBody } from "@/lib/schemas";
 import { getAvailableBalance } from "@/lib/transaction-aggregations";
+import { investmentRepository, transactionRepository } from "@/repositories";
 
 const QUOTABLE_TYPES = ["stock", "fii", "etf", "crypto"];
 
 export async function GET() {
   return withAuth(async (session) => {
-    const investments = await prisma.investment.findMany({
-      where: { userId: session.user.id },
-      include: {
-        operations: {
-          orderBy: { date: "desc" },
-          take: 50, // Limit operations per investment to prevent N+1 explosion
-        },
-      },
-      orderBy: { updatedAt: "desc" },
+    // Get investments using repository (handles decryption)
+    const investments = await investmentRepository.findByUser(session.user.id, {
+      includeOperations: true,
     });
 
     return NextResponse.json(investments);
@@ -88,68 +82,61 @@ export async function POST(request: NextRequest) {
     const initialDeposit = isFixed ? validatedBody.initialDeposit! : 0;
     const depositDate = isFixed ? new Date(validatedBody.depositDate!) : new Date();
 
-    const investment = await prisma.investment.create({
-      data: {
-        type: validatedBody.type,
-        name: validatedBody.name,
-        ticker: validatedBody.ticker || null,
-        institution: validatedBody.institution || null,
-        notes: validatedBody.notes || null,
-        quantity: isFixed ? 1 : 0,
-        averagePrice: isFixed ? initialDeposit : 0,
-        currentPrice: isFixed ? initialDeposit : currentPrice,
-        totalInvested: isFixed ? initialDeposit : 0,
-        currentValue: isFixed ? initialDeposit : 0,
-        profitLoss: 0,
-        profitLossPercent: 0,
-        interestRate: validatedBody.interestRate || null,
-        indexer: validatedBody.indexer || null,
-        maturityDate: validatedBody.maturityDate ? new Date(validatedBody.maturityDate) : null,
-        userId: session.user.id,
-      },
+    // Create investment using repository (handles encryption)
+    const investment = await investmentRepository.create({
+      type: validatedBody.type,
+      name: validatedBody.name,
+      ticker: validatedBody.ticker || undefined,
+      institution: validatedBody.institution || undefined,
+      notes: validatedBody.notes || undefined,
+      quantity: isFixed ? 1 : 0,
+      averagePrice: isFixed ? initialDeposit : 0,
+      currentPrice: isFixed ? initialDeposit : currentPrice,
+      totalInvested: isFixed ? initialDeposit : 0,
+      currentValue: isFixed ? initialDeposit : 0,
+      profitLoss: 0,
+      profitLossPercent: 0,
+      interestRate: validatedBody.interestRate || undefined,
+      indexer: validatedBody.indexer || undefined,
+      maturityDate: validatedBody.maturityDate ? new Date(validatedBody.maturityDate) : undefined,
+      userId: session.user.id,
     });
 
     if (isFixed) {
-      await prisma.operation.create({
-        data: {
-          investmentId: investment.id,
-          type: "buy",
-          quantity: 1,
-          price: initialDeposit,
-          total: initialDeposit,
-          date: depositDate,
-          fees: 0,
-          notes: "Depósito inicial",
-        },
+      // Add initial operation using repository (handles encryption)
+      await investmentRepository.addOperation(investment.id, session.user.id, {
+        type: "buy",
+        quantity: 1,
+        price: initialDeposit,
+        total: initialDeposit,
+        date: depositDate,
+        fees: 0,
+        notes: "Depósito inicial",
       });
 
       if (!validatedBody.skipBalanceCheck) {
-        await prisma.transaction.create({
-          data: {
-            type: "expense",
-            value: initialDeposit,
-            category: "Investimento",
-            description: `Aplicação: ${validatedBody.name}`,
-            date: depositDate,
-            userId: session.user.id,
-          },
+        // Create transaction using repository (handles encryption)
+        await transactionRepository.create({
+          type: "expense",
+          value: initialDeposit,
+          category: "Investimento",
+          description: `Aplicação: ${validatedBody.name}`,
+          date: depositDate,
+          userId: session.user.id,
         });
       }
     }
 
-    const investmentWithOperations = await prisma.investment.findUnique({
-      where: { id: investment.id },
-      include: {
-        operations: {
-          orderBy: { date: "desc" },
-        },
-      },
-    });
+    // Fetch updated investment with operations
+    const investmentWithOperations = await investmentRepository.findById(
+      investment.id,
+      session.user.id,
+      true
+    );
 
     // Invalidate related caches
     invalidateInvestmentCache(session.user.id);
     if (isFixed && !validatedBody.skipBalanceCheck) {
-      // Also invalidate transaction cache since we created a transaction
       invalidateTransactionCache(session.user.id);
     }
 

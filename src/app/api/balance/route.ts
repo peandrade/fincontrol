@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse } from "@/lib/api-utils";
 import { checkRateLimit, getClientIp, rateLimitPresets } from "@/lib/rate-limit";
+import { transactionRepository } from "@/repositories";
 
 export async function GET(request: Request) {
   // Rate limit: 100 requests per minute
@@ -15,22 +15,8 @@ export async function GET(request: Request) {
   }
 
   return withAuth(async (session) => {
-    const transactions = await prisma.transaction.findMany({
-      where: { userId: session.user.id },
-      select: {
-        type: true,
-        value: true,
-      },
-    });
-
-    let balance = 0;
-    transactions.forEach((t) => {
-      if (t.type === "income") {
-        balance += t.value;
-      } else {
-        balance -= t.value;
-      }
-    });
+    // Get balance using repository (handles decryption)
+    const balance = await transactionRepository.getBalance(session.user.id);
 
     return NextResponse.json(
       {

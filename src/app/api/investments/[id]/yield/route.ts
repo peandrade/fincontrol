@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse } from "@/lib/api-utils";
 import { isFixedIncome } from "@/types";
 import {
@@ -9,6 +8,7 @@ import {
   calculateIR,
   type YieldCalculationResult,
 } from "@/lib/cdi-history-service";
+import { investmentRepository } from "@/repositories";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -18,21 +18,31 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   return withAuth(async (session) => {
     const { id } = await params;
 
-    const investment = await prisma.investment.findFirst({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-      include: {
-        operations: {
-          orderBy: { date: "asc" },
-        },
-      },
-    });
+    // Use repository for proper decryption of encrypted fields
+    const investmentRaw = await investmentRepository.findById(id, session.user.id, true);
 
-    if (!investment) {
+    if (!investmentRaw) {
       return errorResponse("Investimento não encontrado", 404, "NOT_FOUND");
     }
+
+    // Type assertion for included operations
+    const investment = investmentRaw as typeof investmentRaw & {
+      operations?: Array<{
+        id: string;
+        type: string;
+        quantity: number;
+        price: number;
+        total: number;
+        date: Date;
+        fees: number;
+        notes: string | null;
+      }>;
+    };
+
+    // Sort operations by date ascending for yield calculation
+    const sortedOperations = [...(investment.operations || [])].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
 
     if (!isFixedIncome(investment.type as Parameters<typeof isFixedIncome>[0])) {
       return errorResponse("Este investimento não é de renda fixa", 400, "NOT_FIXED_INCOME");
@@ -53,8 +63,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return errorResponse("Não foi possível buscar histórico do CDI", 503, "CDI_UNAVAILABLE");
     }
 
-    const deposits = investment.operations.filter(op => op.type === "deposit" || op.type === "buy");
-    const withdrawals = investment.operations.filter(op => op.type === "sell" || op.type === "withdraw");
+    const deposits = sortedOperations.filter(op => op.type === "deposit" || op.type === "buy");
+    const withdrawals = sortedOperations.filter(op => op.type === "sell" || op.type === "withdraw");
 
     if (deposits.length === 0) {
       return NextResponse.json({
@@ -84,12 +94,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     for (const deposit of deposits) {
       const depositDate = new Date(deposit.date).toISOString().split("T")[0];
 
-      const depositValue = deposit.price;
+      const depositValue = deposit.price as unknown as number;
 
       const result = calculateFixedIncomeYield(
         depositValue,
         depositDate,
-        investment.interestRate || 100,
+        (investment.interestRate as unknown as number) || 100,
         investment.indexer,
         cdiHistory
       );
@@ -120,7 +130,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     let totalWithdrawals = 0;
     for (const withdrawal of withdrawals) {
-      totalWithdrawals += withdrawal.price;
+      totalWithdrawals += withdrawal.price as unknown as number;
     }
 
     totalNetValue = totalGrossValue - totalIofAmount - totalIrAmount - totalWithdrawals;

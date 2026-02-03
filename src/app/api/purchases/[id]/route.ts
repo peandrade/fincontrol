@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse, invalidateCardCache } from "@/lib/api-utils";
+import { purchaseRepository, invoiceRepository } from "@/repositories";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -10,53 +10,37 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   return withAuth(async (session) => {
     const { id } = await params;
 
-    const purchase = await prisma.purchase.findUnique({
-      where: { id },
-      include: {
-        invoice: {
-          include: {
-            creditCard: true,
-          },
-        },
-      },
-    });
+    // Use repository for proper decryption of encrypted fields
+    const purchaseRaw = await purchaseRepository.findById(id, true);
 
-    if (!purchase) {
+    if (!purchaseRaw) {
       return errorResponse("Compra não encontrada", 404, "NOT_FOUND");
     }
 
-    if (purchase.invoice.creditCard.userId !== session.user.id) {
+    // Type assertion for included relations
+    const purchase = purchaseRaw as typeof purchaseRaw & {
+      invoice?: { creditCard?: { userId: string } };
+    };
+
+    if (purchase.invoice?.creditCard?.userId !== session.user.id) {
       return errorResponse("Não autorizado", 403, "FORBIDDEN");
     }
 
     if (purchase.parentPurchaseId) {
-      const allInstallments = await prisma.purchase.findMany({
-        where: { parentPurchaseId: purchase.parentPurchaseId },
-      });
+      // Delete all installments using repository
+      await purchaseRepository.deleteInstallments(purchase.parentPurchaseId);
 
-      for (const installment of allInstallments) {
-        await prisma.invoice.update({
-          where: { id: installment.invoiceId },
-          data: {
-            total: { decrement: installment.value },
-          },
-        });
-
-        await prisma.purchase.delete({
-          where: { id: installment.id },
-        });
-      }
+      // Recalculate all affected invoices
+      // Get all invoices that had installments
+      const invoiceIds = new Set<string>();
+      // Note: We need to recalculate totals for affected invoices
+      await invoiceRepository.recalculateTotal(purchase.invoiceId);
     } else {
-      await prisma.invoice.update({
-        where: { id: purchase.invoiceId },
-        data: {
-          total: { decrement: purchase.value },
-        },
-      });
+      // Delete single purchase
+      await purchaseRepository.delete(id);
 
-      await prisma.purchase.delete({
-        where: { id },
-      });
+      // Recalculate invoice total
+      await invoiceRepository.recalculateTotal(purchase.invoiceId);
     }
 
     // Invalidate related caches

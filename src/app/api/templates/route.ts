@@ -1,18 +1,13 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse, invalidateTemplateCache } from "@/lib/api-utils";
 import { createTemplateSchema, validateBody } from "@/lib/schemas";
 import { checkRateLimit, getClientIp, rateLimitPresets } from "@/lib/rate-limit";
+import { templateRepository } from "@/repositories";
 
 export async function GET() {
   return withAuth(async (session) => {
-    const templates = await prisma.transactionTemplate.findMany({
-      where: { userId: session.user.id },
-      orderBy: [
-        { usageCount: "desc" },
-        { updatedAt: "desc" },
-      ],
-    });
+    // Get templates using repository (handles decryption)
+    const templates = await templateRepository.findByUser(session.user.id);
 
     return NextResponse.json(templates, {
       headers: {
@@ -44,15 +39,14 @@ export async function POST(request: Request) {
 
     const { name, type, category, description, value } = validation.data;
 
-    const template = await prisma.transactionTemplate.create({
-      data: {
-        name,
-        description: description || null,
-        category,
-        type,
-        value: value || null,
-        userId: session.user.id,
-      },
+    // Create template using repository (handles encryption)
+    const template = await templateRepository.create({
+      userId: session.user.id,
+      name,
+      type,
+      category,
+      description: description || null,
+      value: value || null,
     });
 
     // Invalidate related caches

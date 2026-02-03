@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse, invalidateGoalCache } from "@/lib/api-utils";
 import { createGoalContributionSchema, validateBody } from "@/lib/schemas";
 import { z } from "zod";
+import { goalRepository } from "@/repositories";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -23,12 +23,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const goal = await prisma.financialGoal.findFirst({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-    });
+    // Verify goal exists and belongs to user
+    const goal = await goalRepository.findById(id, session.user.id);
 
     if (!goal) {
       return errorResponse("Meta não encontrada", 404, "NOT_FOUND");
@@ -36,26 +32,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const { value, date, notes } = validation.data;
 
-    const contribution = await prisma.goalContribution.create({
-      data: {
-        goalId: id,
-        value,
-        date: date ? new Date(date) : new Date(),
-        notes: notes || null,
-      },
+    // Add contribution using repository (handles encryption)
+    const contribution = await goalRepository.addContribution(id, session.user.id, {
+      value,
+      date: date ? new Date(date) : new Date(),
+      notes: notes || undefined,
     });
 
-    const newCurrentValue = goal.currentValue + value;
-    const isCompleted = newCurrentValue >= goal.targetValue;
-
-    await prisma.financialGoal.update({
-      where: { id },
-      data: {
-        currentValue: newCurrentValue,
-        isCompleted,
-        completedAt: isCompleted && !goal.isCompleted ? new Date() : goal.completedAt,
-      },
-    });
+    // Get updated goal values
+    const updatedGoal = await goalRepository.findById(id, session.user.id);
+    const newCurrentValue = (updatedGoal?.currentValue as unknown as number) || 0;
+    const isCompleted = updatedGoal?.isCompleted || false;
 
     // Invalidate related caches
     invalidateGoalCache(session.user.id);
@@ -80,41 +67,26 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const { contributionId } = validation.data;
 
-    const goal = await prisma.financialGoal.findFirst({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-    });
+    // Verify goal exists and belongs to user
+    const goal = await goalRepository.findById(id, session.user.id);
 
     if (!goal) {
       return errorResponse("Meta não encontrada", 404, "NOT_FOUND");
     }
 
-    const contribution = await prisma.goalContribution.findUnique({
-      where: { id: contributionId },
-    });
+    try {
+      // Delete contribution using repository (handles encryption and goal update)
+      await goalRepository.deleteContribution(contributionId, session.user.id);
 
-    if (!contribution || contribution.goalId !== id) {
-      return errorResponse("Contribuição não encontrada", 404, "NOT_FOUND");
+      // Invalidate related caches
+      invalidateGoalCache(session.user.id);
+
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      if (error instanceof Error && error.message === "Contribution not found") {
+        return errorResponse("Contribuição não encontrada", 404, "NOT_FOUND");
+      }
+      throw error;
     }
-
-    await prisma.goalContribution.delete({
-      where: { id: contributionId },
-    });
-
-    const newCurrentValue = Math.max(goal.currentValue - contribution.value, 0);
-    await prisma.financialGoal.update({
-      where: { id },
-      data: {
-        currentValue: newCurrentValue,
-        isCompleted: newCurrentValue >= goal.targetValue,
-      },
-    });
-
-    // Invalidate related caches
-    invalidateGoalCache(session.user.id);
-
-    return NextResponse.json({ success: true });
   }, request);
 }

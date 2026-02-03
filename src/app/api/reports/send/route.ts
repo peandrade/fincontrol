@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { generateWeeklyReportEmail, generateMonthlyReportEmail } from "@/lib/email-reports";
 import { MONTH_NAMES } from "@/lib/constants";
+import { transactionRepository, budgetRepository, goalRepository, investmentRepository, invoiceRepository, cardRepository } from "@/repositories";
 
 export async function POST(request: NextRequest) {
   try {
@@ -91,38 +92,25 @@ async function buildWeeklyReport(userId: string, userName: string | null): Promi
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
+  // Use repositories for proper decryption
   const [weekTransactions, allTransactions, budgets] = await Promise.all([
-    prisma.transaction.findMany({
-      where: {
-        userId,
-        date: { gte: weekStart, lte: now },
-      },
-      select: { type: true, value: true, category: true },
+    transactionRepository.findByUser(userId, {
+      startDate: weekStart,
+      endDate: now,
     }),
-    prisma.transaction.findMany({
-      where: { userId },
-      select: { type: true, value: true },
-    }),
-    prisma.budget.findMany({
-      where: {
-        userId,
-        OR: [
-          { month: now.getMonth() + 1, year: now.getFullYear() },
-          { month: 0, year: 0 },
-        ],
-      },
-    }),
+    transactionRepository.findByUser(userId),
+    budgetRepository.getActiveBudgets(userId, now.getMonth() + 1, now.getFullYear()),
   ]);
 
   const income = weekTransactions
     .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + t.value, 0);
+    .reduce((sum, t) => sum + (t.value as unknown as number), 0);
   const expenses = weekTransactions
     .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + t.value, 0);
+    .reduce((sum, t) => sum + (t.value as unknown as number), 0);
 
   const currentBalance = allTransactions.reduce(
-    (acc, t) => (t.type === "income" ? acc + t.value : acc - t.value),
+    (acc, t) => (t.type === "income" ? acc + (t.value as unknown as number) : acc - (t.value as unknown as number)),
     0
   );
 
@@ -130,7 +118,7 @@ async function buildWeeklyReport(userId: string, userName: string | null): Promi
   weekTransactions
     .filter((t) => t.type === "expense")
     .forEach((t) => {
-      categoryTotals.set(t.category, (categoryTotals.get(t.category) || 0) + t.value);
+      categoryTotals.set(t.category, (categoryTotals.get(t.category) || 0) + (t.value as unknown as number));
     });
   const topCategories = [...categoryTotals.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -141,26 +129,27 @@ async function buildWeeklyReport(userId: string, userName: string | null): Promi
       percentage: expenses > 0 ? (total / expenses) * 100 : 0,
     }));
 
-  const monthTransactions = await prisma.transaction.findMany({
-    where: {
-      userId,
-      date: { gte: startOfMonth, lte: endOfMonth },
-      type: "expense",
-    },
-    select: { value: true, category: true },
+  // Use repository for month transactions
+  const monthTransactions = await transactionRepository.findByUser(userId, {
+    type: "expense",
+    startDate: startOfMonth,
+    endDate: endOfMonth,
   });
 
   const monthCategorySpent = new Map<string, number>();
   monthTransactions.forEach((t) => {
-    monthCategorySpent.set(t.category, (monthCategorySpent.get(t.category) || 0) + t.value);
+    monthCategorySpent.set(t.category, (monthCategorySpent.get(t.category) || 0) + (t.value as unknown as number));
   });
 
-  const budgetData = budgets.map((b) => ({
-    category: b.category,
-    spent: monthCategorySpent.get(b.category) || 0,
-    limit: b.limit,
-    percentage: b.limit > 0 ? ((monthCategorySpent.get(b.category) || 0) / b.limit) * 100 : 0,
-  }));
+  const budgetData = budgets.map((b) => {
+    const limit = b.limit as unknown as number;
+    return {
+      category: b.category,
+      spent: monthCategorySpent.get(b.category) || 0,
+      limit: limit,
+      percentage: limit > 0 ? ((monthCategorySpent.get(b.category) || 0) / limit) * 100 : 0,
+    };
+  });
 
   const formatDate = (d: Date) =>
     d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
@@ -189,6 +178,7 @@ async function buildMonthlyReport(userId: string, userName: string | null): Prom
   const prevStart = new Date(currentYear, currentMonth - 1, 1);
   const prevEnd = new Date(currentYear, currentMonth, 0);
 
+  // Use repositories for proper decryption
   const [
     monthTransactions,
     prevTransactions,
@@ -196,75 +186,51 @@ async function buildMonthlyReport(userId: string, userName: string | null): Prom
     budgets,
     goals,
     investments,
+    unpaidInvoices,
     creditCards,
   ] = await Promise.all([
-    prisma.transaction.findMany({
-      where: { userId, date: { gte: startOfMonth, lte: endOfMonth } },
-      select: { type: true, value: true, category: true },
+    transactionRepository.findByUser(userId, {
+      startDate: startOfMonth,
+      endDate: endOfMonth,
     }),
-    prisma.transaction.findMany({
-      where: { userId, date: { gte: prevStart, lte: prevEnd } },
-      select: { type: true, value: true },
+    transactionRepository.findByUser(userId, {
+      startDate: prevStart,
+      endDate: prevEnd,
     }),
-    prisma.transaction.findMany({
-      where: { userId },
-      select: { type: true, value: true },
-    }),
-    prisma.budget.findMany({
-      where: {
-        userId,
-        OR: [
-          { month: currentMonth + 1, year: currentYear },
-          { month: 0, year: 0 },
-        ],
-      },
-    }),
-    prisma.financialGoal.findMany({
-      where: { userId },
-      select: { name: true, currentValue: true, targetValue: true, isCompleted: true },
-    }),
-    prisma.investment.findMany({
-      where: { userId },
-      select: { totalInvested: true, currentValue: true, profitLoss: true },
-    }),
-    prisma.creditCard.findMany({
-      where: { userId, isActive: true },
-      include: {
-        invoices: {
-          where: {
-            status: { in: ["open", "closed"] },
-          },
-        },
-      },
-    }),
+    transactionRepository.findByUser(userId),
+    budgetRepository.getActiveBudgets(userId, currentMonth + 1, currentYear),
+    goalRepository.findByUser(userId),
+    investmentRepository.findByUser(userId),
+    invoiceRepository.getUnpaidByUser(userId),
+    cardRepository.findByUser(userId, { isActive: true }),
   ]);
 
   const income = monthTransactions
     .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + t.value, 0);
+    .reduce((sum, t) => sum + (t.value as unknown as number), 0);
   const expenses = monthTransactions
     .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + t.value, 0);
+    .reduce((sum, t) => sum + (t.value as unknown as number), 0);
 
   const previousIncome = prevTransactions
     .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + t.value, 0);
+    .reduce((sum, t) => sum + (t.value as unknown as number), 0);
   const previousExpenses = prevTransactions
     .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + t.value, 0);
+    .reduce((sum, t) => sum + (t.value as unknown as number), 0);
 
   const currentBalance = allTransactions.reduce(
-    (acc, t) => (t.type === "income" ? acc + t.value : acc - t.value),
+    (acc, t) => (t.type === "income" ? acc + (t.value as unknown as number) : acc - (t.value as unknown as number)),
     0
   );
 
-  const categoryTotals = new Map<string, number>();
+  const categoryTotalsMonthly = new Map<string, number>();
   monthTransactions
     .filter((t) => t.type === "expense")
     .forEach((t) => {
-      categoryTotals.set(t.category, (categoryTotals.get(t.category) || 0) + t.value);
+      categoryTotalsMonthly.set(t.category, (categoryTotalsMonthly.get(t.category) || 0) + (t.value as unknown as number));
     });
-  const topCategories = [...categoryTotals.entries()]
+  const topCategories = [...categoryTotalsMonthly.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([name, total]) => ({
@@ -273,43 +239,55 @@ async function buildMonthlyReport(userId: string, userName: string | null): Prom
       percentage: expenses > 0 ? (total / expenses) * 100 : 0,
     }));
 
-  const monthCategorySpent = new Map<string, number>();
+  const monthCategorySpentMonthly = new Map<string, number>();
   monthTransactions
     .filter((t) => t.type === "expense")
     .forEach((t) => {
-      monthCategorySpent.set(t.category, (monthCategorySpent.get(t.category) || 0) + t.value);
+      monthCategorySpentMonthly.set(t.category, (monthCategorySpentMonthly.get(t.category) || 0) + (t.value as unknown as number));
     });
 
-  const budgetData = budgets.map((b) => ({
-    category: b.category,
-    spent: monthCategorySpent.get(b.category) || 0,
-    limit: b.limit,
-    percentage: b.limit > 0 ? ((monthCategorySpent.get(b.category) || 0) / b.limit) * 100 : 0,
-  }));
+  const budgetData = budgets.map((b) => {
+    const limit = b.limit as unknown as number;
+    return {
+      category: b.category,
+      spent: monthCategorySpentMonthly.get(b.category) || 0,
+      limit: limit,
+      percentage: limit > 0 ? ((monthCategorySpentMonthly.get(b.category) || 0) / limit) * 100 : 0,
+    };
+  });
 
-  const goalData = goals.map((g) => ({
-    name: g.name,
-    current: g.currentValue,
-    target: g.targetValue,
-    percentage: g.targetValue > 0 ? (g.currentValue / g.targetValue) * 100 : 0,
-  }));
+  const goalData = goals.map((g) => {
+    const currentValue = g.currentValue as unknown as number;
+    const targetValue = g.targetValue as unknown as number;
+    return {
+      name: g.name,
+      current: currentValue,
+      target: targetValue,
+      percentage: targetValue > 0 ? (currentValue / targetValue) * 100 : 0,
+    };
+  });
 
-  const totalInvested = investments.reduce((sum, i) => sum + i.totalInvested, 0);
-  const currentInvestmentValue = investments.reduce((sum, i) => sum + i.currentValue, 0);
-  const investmentProfitLoss = investments.reduce((sum, i) => sum + i.profitLoss, 0);
+  const totalInvested = investments.reduce((sum, i) => sum + (i.totalInvested as unknown as number), 0);
+  const currentInvestmentValue = investments.reduce((sum, i) => sum + (i.currentValue as unknown as number), 0);
+  const investmentProfitLoss = investments.reduce((sum, i) => sum + (i.profitLoss as unknown as number), 0);
 
-  const cardInvoices = creditCards.flatMap((card) =>
-    card.invoices
-      .filter((inv) => inv.total > inv.paidAmount)
-      .map((inv) => ({
-        cardName: card.name,
-        total: inv.total - inv.paidAmount,
+  // Map credit card IDs to names
+  const cardNameMap = new Map(creditCards.map(c => [c.id, c.name]));
+
+  const cardInvoices = unpaidInvoices
+    .filter((inv) => (inv.total as unknown as number) > (inv.paidAmount as unknown as number))
+    .map((inv) => {
+      const total = inv.total as unknown as number;
+      const paidAmount = inv.paidAmount as unknown as number;
+      return {
+        cardName: cardNameMap.get(inv.creditCardId) || "Cartão",
+        total: total - paidAmount,
         dueDate: new Date(inv.dueDate).toLocaleDateString("pt-BR", {
           day: "2-digit",
           month: "2-digit",
         }),
-      }))
-  );
+      };
+    });
 
   return generateMonthlyReportEmail({
     userName: userName || undefined,

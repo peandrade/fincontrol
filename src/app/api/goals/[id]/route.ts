@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse, invalidateGoalCache } from "@/lib/api-utils";
 import { updateGoalSchema, validateBody } from "@/lib/schemas";
+import { goalRepository } from "@/repositories";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -11,25 +11,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   return withAuth(async (session) => {
     const { id } = await params;
 
-    const goal = await prisma.financialGoal.findUnique({
-      where: { id },
-      include: {
-        contributions: {
-          orderBy: { date: "desc" },
-        },
-      },
-    });
+    // Get goal using repository (handles decryption)
+    const goal = await goalRepository.findById(id, session.user.id, true);
 
     if (!goal) {
       return errorResponse("Meta não encontrada", 404, "NOT_FOUND");
     }
 
-    if (goal.userId !== session.user.id) {
-      return errorResponse("Não autorizado", 403, "FORBIDDEN");
-    }
-
-    const progress = goal.targetValue > 0
-      ? Math.min((goal.currentValue / goal.targetValue) * 100, 100)
+    const targetValue = goal.targetValue as unknown as number;
+    const currentValue = goal.currentValue as unknown as number;
+    const progress = targetValue > 0
+      ? Math.min((currentValue / targetValue) * 100, 100)
       : 0;
 
     return NextResponse.json({ ...goal, progress });
@@ -47,32 +39,27 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const existing = await prisma.financialGoal.findUnique({
-      where: { id },
-    });
+    const existing = await goalRepository.findById(id, session.user.id);
 
     if (!existing) {
       return errorResponse("Meta não encontrada", 404, "NOT_FOUND");
     }
 
-    if (existing.userId !== session.user.id) {
-      return errorResponse("Não autorizado", 403, "FORBIDDEN");
-    }
-
     const { name, description, type, targetValue, deadline, icon, color } = validation.data;
 
-    const goal = await prisma.financialGoal.update({
-      where: { id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(description !== undefined && { description }),
-        ...(type !== undefined && { category: type }),
-        ...(targetValue !== undefined && { targetValue }),
-        ...(deadline !== undefined && { targetDate: deadline ? new Date(deadline) : null }),
-        ...(icon !== undefined && { icon }),
-        ...(color !== undefined && { color }),
-      },
+    // Update goal using repository (handles encryption)
+    await goalRepository.update(id, session.user.id, {
+      ...(name !== undefined && { name }),
+      ...(description !== undefined && { description }),
+      ...(type !== undefined && { category: type }),
+      ...(targetValue !== undefined && { targetValue }),
+      ...(deadline !== undefined && { targetDate: deadline ? new Date(deadline) : null }),
+      ...(icon !== undefined && { icon }),
+      ...(color !== undefined && { color }),
     });
+
+    // Fetch updated goal to return
+    const goal = await goalRepository.findById(id, session.user.id);
 
     // Invalidate related caches
     invalidateGoalCache(session.user.id);
@@ -85,21 +72,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   return withAuth(async (session) => {
     const { id } = await params;
 
-    const existing = await prisma.financialGoal.findUnique({
-      where: { id },
-    });
+    const existing = await goalRepository.findById(id, session.user.id);
 
     if (!existing) {
       return errorResponse("Meta não encontrada", 404, "NOT_FOUND");
     }
 
-    if (existing.userId !== session.user.id) {
-      return errorResponse("Não autorizado", 403, "FORBIDDEN");
-    }
-
-    await prisma.financialGoal.delete({
-      where: { id },
-    });
+    await goalRepository.delete(id, session.user.id);
 
     // Invalidate related caches
     invalidateGoalCache(session.user.id);

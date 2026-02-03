@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, invalidateRecurringCache, invalidateTransactionCache } from "@/lib/api-utils";
 import { z } from "zod";
 import { validateBody } from "@/lib/schemas";
+import { recurringRepository, transactionRepository } from "@/repositories";
 
 const launchExpensesSchema = z.object({
   expenseIds: z.array(z.string()).optional(),
@@ -23,14 +23,15 @@ export async function POST(request: NextRequest) {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    let expenses = await prisma.recurringExpense.findMany({
-      where: {
-        userId: session.user.id,
-        isActive: true,
-        ...(expenseIds && expenseIds.length > 0 && { id: { in: expenseIds } }),
-      },
-    });
+    // Use repository for proper decryption
+    let expenses = await recurringRepository.findByUser(session.user.id, { activeOnly: true });
 
+    // Filter by IDs if provided
+    if (expenseIds && expenseIds.length > 0) {
+      expenses = expenses.filter(e => expenseIds.includes(e.id));
+    }
+
+    // Filter out already launched this month
     expenses = expenses.filter((expense) => {
       if (!expense.lastLaunchedAt) return true;
       const lastLaunched = new Date(expense.lastLaunchedAt);
@@ -54,23 +55,20 @@ export async function POST(request: NextRequest) {
       const dueDay = Math.min(expense.dueDay, new Date(currentYear, currentMonth + 1, 0).getDate());
       const transactionDate = new Date(currentYear, currentMonth, dueDay, 12, 0, 0);
 
-      const transaction = await prisma.transaction.create({
-        data: {
-          type: "expense",
-          value: expense.value,
-          category: expense.category,
-          description: expense.description,
-          date: transactionDate,
-          userId: session.user.id,
-        },
+      // Use repository to create transaction with encryption
+      const transaction = await transactionRepository.create({
+        type: "expense",
+        value: expense.value as unknown as number,
+        category: expense.category,
+        description: expense.description as unknown as string,
+        date: transactionDate,
+        userId: session.user.id,
       });
       transactions.push(transaction);
 
-      const updated = await prisma.recurringExpense.update({
-        where: { id: expense.id },
-        data: { lastLaunchedAt: now },
-      });
-      updatedExpenses.push(updated);
+      // Update recurring expense using repository
+      await recurringRepository.markAsLaunched(expense.id, session.user.id);
+      updatedExpenses.push(expense);
     }
 
     // Invalidate related caches

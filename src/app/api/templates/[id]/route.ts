@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth, errorResponse, invalidateTemplateCache } from "@/lib/api-utils";
 import { updateTemplateSchema, validateBody } from "@/lib/schemas";
+import { templateRepository } from "@/repositories";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -11,12 +11,8 @@ export async function GET(request: Request, { params }: RouteParams) {
   return withAuth(async (session) => {
     const { id } = await params;
 
-    const template = await prisma.transactionTemplate.findFirst({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-    });
+    // Get template using repository (handles decryption)
+    const template = await templateRepository.findById(id, session.user.id);
 
     if (!template) {
       return errorResponse("Template não encontrado", 404, "NOT_FOUND");
@@ -37,12 +33,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const existingTemplate = await prisma.transactionTemplate.findFirst({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-    });
+    const existingTemplate = await templateRepository.findById(id, session.user.id);
 
     if (!existingTemplate) {
       return errorResponse("Template não encontrado", 404, "NOT_FOUND");
@@ -50,15 +41,13 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     const { name, type, category, description, value } = validation.data;
 
-    const template = await prisma.transactionTemplate.update({
-      where: { id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(description !== undefined && { description: description || null }),
-        ...(category !== undefined && { category }),
-        ...(type !== undefined && { type }),
-        ...(value !== undefined && { value }),
-      },
+    // Update template using repository (handles encryption)
+    const template = await templateRepository.update(id, session.user.id, {
+      ...(name !== undefined && { name }),
+      ...(description !== undefined && { description: description || null }),
+      ...(category !== undefined && { category }),
+      ...(type !== undefined && { type }),
+      ...(value !== undefined && { value }),
     });
 
     // Invalidate related caches
@@ -72,20 +61,13 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   return withAuth(async (session) => {
     const { id } = await params;
 
-    const existingTemplate = await prisma.transactionTemplate.findFirst({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-    });
+    const existingTemplate = await templateRepository.findById(id, session.user.id);
 
     if (!existingTemplate) {
       return errorResponse("Template não encontrado", 404, "NOT_FOUND");
     }
 
-    await prisma.transactionTemplate.delete({
-      where: { id },
-    });
+    await templateRepository.delete(id, session.user.id);
 
     // Invalidate related caches
     invalidateTemplateCache(session.user.id);
@@ -99,23 +81,14 @@ export async function POST(request: Request, { params }: RouteParams) {
   return withAuth(async (session) => {
     const { id } = await params;
 
-    const existingTemplate = await prisma.transactionTemplate.findFirst({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-    });
+    const existingTemplate = await templateRepository.findById(id, session.user.id);
 
     if (!existingTemplate) {
       return errorResponse("Template não encontrado", 404, "NOT_FOUND");
     }
 
-    const template = await prisma.transactionTemplate.update({
-      where: { id },
-      data: {
-        usageCount: { increment: 1 },
-      },
-    });
+    // Increment usage using repository
+    const template = await templateRepository.incrementUsage(id, session.user.id);
 
     // Invalidate related caches
     invalidateTemplateCache(session.user.id);

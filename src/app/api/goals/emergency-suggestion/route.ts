@@ -1,45 +1,29 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { withAuth } from "@/lib/api-utils";
+import { transactionRepository, purchaseRepository, recurringRepository, goalRepository } from "@/repositories";
 
 export async function GET() {
   return withAuth(async (session) => {
     const now = new Date();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
 
-    const expenses = await prisma.transaction.findMany({
-      where: {
-        userId: session.user.id,
+    // Fetch data using repositories (handles decryption)
+    const [expenses, purchases, recurringExpenses] = await Promise.all([
+      transactionRepository.findByUser(session.user.id, {
         type: "expense",
-        date: {
-          gte: sixMonthsAgo,
-        },
-      },
-    });
+        startDate: sixMonthsAgo,
+      }),
+      purchaseRepository.findByUser(session.user.id, {
+        startDate: sixMonthsAgo,
+      }),
+      recurringRepository.findByUser(session.user.id, {
+        activeOnly: true,
+      }),
+    ]);
 
-    const purchases = await prisma.purchase.findMany({
-      where: {
-        date: {
-          gte: sixMonthsAgo,
-        },
-        invoice: {
-          creditCard: {
-            userId: session.user.id,
-          },
-        },
-      },
-    });
-
-    const recurringExpenses = await prisma.recurringExpense.findMany({
-      where: {
-        userId: session.user.id,
-        isActive: true,
-      },
-    });
-
-    const totalExpenses = expenses.reduce((sum, e) => sum + e.value, 0);
-    const totalPurchases = purchases.reduce((sum, p) => sum + p.value, 0);
-    const totalRecurring = recurringExpenses.reduce((sum, r) => sum + r.value, 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + (e.value as unknown as number), 0);
+    const totalPurchases = purchases.reduce((sum, p) => sum + (p.value as unknown as number), 0);
+    const totalRecurring = recurringExpenses.reduce((sum, r) => sum + (r.value as unknown as number), 0);
 
     const monthsWithData = Math.max(
       Math.min(
@@ -56,12 +40,8 @@ export async function GET() {
 
     const emergencyFundTarget = estimatedMonthlyExpenses * 6;
 
-    const existingEmergencyGoal = await prisma.financialGoal.findFirst({
-      where: {
-        userId: session.user.id,
-        category: "emergency",
-      },
-    });
+    // Check existing emergency goal using repository (handles decryption)
+    const existingEmergencyGoal = await goalRepository.findEmergencyGoal(session.user.id);
 
     return NextResponse.json({
       averageMonthlyExpenses: Math.round(averageMonthlyExpenses * 100) / 100,
@@ -72,8 +52,8 @@ export async function GET() {
       existingGoal: existingEmergencyGoal
         ? {
             id: existingEmergencyGoal.id,
-            currentValue: existingEmergencyGoal.currentValue,
-            targetValue: existingEmergencyGoal.targetValue,
+            currentValue: existingEmergencyGoal.currentValue as unknown as number,
+            targetValue: existingEmergencyGoal.targetValue as unknown as number,
           }
         : null,
       breakdown: {
