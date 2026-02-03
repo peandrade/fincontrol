@@ -11,6 +11,7 @@ export default defineConfig({
   },
   engine: "classic",
   datasource: {
-    url: env("DATABASE_URL"),
+    // Use DIRECT_URL for migrations to avoid PgBouncer prepared statement issues
+    url: env("DIRECT_URL") || env("DATABASE_URL"),
   },
 });

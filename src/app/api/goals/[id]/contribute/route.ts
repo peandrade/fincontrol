@@ -1,136 +1,92 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateGoalCache } from "@/lib/api-utils";
+import { createGoalContributionSchema, validateBody } from "@/lib/schemas";
+import { z } from "zod";
+import { goalRepository } from "@/repositories";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+const deleteContributionSchema = z.object({
+  contributionId: z.string().min(1, "ID da contribuição é obrigatório"),
+});
+
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session, req) => {
     const { id } = await params;
-    const body = await request.json();
-    const { value, date, notes } = body;
+    const body = await req.json();
 
-    if (!value || value <= 0) {
-      return NextResponse.json(
-        { error: "Valor deve ser maior que zero" },
-        { status: 400 }
-      );
+    // Override goalId with the one from params
+    const validation = validateBody(createGoalContributionSchema, { ...body, goalId: id });
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const goal = await prisma.financialGoal.findUnique({
-      where: { id },
-    });
+    // Verify goal exists and belongs to user
+    const goal = await goalRepository.findById(id, session.user.id);
 
     if (!goal) {
-      return NextResponse.json({ error: "Meta não encontrada" }, { status: 404 });
+      return errorResponse("Meta não encontrada", 404, "NOT_FOUND");
     }
 
-    if (goal.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
-    }
+    const { value, date, notes } = validation.data;
 
-    const contribution = await prisma.goalContribution.create({
-      data: {
-        goalId: id,
-        value,
-        date: date ? new Date(date) : new Date(),
-        notes,
-      },
+    // Add contribution using repository (handles encryption)
+    const contribution = await goalRepository.addContribution(id, session.user.id, {
+      value,
+      date: date ? new Date(date) : new Date(),
+      notes: notes || undefined,
     });
 
-    const newCurrentValue = goal.currentValue + value;
-    const isCompleted = newCurrentValue >= goal.targetValue;
+    // Get updated goal values
+    const updatedGoal = await goalRepository.findById(id, session.user.id);
+    const newCurrentValue = (updatedGoal?.currentValue as unknown as number) || 0;
+    const isCompleted = updatedGoal?.isCompleted || false;
 
-    await prisma.financialGoal.update({
-      where: { id },
-      data: {
-        currentValue: newCurrentValue,
-        isCompleted,
-        completedAt: isCompleted && !goal.isCompleted ? new Date() : goal.completedAt,
-      },
-    });
+    // Invalidate related caches
+    invalidateGoalCache(session.user.id);
 
     return NextResponse.json({
       contribution,
       newCurrentValue,
       isCompleted,
     });
-  } catch (error) {
-    console.error("Erro ao adicionar contribuição:", error);
-    return NextResponse.json(
-      { error: "Erro ao adicionar contribuição" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session, req) => {
     const { id } = await params;
-    const body = await request.json();
-    const { contributionId } = body;
+    const body = await req.json();
 
-    if (!contributionId) {
-      return NextResponse.json(
-        { error: "ID da contribuição é obrigatório" },
-        { status: 400 }
-      );
+    const validation = validateBody(deleteContributionSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const goal = await prisma.financialGoal.findUnique({
-      where: { id },
-    });
+    const { contributionId } = validation.data;
+
+    // Verify goal exists and belongs to user
+    const goal = await goalRepository.findById(id, session.user.id);
 
     if (!goal) {
-      return NextResponse.json({ error: "Meta não encontrada" }, { status: 404 });
+      return errorResponse("Meta não encontrada", 404, "NOT_FOUND");
     }
 
-    if (goal.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+    try {
+      // Delete contribution using repository (handles encryption and goal update)
+      await goalRepository.deleteContribution(contributionId, session.user.id);
+
+      // Invalidate related caches
+      invalidateGoalCache(session.user.id);
+
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      if (error instanceof Error && error.message === "Contribution not found") {
+        return errorResponse("Contribuição não encontrada", 404, "NOT_FOUND");
+      }
+      throw error;
     }
-
-    const contribution = await prisma.goalContribution.findUnique({
-      where: { id: contributionId },
-    });
-
-    if (!contribution || contribution.goalId !== id) {
-      return NextResponse.json(
-        { error: "Contribuição não encontrada" },
-        { status: 404 }
-      );
-    }
-
-    await prisma.goalContribution.delete({
-      where: { id: contributionId },
-    });
-
-    const newCurrentValue = Math.max(goal.currentValue - contribution.value, 0);
-    await prisma.financialGoal.update({
-      where: { id },
-      data: {
-        currentValue: newCurrentValue,
-        isCompleted: newCurrentValue >= goal.targetValue,
-      },
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Erro ao remover contribuição:", error);
-    return NextResponse.json(
-      { error: "Erro ao remover contribuição" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }

@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, GoalCategory } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -13,6 +13,18 @@ function getDate(daysAgo: number): Date {
 
 function getDateInMonth(year: number, month: number, day: number): Date {
   return new Date(year, month, day, 12, 0, 0, 0);
+}
+
+function randomBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(randomBetween(min, max));
+}
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 async function main() {
@@ -54,6 +66,10 @@ async function main() {
     { name: "Assinaturas", icon: "CreditCard", color: "#14B8A6" },
     { name: "Pets", icon: "PawPrint", color: "#A855F7" },
     { name: "Impostos", icon: "Receipt", color: "#64748B" },
+    { name: "Vestuário", icon: "Shirt", color: "#0EA5E9" },
+    { name: "Beleza", icon: "Sparkles", color: "#F472B6" },
+    { name: "Presentes", icon: "Gift", color: "#FB7185" },
+    { name: "Viagem", icon: "Plane", color: "#22D3EE" },
     { name: "Outros", icon: "MoreHorizontal", color: "#78716C" },
   ];
 
@@ -65,289 +81,450 @@ async function main() {
     { name: "Vendas", icon: "Store", color: "#EC4899" },
     { name: "Presente", icon: "Gift", color: "#EF4444" },
     { name: "Reembolso", icon: "RotateCcw", color: "#14B8A6" },
+    { name: "Aluguel", icon: "Home", color: "#6366F1" },
+    { name: "Bônus", icon: "Award", color: "#F97316" },
     { name: "Outros", icon: "MoreHorizontal", color: "#78716C" },
   ];
 
-  for (const cat of expenseCategories) {
-    await prisma.category.create({
-      data: { ...cat, type: "expense", userId: USER_ID },
-    });
-  }
+  await prisma.category.createMany({
+    data: expenseCategories.map(cat => ({ ...cat, type: "expense", userId: USER_ID })),
+  });
 
-  for (const cat of incomeCategories) {
-    await prisma.category.create({
-      data: { ...cat, type: "income", userId: USER_ID },
-    });
-  }
+  await prisma.category.createMany({
+    data: incomeCategories.map(cat => ({ ...cat, type: "income", userId: USER_ID })),
+  });
 
-  console.log("💰 Criando transações...");
+  console.log("💰 Criando transações (18 meses de histórico)...");
 
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
 
-  for (let monthOffset = 0; monthOffset < 6; monthOffset++) {
-    const month = currentMonth - monthOffset;
-    const year = month < 0 ? currentYear - 1 : currentYear;
-    const actualMonth = month < 0 ? month + 12 : month;
+  const allTransactions: Array<{
+    type: "income" | "expense";
+    value: number;
+    category: string;
+    description: string;
+    date: Date;
+    userId: string;
+  }> = [];
 
-    await prisma.transaction.create({
-      data: {
-        type: "income",
-        value: 8500 + Math.random() * 500,
-        category: "Salário",
-        description: "Salário mensal",
-        date: getDateInMonth(year, actualMonth, 5),
-        userId: USER_ID,
-      },
-    });
-
-    if (Math.random() > 0.5) {
-      await prisma.transaction.create({
-        data: {
-          type: "income",
-          value: 1500 + Math.random() * 2000,
-          category: "Freelance",
-          description: "Projeto freelance",
-          date: getDateInMonth(year, actualMonth, 15 + Math.floor(Math.random() * 10)),
-          userId: USER_ID,
-        },
-      });
+  // 18 meses de histórico
+  for (let monthOffset = 0; monthOffset < 18; monthOffset++) {
+    let month = currentMonth - monthOffset;
+    let year = currentYear;
+    while (month < 0) {
+      month += 12;
+      year -= 1;
     }
 
-    if (Math.random() > 0.3) {
-      await prisma.transaction.create({
-        data: {
-          type: "income",
-          value: 200 + Math.random() * 300,
-          category: "Dividendos",
-          description: "Dividendos FIIs",
-          date: getDateInMonth(year, actualMonth, 15),
-          userId: USER_ID,
-        },
-      });
-    }
-
-    await prisma.transaction.create({
-      data: {
-        type: "expense",
-        value: 2200,
-        category: "Moradia",
-        description: "Aluguel do apartamento",
-        date: getDateInMonth(year, actualMonth, 10),
-        userId: USER_ID,
-      },
+    // Salário (com aumento gradual ao longo do tempo)
+    const baseSalary = 7500 + (18 - monthOffset) * 50;
+    allTransactions.push({
+      type: "income",
+      value: baseSalary + randomBetween(-200, 200),
+      category: "Salário",
+      description: "Salário mensal",
+      date: getDateInMonth(year, month, 5),
+      userId: USER_ID,
     });
 
-    await prisma.transaction.create({
-      data: {
-        type: "expense",
-        value: 450,
-        category: "Moradia",
-        description: "Taxa de condomínio",
-        date: getDateInMonth(year, actualMonth, 15),
-        userId: USER_ID,
-      },
-    });
-
-    await prisma.transaction.create({
-      data: {
-        type: "expense",
-        value: 129.90,
-        category: "Serviços",
-        description: "Internet fibra 500mb",
-        date: getDateInMonth(year, actualMonth, 20),
-        userId: USER_ID,
-      },
-    });
-
-    await prisma.transaction.create({
-      data: {
-        type: "expense",
-        value: 79.90,
-        category: "Serviços",
-        description: "Plano de celular",
-        date: getDateInMonth(year, actualMonth, 12),
-        userId: USER_ID,
-      },
-    });
-
-    await prisma.transaction.create({
-      data: {
-        type: "expense",
-        value: 180 + Math.random() * 80,
-        category: "Moradia",
-        description: "Conta de luz",
-        date: getDateInMonth(year, actualMonth, 18),
-        userId: USER_ID,
-      },
-    });
-
-    await prisma.transaction.create({
-      data: {
-        type: "expense",
-        value: 85 + Math.random() * 30,
-        category: "Moradia",
-        description: "Conta de água",
-        date: getDateInMonth(year, actualMonth, 22),
-        userId: USER_ID,
-      },
-    });
-
-    await prisma.transaction.create({
-      data: {
-        type: "expense",
-        value: 55.90,
-        category: "Assinaturas",
-        description: "Netflix",
-        date: getDateInMonth(year, actualMonth, 8),
-        userId: USER_ID,
-      },
-    });
-
-    await prisma.transaction.create({
-      data: {
-        type: "expense",
-        value: 21.90,
-        category: "Assinaturas",
-        description: "Spotify Premium",
-        date: getDateInMonth(year, actualMonth, 8),
-        userId: USER_ID,
-      },
-    });
-
-    await prisma.transaction.create({
-      data: {
-        type: "expense",
-        value: 34.90,
-        category: "Assinaturas",
-        description: "Amazon Prime",
-        date: getDateInMonth(year, actualMonth, 8),
-        userId: USER_ID,
-      },
-    });
-
-    await prisma.transaction.create({
-      data: {
-        type: "expense",
-        value: 149.90,
-        category: "Saúde",
-        description: "Academia Smart Fit",
-        date: getDateInMonth(year, actualMonth, 5),
-        userId: USER_ID,
-      },
-    });
-
-    const supermarketCount = 4 + Math.floor(Math.random() * 3);
-    for (let i = 0; i < supermarketCount; i++) {
-      await prisma.transaction.create({
-        data: {
-          type: "expense",
-          value: 150 + Math.random() * 350,
-          category: "Alimentação",
-          description: ["Supermercado Extra", "Carrefour", "Pão de Açúcar", "Assaí"][Math.floor(Math.random() * 4)],
-          date: getDateInMonth(year, actualMonth, Math.floor(Math.random() * 28) + 1),
-          userId: USER_ID,
-        },
-      });
-    }
-
-    const deliveryCount = 6 + Math.floor(Math.random() * 6);
-    for (let i = 0; i < deliveryCount; i++) {
-      await prisma.transaction.create({
-        data: {
-          type: "expense",
-          value: 35 + Math.random() * 80,
-          category: "Alimentação",
-          description: ["iFood", "Rappi", "Uber Eats"][Math.floor(Math.random() * 3)],
-          date: getDateInMonth(year, actualMonth, Math.floor(Math.random() * 28) + 1),
-          userId: USER_ID,
-        },
-      });
-    }
-
-    const restaurantCount = 2 + Math.floor(Math.random() * 3);
-    for (let i = 0; i < restaurantCount; i++) {
-      await prisma.transaction.create({
-        data: {
-          type: "expense",
-          value: 80 + Math.random() * 150,
-          category: "Alimentação",
-          description: ["Almoço", "Jantar", "Happy Hour"][Math.floor(Math.random() * 3)],
-          date: getDateInMonth(year, actualMonth, Math.floor(Math.random() * 28) + 1),
-          userId: USER_ID,
-        },
-      });
-    }
-
-    const transportCount = 8 + Math.floor(Math.random() * 8);
-    for (let i = 0; i < transportCount; i++) {
-      const isUber = Math.random() > 0.4;
-      await prisma.transaction.create({
-        data: {
-          type: "expense",
-          value: isUber ? 15 + Math.random() * 45 : 150 + Math.random() * 100,
-          category: "Transporte",
-          description: isUber ? "Uber" : "Combustível",
-          date: getDateInMonth(year, actualMonth, Math.floor(Math.random() * 28) + 1),
-          userId: USER_ID,
-        },
-      });
-    }
-
-    if (Math.random() > 0.3) {
-      await prisma.transaction.create({
-        data: {
-          type: "expense",
-          value: 50 + Math.random() * 150,
-          category: "Saúde",
-          description: "Drogaria",
-          date: getDateInMonth(year, actualMonth, Math.floor(Math.random() * 28) + 1),
-          userId: USER_ID,
-        },
-      });
-    }
-
-    const leisureCount = 2 + Math.floor(Math.random() * 3);
-    for (let i = 0; i < leisureCount; i++) {
-      await prisma.transaction.create({
-        data: {
-          type: "expense",
-          value: 30 + Math.random() * 150,
-          category: "Lazer",
-          description: ["Cinema", "Teatro", "Bar", "Show", "Parque"][Math.floor(Math.random() * 5)],
-          date: getDateInMonth(year, actualMonth, Math.floor(Math.random() * 28) + 1),
-          userId: USER_ID,
-        },
-      });
-    }
-
+    // Freelance (alguns meses)
     if (Math.random() > 0.4) {
-      await prisma.transaction.create({
-        data: {
-          type: "expense",
-          value: 80 + Math.random() * 400,
-          category: "Compras",
-          description: ["Amazon", "Mercado Livre", "Magazine Luiza", "Shopee"][Math.floor(Math.random() * 4)],
-          date: getDateInMonth(year, actualMonth, Math.floor(Math.random() * 28) + 1),
+      const freelanceCount = randomInt(1, 4);
+      for (let i = 0; i < freelanceCount; i++) {
+        allTransactions.push({
+          type: "income",
+          value: randomBetween(800, 3500),
+          category: "Freelance",
+          description: pickRandom(["Projeto web", "Consultoria", "Design", "Desenvolvimento app", "Landing page"]),
+          date: getDateInMonth(year, month, randomInt(10, 28)),
           userId: USER_ID,
-        },
+        });
+      }
+    }
+
+    // Dividendos (mensal)
+    if (monthOffset < 12) {
+      allTransactions.push({
+        type: "income",
+        value: randomBetween(150, 450),
+        category: "Dividendos",
+        description: "Dividendos FIIs",
+        date: getDateInMonth(year, month, 15),
+        userId: USER_ID,
       });
     }
 
-    if (Math.random() > 0.5) {
-      await prisma.transaction.create({
-        data: {
+    // Bônus (trimestral)
+    if (month % 3 === 0 && Math.random() > 0.3) {
+      allTransactions.push({
+        type: "income",
+        value: randomBetween(1500, 4000),
+        category: "Bônus",
+        description: "Bônus trimestral",
+        date: getDateInMonth(year, month, randomInt(20, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // Reembolsos esporádicos
+    if (Math.random() > 0.7) {
+      allTransactions.push({
+        type: "income",
+        value: randomBetween(50, 500),
+        category: "Reembolso",
+        description: pickRandom(["Reembolso empresa", "Devolução compra", "Cashback"]),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // === DESPESAS FIXAS ===
+
+    // Aluguel
+    allTransactions.push({
+      type: "expense",
+      value: 2200,
+      category: "Moradia",
+      description: "Aluguel do apartamento",
+      date: getDateInMonth(year, month, 10),
+      userId: USER_ID,
+    });
+
+    // Condomínio
+    allTransactions.push({
+      type: "expense",
+      value: randomBetween(420, 480),
+      category: "Moradia",
+      description: "Taxa de condomínio",
+      date: getDateInMonth(year, month, 15),
+      userId: USER_ID,
+    });
+
+    // Internet
+    allTransactions.push({
+      type: "expense",
+      value: 129.90,
+      category: "Serviços",
+      description: "Internet fibra 500mb",
+      date: getDateInMonth(year, month, 20),
+      userId: USER_ID,
+    });
+
+    // Celular
+    allTransactions.push({
+      type: "expense",
+      value: 79.90,
+      category: "Serviços",
+      description: "Plano de celular",
+      date: getDateInMonth(year, month, 12),
+      userId: USER_ID,
+    });
+
+    // Luz (variável por estação)
+    const isWinter = month >= 5 && month <= 8;
+    allTransactions.push({
+      type: "expense",
+      value: randomBetween(isWinter ? 150 : 200, isWinter ? 220 : 320),
+      category: "Moradia",
+      description: "Conta de luz",
+      date: getDateInMonth(year, month, 18),
+      userId: USER_ID,
+    });
+
+    // Água
+    allTransactions.push({
+      type: "expense",
+      value: randomBetween(75, 120),
+      category: "Moradia",
+      description: "Conta de água",
+      date: getDateInMonth(year, month, 22),
+      userId: USER_ID,
+    });
+
+    // Gás
+    if (Math.random() > 0.3) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(45, 90),
+        category: "Moradia",
+        description: "Gás encanado",
+        date: getDateInMonth(year, month, 25),
+        userId: USER_ID,
+      });
+    }
+
+    // === ASSINATURAS ===
+    const subscriptions = [
+      { desc: "Netflix", value: 55.90 },
+      { desc: "Spotify Premium", value: 21.90 },
+      { desc: "Amazon Prime", value: 14.90 },
+      { desc: "iCloud 200GB", value: 14.90 },
+      { desc: "ChatGPT Plus", value: 104.00 },
+      { desc: "GitHub Copilot", value: 50.00 },
+    ];
+
+    for (const sub of subscriptions) {
+      allTransactions.push({
+        type: "expense",
+        value: sub.value,
+        category: "Assinaturas",
+        description: sub.desc,
+        date: getDateInMonth(year, month, randomInt(5, 12)),
+        userId: USER_ID,
+      });
+    }
+
+    // Academia
+    allTransactions.push({
+      type: "expense",
+      value: 149.90,
+      category: "Saúde",
+      description: "Academia Smart Fit",
+      date: getDateInMonth(year, month, 5),
+      userId: USER_ID,
+    });
+
+    // === ALIMENTAÇÃO ===
+
+    // Supermercado (várias idas)
+    const supermarketCount = randomInt(5, 9);
+    const supermarkets = ["Supermercado Extra", "Carrefour", "Pão de Açúcar", "Assaí", "Big", "Hirota"];
+    for (let i = 0; i < supermarketCount; i++) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(80, 450),
+        category: "Alimentação",
+        description: pickRandom(supermarkets),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // Delivery
+    const deliveryCount = randomInt(8, 16);
+    const deliveryApps = ["iFood", "Rappi", "Uber Eats", "Zé Delivery"];
+    for (let i = 0; i < deliveryCount; i++) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(25, 95),
+        category: "Alimentação",
+        description: pickRandom(deliveryApps),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // Restaurantes
+    const restaurantCount = randomInt(3, 7);
+    const restaurants = ["Almoço", "Jantar", "Happy Hour", "Brunch", "Lanchonete", "Padaria"];
+    for (let i = 0; i < restaurantCount; i++) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(40, 180),
+        category: "Alimentação",
+        description: pickRandom(restaurants),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // Café
+    const coffeeCount = randomInt(4, 12);
+    for (let i = 0; i < coffeeCount; i++) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(8, 35),
+        category: "Alimentação",
+        description: pickRandom(["Starbucks", "Café", "Padaria", "Lanchonete"]),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // === TRANSPORTE ===
+
+    // Uber/99
+    const uberCount = randomInt(6, 18);
+    for (let i = 0; i < uberCount; i++) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(12, 55),
+        category: "Transporte",
+        description: pickRandom(["Uber", "99", "Uber"]),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // Combustível
+    const gasCount = randomInt(2, 5);
+    for (let i = 0; i < gasCount; i++) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(150, 280),
+        category: "Transporte",
+        description: pickRandom(["Posto Shell", "Posto Ipiranga", "Posto BR", "Posto Ale"]),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // Estacionamento
+    if (Math.random() > 0.4) {
+      const parkingCount = randomInt(2, 6);
+      for (let i = 0; i < parkingCount; i++) {
+        allTransactions.push({
           type: "expense",
-          value: 100 + Math.random() * 200,
-          category: "Pets",
-          description: ["Ração", "Veterinário", "Pet shop"][Math.floor(Math.random() * 3)],
-          date: getDateInMonth(year, actualMonth, Math.floor(Math.random() * 28) + 1),
+          value: randomBetween(10, 35),
+          category: "Transporte",
+          description: "Estacionamento",
+          date: getDateInMonth(year, month, randomInt(1, 28)),
           userId: USER_ID,
-        },
+        });
+      }
+    }
+
+    // === SAÚDE ===
+
+    // Farmácia
+    const pharmacyCount = randomInt(1, 4);
+    for (let i = 0; i < pharmacyCount; i++) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(30, 180),
+        category: "Saúde",
+        description: pickRandom(["Drogasil", "Droga Raia", "Pacheco", "Drogaria São Paulo"]),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // Consultas médicas (esporádico)
+    if (Math.random() > 0.7) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(150, 400),
+        category: "Saúde",
+        description: pickRandom(["Consulta médica", "Dentista", "Exames", "Oftalmologista"]),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // === LAZER ===
+    const leisureCount = randomInt(2, 6);
+    const leisureOptions = ["Cinema", "Teatro", "Bar", "Show", "Parque", "Museu", "Escape room", "Boliche", "Karaokê"];
+    for (let i = 0; i < leisureCount; i++) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(30, 200),
+        category: "Lazer",
+        description: pickRandom(leisureOptions),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // Games
+    if (Math.random() > 0.5) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(50, 300),
+        category: "Lazer",
+        description: pickRandom(["Steam", "PlayStation Store", "Nintendo eShop", "Xbox Game Pass"]),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // === COMPRAS ===
+    const shoppingCount = randomInt(2, 6);
+    const stores = ["Amazon", "Mercado Livre", "Magazine Luiza", "Shopee", "AliExpress", "Americanas", "Kabum"];
+    for (let i = 0; i < shoppingCount; i++) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(50, 500),
+        category: "Compras",
+        description: pickRandom(stores),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // === PETS ===
+    if (Math.random() > 0.3) {
+      const petCount = randomInt(1, 3);
+      for (let i = 0; i < petCount; i++) {
+        allTransactions.push({
+          type: "expense",
+          value: randomBetween(80, 350),
+          category: "Pets",
+          description: pickRandom(["Ração", "Veterinário", "Pet shop", "Banho e tosa", "Petlove"]),
+          date: getDateInMonth(year, month, randomInt(1, 28)),
+          userId: USER_ID,
+        });
+      }
+    }
+
+    // === VESTUÁRIO ===
+    if (Math.random() > 0.4) {
+      const clothingCount = randomInt(1, 3);
+      const clothingStores = ["Renner", "C&A", "Riachuelo", "Zara", "Nike", "Adidas", "Centauro", "Netshoes"];
+      for (let i = 0; i < clothingCount; i++) {
+        allTransactions.push({
+          type: "expense",
+          value: randomBetween(80, 400),
+          category: "Vestuário",
+          description: pickRandom(clothingStores),
+          date: getDateInMonth(year, month, randomInt(1, 28)),
+          userId: USER_ID,
+        });
+      }
+    }
+
+    // === BELEZA ===
+    if (Math.random() > 0.5) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(50, 200),
+        category: "Beleza",
+        description: pickRandom(["Barbearia", "Cabeleireiro", "Manicure", "Skincare"]),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // === EDUCAÇÃO ===
+    if (Math.random() > 0.6) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(30, 200),
+        category: "Educação",
+        description: pickRandom(["Udemy", "Alura", "Livros", "Curso online", "Inglês"]),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
+      });
+    }
+
+    // === PRESENTES (em datas especiais) ===
+    if (Math.random() > 0.7) {
+      allTransactions.push({
+        type: "expense",
+        value: randomBetween(50, 300),
+        category: "Presentes",
+        description: pickRandom(["Presente aniversário", "Presente namoro", "Amigo secreto"]),
+        date: getDateInMonth(year, month, randomInt(1, 28)),
+        userId: USER_ID,
       });
     }
   }
+
+  // Batch insert transactions
+  console.log(`   Inserindo ${allTransactions.length} transações...`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.transaction.createMany({ data: allTransactions as any });
 
   console.log("📋 Criando templates...");
 
@@ -359,39 +536,33 @@ async function main() {
     { name: "iFood", description: null, category: "Alimentação", type: "expense" as const, value: null },
     { name: "Freelance", description: "Projeto freelance", category: "Freelance", type: "income" as const, value: null },
     { name: "Pix Recebido", description: null, category: "Outros", type: "income" as const, value: null },
+    { name: "Café", description: "Café da manhã", category: "Alimentação", type: "expense" as const, value: 15 },
+    { name: "Farmácia", description: null, category: "Saúde", type: "expense" as const, value: null },
+    { name: "Combustível", description: "Gasolina", category: "Transporte", type: "expense" as const, value: 200 },
   ];
 
-  for (const template of templates) {
-    await prisma.transactionTemplate.create({
-      data: {
-        ...template,
-        usageCount: Math.floor(Math.random() * 20),
-        userId: USER_ID,
-      },
-    });
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.transactionTemplate.createMany({
+    data: templates.map(t => ({ ...t, usageCount: Math.floor(Math.random() * 30), userId: USER_ID })) as any,
+  });
 
   console.log("📊 Criando orçamentos...");
 
   const budgets = [
-    { category: "Alimentação", limit: 2000 },
-    { category: "Transporte", limit: 800 },
-    { category: "Lazer", limit: 500 },
-    { category: "Compras", limit: 600 },
-    { category: "Assinaturas", limit: 200 },
-    { category: "Saúde", limit: 400 },
+    { category: "Alimentação", limit: 2500 },
+    { category: "Transporte", limit: 1000 },
+    { category: "Lazer", limit: 600 },
+    { category: "Compras", limit: 800 },
+    { category: "Assinaturas", limit: 350 },
+    { category: "Saúde", limit: 500 },
+    { category: "Vestuário", limit: 400 },
+    { category: "Pets", limit: 300 },
   ];
 
-  for (const budget of budgets) {
-    await prisma.budget.create({
-      data: {
-        ...budget,
-        month: 0,
-        year: 0,
-        userId: USER_ID,
-      },
-    });
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.budget.createMany({
+    data: budgets.map(b => ({ ...b, month: 0, year: 0, userId: USER_ID })) as any,
+  });
 
   console.log("🔄 Criando despesas recorrentes...");
 
@@ -402,133 +573,241 @@ async function main() {
     { description: "Celular", value: 79.90, category: "Serviços", dueDay: 12 },
     { description: "Netflix", value: 55.90, category: "Assinaturas", dueDay: 8 },
     { description: "Spotify", value: 21.90, category: "Assinaturas", dueDay: 8 },
-    { description: "Amazon Prime", value: 34.90, category: "Assinaturas", dueDay: 8 },
+    { description: "Amazon Prime", value: 14.90, category: "Assinaturas", dueDay: 8 },
     { description: "Academia Smart Fit", value: 149.90, category: "Saúde", dueDay: 5 },
     { description: "iCloud 200GB", value: 14.90, category: "Assinaturas", dueDay: 15 },
+    { description: "ChatGPT Plus", value: 104.00, category: "Assinaturas", dueDay: 10 },
+    { description: "GitHub Copilot", value: 50.00, category: "Assinaturas", dueDay: 10 },
   ];
 
-  for (const expense of recurringExpenses) {
-    await prisma.recurringExpense.create({
-      data: {
-        ...expense,
-        isActive: true,
-        userId: USER_ID,
-      },
-    });
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.recurringExpense.createMany({
+    data: recurringExpenses.map(e => ({ ...e, isActive: true, userId: USER_ID })) as any,
+  });
 
-  console.log("📈 Criando investimentos...");
+  console.log("📈 Criando investimentos com histórico de operações...");
 
+  // AÇÕES
   const stocks = [
-    { name: "Petrobras", ticker: "PETR4", quantity: 200, averagePrice: 35.50, currentPrice: 38.20 },
-    { name: "Vale", ticker: "VALE3", quantity: 100, averagePrice: 68.00, currentPrice: 62.50 },
-    { name: "Itaú Unibanco", ticker: "ITUB4", quantity: 150, averagePrice: 28.50, currentPrice: 32.80 },
-    { name: "Banco do Brasil", ticker: "BBAS3", quantity: 80, averagePrice: 45.00, currentPrice: 52.30 },
-    { name: "WEG", ticker: "WEGE3", quantity: 50, averagePrice: 38.00, currentPrice: 42.50 },
+    { name: "Petrobras", ticker: "PETR4", operations: [
+      { date: 365, type: "buy", qty: 100, price: 28.50 },
+      { date: 280, type: "buy", qty: 50, price: 32.00 },
+      { date: 180, type: "buy", qty: 100, price: 35.00 },
+      { date: 90, type: "sell", qty: 50, price: 42.00 },
+    ], currentPrice: 38.20 },
+    { name: "Vale", ticker: "VALE3", operations: [
+      { date: 400, type: "buy", qty: 80, price: 75.00 },
+      { date: 300, type: "buy", qty: 50, price: 68.00 },
+      { date: 150, type: "sell", qty: 30, price: 72.00 },
+    ], currentPrice: 62.50 },
+    { name: "Itaú Unibanco", ticker: "ITUB4", operations: [
+      { date: 500, type: "buy", qty: 100, price: 24.00 },
+      { date: 350, type: "buy", qty: 100, price: 27.00 },
+      { date: 200, type: "buy", qty: 50, price: 30.00 },
+    ], currentPrice: 32.80 },
+    { name: "Banco do Brasil", ticker: "BBAS3", operations: [
+      { date: 450, type: "buy", qty: 60, price: 38.00 },
+      { date: 300, type: "buy", qty: 40, price: 45.00 },
+      { date: 100, type: "buy", qty: 30, price: 50.00 },
+    ], currentPrice: 52.30 },
+    { name: "WEG", ticker: "WEGE3", operations: [
+      { date: 380, type: "buy", qty: 40, price: 35.00 },
+      { date: 200, type: "buy", qty: 30, price: 40.00 },
+    ], currentPrice: 44.50 },
+    { name: "Ambev", ticker: "ABEV3", operations: [
+      { date: 320, type: "buy", qty: 150, price: 12.50 },
+      { date: 180, type: "buy", qty: 100, price: 13.00 },
+    ], currentPrice: 11.80 },
+    { name: "Magazine Luiza", ticker: "MGLU3", operations: [
+      { date: 400, type: "buy", qty: 200, price: 8.00 },
+      { date: 250, type: "sell", qty: 100, price: 5.50 },
+    ], currentPrice: 12.30 },
+    { name: "B3", ticker: "B3SA3", operations: [
+      { date: 280, type: "buy", qty: 80, price: 11.00 },
+      { date: 150, type: "buy", qty: 50, price: 12.50 },
+    ], currentPrice: 13.20 },
   ];
+
+  const allOperations: Array<{
+    investmentId: string;
+    type: "buy" | "sell" | "deposit" | "withdraw";
+    quantity: number;
+    price: number;
+    total: number;
+    date: Date;
+    fees: number;
+  }> = [];
 
   for (const stock of stocks) {
-    const totalInvested = stock.quantity * stock.averagePrice;
-    const currentValue = stock.quantity * stock.currentPrice;
-    const profitLoss = currentValue - totalInvested;
-    const profitLossPercent = (profitLoss / totalInvested) * 100;
+    let totalQty = 0;
+    let totalCost = 0;
 
+    for (const op of stock.operations) {
+      if (op.type === "buy") {
+        totalCost += op.qty * op.price;
+        totalQty += op.qty;
+      } else {
+        totalCost -= (totalCost / totalQty) * op.qty;
+        totalQty -= op.qty;
+      }
+    }
+
+    const averagePrice = totalQty > 0 ? totalCost / totalQty : 0;
+    const currentValue = totalQty * stock.currentPrice;
+    const profitLoss = currentValue - totalCost;
+    const profitLossPercent = totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const investment = await prisma.investment.create({
       data: {
         type: "stock",
         name: stock.name,
         ticker: stock.ticker,
         institution: "XP Investimentos",
-        quantity: stock.quantity,
-        averagePrice: stock.averagePrice,
+        quantity: totalQty,
+        averagePrice,
         currentPrice: stock.currentPrice,
-        totalInvested,
+        totalInvested: totalCost,
         currentValue,
         profitLoss,
         profitLossPercent,
         userId: USER_ID,
-      },
+      } as any,
     });
 
-    await prisma.operation.create({
-      data: {
+    for (const op of stock.operations) {
+      allOperations.push({
         investmentId: investment.id,
-        type: "buy",
-        quantity: stock.quantity,
-        price: stock.averagePrice,
-        total: totalInvested,
-        date: getDate(Math.floor(Math.random() * 180) + 30),
-        fees: totalInvested * 0.0003,
-      },
-    });
+        type: op.type as "buy" | "sell",
+        quantity: op.qty,
+        price: op.price,
+        total: op.qty * op.price,
+        date: getDate(op.date),
+        fees: op.qty * op.price * 0.0003,
+      });
+    }
   }
 
+  // FIIs
   const fiis = [
-    { name: "HGLG11", ticker: "HGLG11", quantity: 30, averagePrice: 165.00, currentPrice: 158.50 },
-    { name: "XPLG11", ticker: "XPLG11", quantity: 50, averagePrice: 98.00, currentPrice: 102.30 },
-    { name: "MXRF11", ticker: "MXRF11", quantity: 100, averagePrice: 10.50, currentPrice: 10.20 },
-    { name: "KNRI11", ticker: "KNRI11", quantity: 25, averagePrice: 142.00, currentPrice: 138.00 },
-    { name: "VISC11", ticker: "VISC11", quantity: 40, averagePrice: 115.00, currentPrice: 118.50 },
+    { name: "HGLG11", ticker: "HGLG11", operations: [
+      { date: 400, type: "buy", qty: 15, price: 160.00 },
+      { date: 280, type: "buy", qty: 20, price: 165.00 },
+      { date: 150, type: "buy", qty: 10, price: 158.00 },
+    ], currentPrice: 162.50 },
+    { name: "XPLG11", ticker: "XPLG11", operations: [
+      { date: 350, type: "buy", qty: 30, price: 95.00 },
+      { date: 200, type: "buy", qty: 30, price: 100.00 },
+      { date: 80, type: "buy", qty: 20, price: 98.00 },
+    ], currentPrice: 102.30 },
+    { name: "MXRF11", ticker: "MXRF11", operations: [
+      { date: 300, type: "buy", qty: 100, price: 10.20 },
+      { date: 180, type: "buy", qty: 80, price: 10.50 },
+      { date: 60, type: "buy", qty: 50, price: 10.30 },
+    ], currentPrice: 10.45 },
+    { name: "KNRI11", ticker: "KNRI11", operations: [
+      { date: 380, type: "buy", qty: 15, price: 135.00 },
+      { date: 220, type: "buy", qty: 15, price: 140.00 },
+    ], currentPrice: 142.00 },
+    { name: "VISC11", ticker: "VISC11", operations: [
+      { date: 320, type: "buy", qty: 25, price: 110.00 },
+      { date: 150, type: "buy", qty: 25, price: 115.00 },
+    ], currentPrice: 118.50 },
+    { name: "BTLG11", ticker: "BTLG11", operations: [
+      { date: 250, type: "buy", qty: 20, price: 98.00 },
+      { date: 100, type: "buy", qty: 15, price: 102.00 },
+    ], currentPrice: 105.00 },
   ];
 
   for (const fii of fiis) {
-    const totalInvested = fii.quantity * fii.averagePrice;
-    const currentValue = fii.quantity * fii.currentPrice;
-    const profitLoss = currentValue - totalInvested;
-    const profitLossPercent = (profitLoss / totalInvested) * 100;
+    let totalQty = 0;
+    let totalCost = 0;
 
+    for (const op of fii.operations) {
+      totalCost += op.qty * op.price;
+      totalQty += op.qty;
+    }
+
+    const averagePrice = totalCost / totalQty;
+    const currentValue = totalQty * fii.currentPrice;
+    const profitLoss = currentValue - totalCost;
+    const profitLossPercent = (profitLoss / totalCost) * 100;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const investment = await prisma.investment.create({
       data: {
         type: "fii",
         name: fii.name,
         ticker: fii.ticker,
         institution: "XP Investimentos",
-        quantity: fii.quantity,
-        averagePrice: fii.averagePrice,
+        quantity: totalQty,
+        averagePrice,
         currentPrice: fii.currentPrice,
-        totalInvested,
+        totalInvested: totalCost,
         currentValue,
         profitLoss,
         profitLossPercent,
         userId: USER_ID,
-      },
+      } as any,
     });
 
-    await prisma.operation.create({
-      data: {
+    for (const op of fii.operations) {
+      allOperations.push({
         investmentId: investment.id,
         type: "buy",
-        quantity: fii.quantity,
-        price: fii.averagePrice,
-        total: totalInvested,
-        date: getDate(Math.floor(Math.random() * 180) + 30),
-        fees: totalInvested * 0.0003,
-      },
-    });
+        quantity: op.qty,
+        price: op.price,
+        total: op.qty * op.price,
+        date: getDate(op.date),
+        fees: op.qty * op.price * 0.0003,
+      });
+    }
   }
 
+  // CDBs
   const cdbs = [
-    { name: "CDB Banco Inter 110% CDI", institution: "Banco Inter", totalInvested: 10000, interestRate: 110, indexer: "CDI", maturityMonths: 24 },
-    { name: "CDB Nubank 100% CDI", institution: "Nubank", totalInvested: 5000, interestRate: 100, indexer: "CDI", maturityMonths: 12 },
-    { name: "CDB BTG IPCA+6%", institution: "BTG Pactual", totalInvested: 15000, interestRate: 6, indexer: "IPCA", maturityMonths: 36 },
+    { name: "CDB Banco Inter 110% CDI", institution: "Banco Inter", deposits: [
+      { date: 400, value: 5000 },
+      { date: 250, value: 5000 },
+      { date: 100, value: 3000 },
+    ], interestRate: 110, indexer: "CDI", maturityMonths: 24 },
+    { name: "CDB Nubank 100% CDI", institution: "Nubank", deposits: [
+      { date: 300, value: 3000 },
+      { date: 150, value: 3000 },
+    ], interestRate: 100, indexer: "CDI", maturityMonths: 12 },
+    { name: "CDB BTG IPCA+6%", institution: "BTG Pactual", deposits: [
+      { date: 450, value: 10000 },
+      { date: 200, value: 8000 },
+    ], interestRate: 6, indexer: "IPCA", maturityMonths: 36 },
+    { name: "CDB C6 Bank 102% CDI", institution: "C6 Bank", deposits: [
+      { date: 180, value: 4000 },
+      { date: 60, value: 3000 },
+    ], interestRate: 102, indexer: "CDI", maturityMonths: 24 },
   ];
 
   for (const cdb of cdbs) {
     const maturityDate = new Date();
     maturityDate.setMonth(maturityDate.getMonth() + cdb.maturityMonths);
 
-    const monthsHeld = Math.floor(Math.random() * 12) + 1;
-    const monthlyRate = cdb.indexer === "CDI" ? 0.01 : 0.008;
-    const currentValue = cdb.totalInvested * Math.pow(1 + monthlyRate * (cdb.interestRate / 100), monthsHeld);
-    const profitLoss = currentValue - cdb.totalInvested;
-    const profitLossPercent = (profitLoss / cdb.totalInvested) * 100;
+    let totalInvested = 0;
+    for (const dep of cdb.deposits) {
+      totalInvested += dep.value;
+    }
 
+    const avgDaysHeld = cdb.deposits.reduce((acc, d) => acc + d.date, 0) / cdb.deposits.length;
+    const monthlyRate = cdb.indexer === "CDI" ? 0.0095 : 0.008;
+    const monthsHeld = avgDaysHeld / 30;
+    const currentValue = totalInvested * Math.pow(1 + monthlyRate * (cdb.interestRate / 100), monthsHeld);
+    const profitLoss = currentValue - totalInvested;
+    const profitLossPercent = (profitLoss / totalInvested) * 100;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const investment = await prisma.investment.create({
       data: {
         type: "cdb",
         name: cdb.name,
         institution: cdb.institution,
-        totalInvested: cdb.totalInvested,
+        totalInvested,
         currentValue,
         profitLoss,
         profitLossPercent,
@@ -536,333 +815,443 @@ async function main() {
         indexer: cdb.indexer,
         maturityDate,
         userId: USER_ID,
-      },
+      } as any,
     });
 
-    await prisma.operation.create({
-      data: {
+    for (const dep of cdb.deposits) {
+      allOperations.push({
         investmentId: investment.id,
         type: "deposit",
         quantity: 1,
-        price: cdb.totalInvested,
-        total: cdb.totalInvested,
-        date: getDate(monthsHeld * 30),
+        price: dep.value,
+        total: dep.value,
+        date: getDate(dep.date),
         fees: 0,
-      },
-    });
+      });
+    }
   }
 
-  const treasuryInvestment = await prisma.investment.create({
-    data: {
-      type: "treasury",
-      name: "Tesouro Selic 2029",
-      institution: "Tesouro Direto",
-      totalInvested: 8000,
-      currentValue: 8450,
-      profitLoss: 450,
-      profitLossPercent: 5.625,
-      interestRate: 100,
-      indexer: "SELIC",
-      maturityDate: new Date(2029, 0, 1),
-      userId: USER_ID,
-    },
-  });
-
-  await prisma.operation.create({
-    data: {
-      investmentId: treasuryInvestment.id,
-      type: "deposit",
-      quantity: 1,
-      price: 8000,
-      total: 8000,
-      date: getDate(180),
-      fees: 0,
-    },
-  });
-
-  const cryptos = [
-    { name: "Bitcoin", ticker: "BTC", quantity: 0.05, averagePrice: 180000, currentPrice: 195000 },
-    { name: "Ethereum", ticker: "ETH", quantity: 0.5, averagePrice: 12000, currentPrice: 13500 },
+  // Tesouro Direto
+  const treasuryData = [
+    { name: "Tesouro Selic 2029", indexer: "SELIC", rate: 100, deposits: [
+      { date: 500, value: 5000 },
+      { date: 300, value: 5000 },
+      { date: 150, value: 3000 },
+    ], maturity: new Date(2029, 0, 1) },
+    { name: "Tesouro IPCA+ 2035", indexer: "IPCA", rate: 6.5, deposits: [
+      { date: 400, value: 8000 },
+      { date: 200, value: 5000 },
+    ], maturity: new Date(2035, 5, 15) },
   ];
 
-  for (const crypto of cryptos) {
-    const totalInvested = crypto.quantity * crypto.averagePrice;
-    const currentValue = crypto.quantity * crypto.currentPrice;
+  for (const treasury of treasuryData) {
+    let totalInvested = 0;
+    for (const dep of treasury.deposits) {
+      totalInvested += dep.value;
+    }
+
+    const avgDaysHeld = treasury.deposits.reduce((acc, d) => acc + d.date, 0) / treasury.deposits.length;
+    const monthlyRate = treasury.indexer === "SELIC" ? 0.0098 : 0.0085;
+    const monthsHeld = avgDaysHeld / 30;
+    const currentValue = totalInvested * Math.pow(1 + monthlyRate * (treasury.rate / 100), monthsHeld);
     const profitLoss = currentValue - totalInvested;
     const profitLossPercent = (profitLoss / totalInvested) * 100;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const investment = await prisma.investment.create({
+      data: {
+        type: "treasury",
+        name: treasury.name,
+        institution: "Tesouro Direto",
+        totalInvested,
+        currentValue,
+        profitLoss,
+        profitLossPercent,
+        interestRate: treasury.rate,
+        indexer: treasury.indexer,
+        maturityDate: treasury.maturity,
+        userId: USER_ID,
+      } as any,
+    });
+
+    for (const dep of treasury.deposits) {
+      allOperations.push({
+        investmentId: investment.id,
+        type: "deposit",
+        quantity: 1,
+        price: dep.value,
+        total: dep.value,
+        date: getDate(dep.date),
+        fees: 0,
+      });
+    }
+  }
+
+  // Cripto
+  const cryptos = [
+    { name: "Bitcoin", ticker: "BTC", operations: [
+      { date: 450, type: "buy", qty: 0.02, price: 150000 },
+      { date: 300, type: "buy", qty: 0.03, price: 180000 },
+      { date: 150, type: "buy", qty: 0.02, price: 200000 },
+      { date: 80, type: "sell", qty: 0.01, price: 210000 },
+    ], currentPrice: 195000 },
+    { name: "Ethereum", ticker: "ETH", operations: [
+      { date: 380, type: "buy", qty: 0.3, price: 10000 },
+      { date: 250, type: "buy", qty: 0.4, price: 12000 },
+      { date: 100, type: "buy", qty: 0.2, price: 14000 },
+    ], currentPrice: 13500 },
+    { name: "Solana", ticker: "SOL", operations: [
+      { date: 200, type: "buy", qty: 5, price: 120 },
+      { date: 100, type: "buy", qty: 8, price: 150 },
+    ], currentPrice: 180 },
+  ];
+
+  for (const crypto of cryptos) {
+    let totalQty = 0;
+    let totalCost = 0;
+
+    for (const op of crypto.operations) {
+      if (op.type === "buy") {
+        totalCost += op.qty * op.price;
+        totalQty += op.qty;
+      } else {
+        totalCost -= (totalCost / totalQty) * op.qty;
+        totalQty -= op.qty;
+      }
+    }
+
+    const averagePrice = totalQty > 0 ? totalCost / totalQty : 0;
+    const currentValue = totalQty * crypto.currentPrice;
+    const profitLoss = currentValue - totalCost;
+    const profitLossPercent = totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const investment = await prisma.investment.create({
       data: {
         type: "crypto",
         name: crypto.name,
         ticker: crypto.ticker,
         institution: "Binance",
-        quantity: crypto.quantity,
-        averagePrice: crypto.averagePrice,
+        quantity: totalQty,
+        averagePrice,
         currentPrice: crypto.currentPrice,
-        totalInvested,
+        totalInvested: totalCost,
         currentValue,
         profitLoss,
         profitLossPercent,
         userId: USER_ID,
-      },
+      } as any,
     });
 
-    await prisma.operation.create({
-      data: {
+    for (const op of crypto.operations) {
+      allOperations.push({
         investmentId: investment.id,
-        type: "buy",
-        quantity: crypto.quantity,
-        price: crypto.averagePrice,
-        total: totalInvested,
-        date: getDate(Math.floor(Math.random() * 90) + 30),
-        fees: totalInvested * 0.001,
-      },
-    });
+        type: op.type as "buy" | "sell",
+        quantity: op.qty,
+        price: op.price,
+        total: op.qty * op.price,
+        date: getDate(op.date),
+        fees: op.qty * op.price * 0.001,
+      });
+    }
   }
 
-  console.log("💳 Criando cartões de crédito...");
+  // Batch insert operations
+  console.log(`   Inserindo ${allOperations.length} operações...`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.operation.createMany({ data: allOperations as any });
 
+  console.log("💳 Criando cartões de crédito com histórico extenso...");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const nubank = await prisma.creditCard.create({
     data: {
       name: "Nubank",
       lastDigits: "4532",
-      limit: 15000,
+      limit: 18000,
       closingDay: 3,
       dueDay: 10,
       color: "#8B5CF6",
       isActive: true,
       userId: USER_ID,
-    },
+    } as any,
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const inter = await prisma.creditCard.create({
     data: {
       name: "Banco Inter",
       lastDigits: "7891",
-      limit: 8000,
+      limit: 10000,
       closingDay: 15,
       dueDay: 22,
       color: "#F97316",
       isActive: true,
       userId: USER_ID,
-    },
+    } as any,
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const c6 = await prisma.creditCard.create({
     data: {
       name: "C6 Bank",
       lastDigits: "2468",
-      limit: 12000,
+      limit: 15000,
       closingDay: 20,
       dueDay: 27,
       color: "#1F2937",
       isActive: true,
       userId: USER_ID,
-    },
+    } as any,
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const xp = await prisma.creditCard.create({
+    data: {
+      name: "XP Visa Infinite",
+      lastDigits: "9876",
+      limit: 25000,
+      closingDay: 8,
+      dueDay: 15,
+      color: "#10B981",
+      isActive: true,
+      userId: USER_ID,
+    } as any,
   });
 
   const cards = [
-    { card: nubank, avgSpend: 3500 },
-    { card: inter, avgSpend: 1500 },
-    { card: c6, avgSpend: 2000 },
+    { card: nubank, avgSpend: 4000 },
+    { card: inter, avgSpend: 2000 },
+    { card: c6, avgSpend: 2500 },
+    { card: xp, avgSpend: 3500 },
   ];
 
+  const purchaseCategories = [
+    { category: "Alimentação", descriptions: ["iFood", "Rappi", "Restaurante Outback", "Supermercado Extra", "Burger King", "McDonald's", "Starbucks"], minValue: 20, maxValue: 350 },
+    { category: "Compras", descriptions: ["Amazon", "Mercado Livre", "Magazine Luiza", "AliExpress", "Shopee", "Kabum", "Americanas", "Casas Bahia"], minValue: 50, maxValue: 800 },
+    { category: "Transporte", descriptions: ["Uber", "99", "Posto Shell", "Posto Ipiranga", "Estacionamento"], minValue: 15, maxValue: 250 },
+    { category: "Lazer", descriptions: ["Cinema Cinemark", "Ingresso.com", "Steam", "PlayStation Store", "Spotify", "Netflix"], minValue: 20, maxValue: 200 },
+    { category: "Assinaturas", descriptions: ["Spotify Premium", "Netflix", "Disney+", "HBO Max", "Amazon Prime", "YouTube Premium"], minValue: 15, maxValue: 70 },
+    { category: "Viagem", descriptions: ["Booking.com", "Airbnb", "Decolar", "LATAM Airlines", "GOL", "Hotel Ibis"], minValue: 200, maxValue: 2000 },
+    { category: "Vestuário", descriptions: ["Renner", "C&A", "Zara", "Nike", "Adidas", "Centauro"], minValue: 80, maxValue: 500 },
+    { category: "Saúde", descriptions: ["Drogasil", "Droga Raia", "Consulta médica", "Farmácia"], minValue: 30, maxValue: 300 },
+  ];
+
+  const allPurchases: Array<{
+    invoiceId: string;
+    description: string;
+    value: number;
+    totalValue: number;
+    category: string;
+    date: Date;
+    installments: number;
+    currentInstallment: number;
+  }> = [];
+
+  const invoiceUpdates: Array<{ id: string; total: number }> = [];
+
   for (const { card, avgSpend } of cards) {
-    for (let monthOffset = 0; monthOffset < 3; monthOffset++) {
-      const month = currentMonth - monthOffset;
-      const year = month < 0 ? currentYear - 1 : currentYear;
-      const actualMonth = month < 0 ? month + 12 : month;
+    // 8 meses de faturas
+    for (let monthOffset = 0; monthOffset < 8; monthOffset++) {
+      let month = currentMonth - monthOffset;
+      let year = currentYear;
+      while (month < 0) {
+        month += 12;
+        year -= 1;
+      }
 
-      const closingDate = new Date(year, actualMonth, card.closingDay);
-      const dueDate = new Date(year, actualMonth, card.dueDay);
+      const closingDate = new Date(year, month, card.closingDay);
+      const dueDate = new Date(year, month, card.dueDay);
 
+      let status: "open" | "closed" | "paid" | "overdue" = "paid";
+      if (monthOffset === 0) status = "open";
+      else if (monthOffset === 1) status = "closed";
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const invoice = await prisma.invoice.create({
         data: {
           creditCardId: card.id,
-          month: actualMonth + 1,
+          month: month + 1,
           year,
           closingDate,
           dueDate,
-          status: monthOffset === 0 ? "open" : monthOffset === 1 ? "closed" : "paid",
+          status,
           total: 0,
-          paidAmount: monthOffset === 2 ? avgSpend * (0.9 + Math.random() * 0.2) : 0,
-        },
+          paidAmount: status === "paid" ? avgSpend * randomBetween(0.85, 1.15) : 0,
+        } as any,
       });
 
-      const purchaseCategories = [
-        { category: "Alimentação", descriptions: ["iFood", "Rappi", "Restaurante", "Supermercado"], minValue: 30, maxValue: 300 },
-        { category: "Compras", descriptions: ["Amazon", "Mercado Livre", "Magazine Luiza", "AliExpress"], minValue: 50, maxValue: 500 },
-        { category: "Transporte", descriptions: ["Uber", "99", "Combustível Shell"], minValue: 20, maxValue: 200 },
-        { category: "Lazer", descriptions: ["Ingresso.com", "Steam", "PlayStation Store", "Cinema"], minValue: 30, maxValue: 200 },
-        { category: "Assinaturas", descriptions: ["Spotify", "Netflix", "Disney+", "HBO Max"], minValue: 20, maxValue: 60 },
-      ];
-
       let invoiceTotal = 0;
-      const purchaseCount = 8 + Math.floor(Math.random() * 8);
+      const purchaseCount = randomInt(12, 22);
 
       for (let i = 0; i < purchaseCount; i++) {
-        const catInfo = purchaseCategories[Math.floor(Math.random() * purchaseCategories.length)];
-        const description = catInfo.descriptions[Math.floor(Math.random() * catInfo.descriptions.length)];
-        const value = catInfo.minValue + Math.random() * (catInfo.maxValue - catInfo.minValue);
+        const catInfo = pickRandom(purchaseCategories);
+        const description = pickRandom(catInfo.descriptions);
+        const value = randomBetween(catInfo.minValue, catInfo.maxValue);
 
-        const isInstallment = Math.random() > 0.7;
-        const installments = isInstallment ? [2, 3, 4, 6, 10, 12][Math.floor(Math.random() * 6)] : 1;
+        const isInstallment = Math.random() > 0.75;
+        const installments = isInstallment ? pickRandom([2, 3, 4, 6, 10, 12]) : 1;
         const installmentValue = value / installments;
 
-        await prisma.purchase.create({
-          data: {
-            invoiceId: invoice.id,
-            description,
-            value: installmentValue,
-            totalValue: value,
-            category: catInfo.category,
-            date: getDateInMonth(year, actualMonth, Math.floor(Math.random() * 28) + 1),
-            installments,
-            currentInstallment: 1,
-          },
+        allPurchases.push({
+          invoiceId: invoice.id,
+          description,
+          value: installmentValue,
+          totalValue: value,
+          category: catInfo.category,
+          date: getDateInMonth(year, month, randomInt(1, 28)),
+          installments,
+          currentInstallment: 1,
         });
 
         invoiceTotal += installmentValue;
       }
 
-      await prisma.invoice.update({
-        where: { id: invoice.id },
-        data: { total: invoiceTotal },
+      invoiceUpdates.push({ id: invoice.id, total: invoiceTotal });
+    }
+  }
+
+  // Batch insert purchases
+  console.log(`   Inserindo ${allPurchases.length} compras...`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.purchase.createMany({ data: allPurchases as any });
+
+  // Update invoice totals
+  for (const update of invoiceUpdates) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await prisma.invoice.update({
+      where: { id: update.id },
+      data: { total: update.total } as any,
+    });
+  }
+
+  console.log("🎯 Criando metas financeiras com contribuições...");
+
+  const goals: Array<{
+    name: string;
+    description: string;
+    category: GoalCategory;
+    targetValue: number;
+    currentValue: number;
+    targetDate: Date;
+    color: string;
+    contributions: number;
+  }> = [
+    {
+      name: "Reserva de Emergência",
+      description: "6 meses de despesas - proteção financeira",
+      category: GoalCategory.emergency,
+      targetValue: 40000,
+      currentValue: 28500,
+      targetDate: new Date(currentYear + 1, 3, 30),
+      color: "#10B981",
+      contributions: 14,
+    },
+    {
+      name: "Viagem Japão",
+      description: "Férias de 20 dias no Japão",
+      category: GoalCategory.travel,
+      targetValue: 35000,
+      currentValue: 12800,
+      targetDate: new Date(currentYear + 2, 3, 15),
+      color: "#3B82F6",
+      contributions: 8,
+    },
+    {
+      name: "Troca do Carro",
+      description: "Entrada para um SUV novo",
+      category: GoalCategory.car,
+      targetValue: 60000,
+      currentValue: 18500,
+      targetDate: new Date(currentYear + 2, 6, 1),
+      color: "#F97316",
+      contributions: 10,
+    },
+    {
+      name: "MBA FGV",
+      description: "Pós-graduação em Gestão de Projetos",
+      category: GoalCategory.education,
+      targetValue: 45000,
+      currentValue: 8200,
+      targetDate: new Date(currentYear + 1, 7, 1),
+      color: "#8B5CF6",
+      contributions: 5,
+    },
+    {
+      name: "Entrada Apartamento",
+      description: "20% de entrada para financiamento",
+      category: GoalCategory.house,
+      targetValue: 180000,
+      currentValue: 42000,
+      targetDate: new Date(currentYear + 4, 0, 1),
+      color: "#EC4899",
+      contributions: 16,
+    },
+    {
+      name: "Fundo para Aposentadoria",
+      description: "Complemento de previdência",
+      category: GoalCategory.retirement,
+      targetValue: 500000,
+      currentValue: 35000,
+      targetDate: new Date(currentYear + 25, 0, 1),
+      color: "#6366F1",
+      contributions: 18,
+    },
+  ];
+
+  const allContributions: Array<{
+    goalId: string;
+    value: number;
+    date: Date;
+    notes: string | null;
+  }> = [];
+
+  for (const goalData of goals) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const goal = await prisma.financialGoal.create({
+      data: {
+        name: goalData.name,
+        description: goalData.description,
+        category: goalData.category,
+        targetValue: goalData.targetValue,
+        currentValue: goalData.currentValue,
+        targetDate: goalData.targetDate,
+        color: goalData.color,
+        userId: USER_ID,
+      } as any,
+    });
+
+    const avgContribution = goalData.currentValue / goalData.contributions;
+    for (let i = 0; i < goalData.contributions; i++) {
+      allContributions.push({
+        goalId: goal.id,
+        value: avgContribution * randomBetween(0.7, 1.3),
+        date: getDate(i * 25 + randomInt(0, 15)),
+        notes: i === 0 ? "Início da meta" : (Math.random() > 0.8 ? pickRandom(["Bônus extra", "Sobra do mês", "Freelance"]) : null),
       });
     }
   }
 
-  console.log("🎯 Criando metas financeiras...");
-
-  const emergencyGoal = await prisma.financialGoal.create({
-    data: {
-      name: "Reserva de Emergência",
-      description: "6 meses de despesas",
-      category: "emergency",
-      targetValue: 30000,
-      currentValue: 18500,
-      targetDate: new Date(currentYear + 1, 5, 30),
-      color: "#10B981",
-      userId: USER_ID,
-    },
-  });
-
-  for (let i = 0; i < 8; i++) {
-    await prisma.goalContribution.create({
-      data: {
-        goalId: emergencyGoal.id,
-        value: 2000 + Math.random() * 500,
-        date: getDate(i * 30 + Math.floor(Math.random() * 10)),
-        notes: i === 0 ? "Início da reserva" : null,
-      },
-    });
-  }
-
-  const travelGoal = await prisma.financialGoal.create({
-    data: {
-      name: "Viagem Europa",
-      description: "Férias de 15 dias na Europa",
-      category: "travel",
-      targetValue: 25000,
-      currentValue: 8200,
-      targetDate: new Date(currentYear + 1, 10, 15),
-      color: "#3B82F6",
-      userId: USER_ID,
-    },
-  });
-
-  for (let i = 0; i < 5; i++) {
-    await prisma.goalContribution.create({
-      data: {
-        goalId: travelGoal.id,
-        value: 1500 + Math.random() * 500,
-        date: getDate(i * 30 + Math.floor(Math.random() * 10)),
-      },
-    });
-  }
-
-  const carGoal = await prisma.financialGoal.create({
-    data: {
-      name: "Troca do Carro",
-      description: "Entrada para um carro novo",
-      category: "car",
-      targetValue: 50000,
-      currentValue: 12000,
-      targetDate: new Date(currentYear + 2, 0, 1),
-      color: "#F97316",
-      userId: USER_ID,
-    },
-  });
-
-  for (let i = 0; i < 4; i++) {
-    await prisma.goalContribution.create({
-      data: {
-        goalId: carGoal.id,
-        value: 2500 + Math.random() * 1000,
-        date: getDate(i * 45 + Math.floor(Math.random() * 15)),
-      },
-    });
-  }
-
-  const educationGoal = await prisma.financialGoal.create({
-    data: {
-      name: "MBA",
-      description: "Pós-graduação em Gestão",
-      category: "education",
-      targetValue: 35000,
-      currentValue: 5000,
-      targetDate: new Date(currentYear + 1, 1, 1),
-      color: "#8B5CF6",
-      userId: USER_ID,
-    },
-  });
-
-  for (let i = 0; i < 3; i++) {
-    await prisma.goalContribution.create({
-      data: {
-        goalId: educationGoal.id,
-        value: 1500 + Math.random() * 500,
-        date: getDate(i * 30 + Math.floor(Math.random() * 10)),
-      },
-    });
-  }
-
-  const houseGoal = await prisma.financialGoal.create({
-    data: {
-      name: "Entrada Apartamento",
-      description: "20% de entrada para financiamento",
-      category: "house",
-      targetValue: 150000,
-      currentValue: 22000,
-      targetDate: new Date(currentYear + 4, 0, 1),
-      color: "#EC4899",
-      userId: USER_ID,
-    },
-  });
-
-  for (let i = 0; i < 6; i++) {
-    await prisma.goalContribution.create({
-      data: {
-        goalId: houseGoal.id,
-        value: 3000 + Math.random() * 1500,
-        date: getDate(i * 30 + Math.floor(Math.random() * 10)),
-      },
-    });
-  }
+  // Batch insert contributions
+  console.log(`   Inserindo ${allContributions.length} contribuições...`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.goalContribution.createMany({ data: allContributions as any });
 
   console.log("");
   console.log("✅ Seed concluído com sucesso!");
   console.log("");
   console.log("📊 Resumo dos dados criados:");
-  console.log("   • Categorias: 20 (12 despesas + 8 receitas)");
-  console.log("   • Transações: ~180 (6 meses de histórico)");
-  console.log("   • Templates: 7");
-  console.log("   • Orçamentos: 6");
-  console.log("   • Despesas Recorrentes: 9");
-  console.log("   • Investimentos: 15 (ações, FIIs, CDBs, Tesouro, Cripto)");
-  console.log("   • Cartões de Crédito: 3 (com faturas e compras)");
-  console.log("   • Metas Financeiras: 5 (com contribuições)");
+  console.log("   • Categorias: 26 (16 despesas + 10 receitas)");
+  console.log(`   • Transações: ${allTransactions.length}`);
+  console.log("   • Templates: 10");
+  console.log("   • Orçamentos: 8");
+  console.log("   • Despesas Recorrentes: 11");
+  console.log("   • Investimentos: 23 (ações, FIIs, CDBs, Tesouro, Cripto)");
+  console.log(`   • Operações de investimento: ${allOperations.length}`);
+  console.log("   • Cartões de Crédito: 4 (com 8 meses de faturas cada)");
+  console.log(`   • Compras no cartão: ${allPurchases.length}`);
+  console.log("   • Metas Financeiras: 6");
+  console.log(`   • Contribuições em metas: ${allContributions.length}`);
 }
 
 main()

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Repeat, RefreshCw, Trash2, Check, AlertCircle, Zap } from "lucide-react";
+import { Plus, Repeat, RefreshCw, Trash2, Pencil, Check, AlertCircle, Zap } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { usePreferences } from "@/contexts";
+import { useFeedback } from "@/hooks/use-feedback";
 import { CATEGORY_COLORS } from "@/lib/constants";
 import { RecurringExpenseModal } from "./recurring-expense-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -30,10 +32,13 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
   const [data, setData] = useState<RecurringData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editExpense, setEditExpense] = useState<RecurringExpenseWithStatus | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLaunching, setIsLaunching] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { privacy, general } = usePreferences();
+  const feedback = useFeedback();
 
   const fetchExpenses = useCallback(async () => {
     try {
@@ -69,11 +74,40 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
       });
 
       if (response.ok) {
+        feedback.success();
         await fetchExpenses();
         setIsModalOpen(false);
       }
     } catch (error) {
       console.error("Erro ao salvar despesa recorrente:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditSave = async (expenseData: {
+    description: string;
+    value: number;
+    category: string;
+    dueDay: number;
+    notes?: string;
+  }) => {
+    if (!editExpense) return;
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/recurring-expenses/${editExpense.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(expenseData),
+      });
+
+      if (response.ok) {
+        feedback.success();
+        await fetchExpenses();
+        setEditExpense(null);
+      }
+    } catch (error) {
+      console.error("Erro ao editar despesa recorrente:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -96,6 +130,24 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
       setIsDeleting(false);
       setDeleteId(null);
     }
+  };
+
+  const handleDeleteExpense = (id: string) => {
+    if (!general.confirmBeforeDelete) {
+      (async () => {
+        setIsDeleting(true);
+        try {
+          const response = await fetch(`/api/recurring-expenses/${id}`, { method: "DELETE" });
+          if (response.ok) await fetchExpenses();
+        } catch (error) {
+          console.error("Erro ao deletar despesa recorrente:", error);
+        } finally {
+          setIsDeleting(false);
+        }
+      })();
+      return;
+    }
+    setDeleteId(id);
   };
 
   const handleLaunchAll = async () => {
@@ -140,9 +192,9 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
 
   if (isLoading) {
     return (
-      <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
+      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] p-4 sm:p-6">
         <div className="flex items-center justify-center py-8">
-          <RefreshCw className="w-6 h-6 text-[var(--text-dimmed)] animate-spin" />
+          <RefreshCw className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--text-dimmed)] animate-spin" />
         </div>
       </div>
     );
@@ -162,19 +214,19 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
 
   return (
     <>
-      <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
+      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden max-h-[420px] flex flex-col">
         {}
-        <div className="p-6 border-b border-[var(--border-color)]">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-500/10 rounded-lg">
-                <Repeat className="w-5 h-5 text-amber-400" />
+        <div className="p-3 sm:p-5 border-b border-[var(--border-color)] flex-shrink-0">
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="p-1.5 sm:p-2 bg-amber-500/10 rounded-lg flex-shrink-0">
+                <Repeat className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] truncate">
                   Despesas Fixas
                 </h3>
-                <p className="text-sm text-[var(--text-dimmed)]">
+                <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)] truncate">
                   {summary.pendingCount > 0
                     ? `${summary.pendingCount} pendente(s) este mês`
                     : "Todas lançadas este mês"}
@@ -183,26 +235,26 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
             </div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/25 text-sm"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl font-medium bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/25 text-[10px] sm:text-xs flex-shrink-0"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               Nova
             </button>
           </div>
 
           {}
           {data && data.expenses.length > 0 && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
-                <p className="text-xs text-[var(--text-dimmed)] mb-1">Total Mensal</p>
-                <p className="text-lg font-bold text-[var(--text-primary)]">
-                  {formatCurrency(summary.totalMonthly)}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-[var(--bg-hover)] rounded-lg sm:rounded-xl p-2 sm:p-2.5 text-center">
+                <p className="text-[10px] sm:text-[11px] text-[var(--text-dimmed)] mb-0.5">Total Mensal</p>
+                <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
+                  {privacy.hideValues ? "•••••" : formatCurrency(summary.totalMonthly)}
                 </p>
               </div>
-              <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
-                <p className="text-xs text-[var(--text-dimmed)] mb-1">Pendente</p>
-                <p className={`text-lg font-bold ${summary.totalPending > 0 ? "text-amber-400" : "text-emerald-400"}`}>
-                  {formatCurrency(summary.totalPending)}
+              <div className="bg-[var(--bg-hover)] rounded-lg sm:rounded-xl p-2 sm:p-2.5 text-center">
+                <p className="text-[10px] sm:text-[11px] text-[var(--text-dimmed)] mb-0.5">Pendente</p>
+                <p className={`text-xs sm:text-sm font-bold truncate ${summary.totalPending > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                  {privacy.hideValues ? "•••••" : formatCurrency(summary.totalPending)}
                 </p>
               </div>
             </div>
@@ -210,7 +262,7 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
         </div>
 
         {}
-        <div className="p-4 space-y-3 max-h-[400px] overflow-y-auto">
+        <div className="p-4 space-y-3 flex-1 overflow-y-auto min-h-0">
           {data?.expenses.length === 0 ? (
             <div className="text-center py-6">
               <Repeat className="w-10 h-10 text-[var(--text-dimmed)] mx-auto mb-2" />
@@ -244,8 +296,10 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
                       key={expense.id}
                       expense={expense}
                       onLaunch={() => handleLaunchSingle(expense.id)}
-                      onDelete={() => setDeleteId(expense.id)}
+                      onEdit={() => setEditExpense(expense)}
+                      onDelete={() => handleDeleteExpense(expense.id)}
                       isLaunching={isLaunching}
+                      hideValues={privacy.hideValues}
                     />
                   ))}
                 </div>
@@ -261,8 +315,10 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
                     <ExpenseItem
                       key={expense.id}
                       expense={expense}
-                      onDelete={() => setDeleteId(expense.id)}
+                      onEdit={() => setEditExpense(expense)}
+                      onDelete={() => handleDeleteExpense(expense.id)}
                       isLaunching={isLaunching}
+                      hideValues={privacy.hideValues}
                     />
                   ))}
                 </div>
@@ -277,6 +333,20 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
         onClose={() => setIsModalOpen(false)}
         onSave={handleSave}
         isSubmitting={isSubmitting}
+      />
+
+      <RecurringExpenseModal
+        isOpen={!!editExpense}
+        onClose={() => setEditExpense(null)}
+        onSave={handleEditSave}
+        isSubmitting={isSubmitting}
+        initialData={editExpense ? {
+          description: editExpense.description,
+          value: editExpense.value,
+          category: editExpense.category,
+          dueDay: editExpense.dueDay,
+          notes: editExpense.notes,
+        } : null}
       />
 
       <ConfirmDialog
@@ -295,13 +365,17 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
 function ExpenseItem({
   expense,
   onLaunch,
+  onEdit,
   onDelete,
   isLaunching,
+  hideValues,
 }: {
   expense: RecurringExpenseWithStatus;
   onLaunch?: () => void;
+  onEdit?: () => void;
   onDelete: () => void;
   isLaunching: boolean;
+  hideValues: boolean;
 }) {
   const categoryColor = CATEGORY_COLORS[expense.category] || "#8B5CF6";
   const isLaunched = expense.isLaunchedThisMonth;
@@ -336,7 +410,7 @@ function ExpenseItem({
 
         <div className="flex items-center gap-2">
           <span className="font-semibold text-[var(--text-primary)]">
-            {formatCurrency(expense.value)}
+            {hideValues ? "•••••" : formatCurrency(expense.value)}
           </span>
 
           {!isLaunched && onLaunch && (
@@ -348,20 +422,35 @@ function ExpenseItem({
               disabled={isLaunching}
               className="p-1.5 bg-amber-500/10 hover:bg-amber-500/20 rounded-lg transition-all disabled:opacity-50"
               title="Lançar agora"
+              aria-label="Lançar despesa"
             >
-              <Zap className="w-4 h-4 text-amber-400" />
+              <Zap className="w-4 h-4 text-amber-400" aria-hidden="true" />
             </button>
           )}
 
+          {onEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="p-1.5 hover:bg-amber-500/20 active:bg-amber-500/30 rounded-lg transition-all"
+              title="Editar"
+              aria-label="Editar despesa"
+            >
+              <Pencil className="w-4 h-4 text-amber-400" aria-hidden="true" />
+            </button>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
-            className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 rounded-lg transition-all"
+            className="p-1.5 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all"
             title="Remover"
+            aria-label="Remover despesa"
           >
-            <Trash2 className="w-4 h-4 text-red-400" />
+            <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
           </button>
         </div>
       </div>

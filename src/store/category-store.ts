@@ -1,4 +1,9 @@
 import { create } from "zustand";
+import { categoriesApi, ApiClientError } from "@/lib/api-client";
+
+// ============================================
+// Types
+// ============================================
 
 export interface Category {
   id: string;
@@ -26,16 +31,19 @@ export interface UpdateCategoryInput {
 }
 
 interface CategoryState {
-
+  // State
   categories: Category[];
   isLoading: boolean;
   error: string | null;
 
+  // Actions
   fetchCategories: () => Promise<void>;
   addCategory: (data: CreateCategoryInput) => Promise<Category>;
   updateCategory: (id: string, data: UpdateCategoryInput) => Promise<Category>;
   deleteCategory: (id: string) => Promise<void>;
+  clearError: () => void;
 
+  // Selectors (computed data)
   getExpenseCategories: () => Category[];
   getIncomeCategories: () => Category[];
   getCategoryByName: (name: string, type: "income" | "expense") => Category | undefined;
@@ -43,8 +51,29 @@ interface CategoryState {
   getCategoryIcon: (name: string) => string;
 }
 
-export const useCategoryStore = create<CategoryState>((set, get) => ({
+// ============================================
+// Helpers
+// ============================================
 
+/**
+ * Extract error message from various error types.
+ */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    return error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Erro desconhecido";
+}
+
+// ============================================
+// Store
+// ============================================
+
+export const useCategoryStore = create<CategoryState>((set, get) => ({
+  // Initial state
   categories: [],
   isLoading: false,
   error: null,
@@ -53,19 +82,10 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await fetch("/api/categories");
-
-      if (!response.ok) {
-        throw new Error("Erro ao buscar categorias");
-      }
-
-      const data = await response.json();
+      const data = await categoriesApi.getAll<Category>();
       set({ categories: data, isLoading: false });
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
     }
   },
 
@@ -73,30 +93,14 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao criar categoria");
-      }
-
-      const newCategory = await response.json();
-
+      const newCategory = await categoriesApi.create<Category, CreateCategoryInput>(data);
       set((state) => ({
         categories: [...state.categories, newCategory],
         isLoading: false,
       }));
-
       return newCategory;
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
@@ -105,32 +109,14 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await fetch(`/api/categories/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao atualizar categoria");
-      }
-
-      const updatedCategory = await response.json();
-
+      const updatedCategory = await categoriesApi.update<Category, UpdateCategoryInput>(id, data);
       set((state) => ({
-        categories: state.categories.map((cat) =>
-          cat.id === id ? updatedCategory : cat
-        ),
+        categories: state.categories.map((cat) => (cat.id === id ? updatedCategory : cat)),
         isLoading: false,
       }));
-
       return updatedCategory;
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
@@ -139,27 +125,24 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await fetch(`/api/categories/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao excluir categoria");
-      }
-
+      await categoriesApi.delete(id);
       set((state) => ({
         categories: state.categories.filter((cat) => cat.id !== id),
         isLoading: false,
       }));
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
+
+  clearError: () => {
+    set({ error: null });
+  },
+
+  // ============================================
+  // Selectors (computed data from local state)
+  // ============================================
 
   getExpenseCategories: () => {
     return get().categories.filter((cat) => cat.type === "expense");
@@ -170,9 +153,7 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
   },
 
   getCategoryByName: (name: string, type: "income" | "expense") => {
-    return get().categories.find(
-      (cat) => cat.name === name && cat.type === type
-    );
+    return get().categories.find((cat) => cat.name === name && cat.type === type);
   },
 
   getCategoryColor: (name: string) => {

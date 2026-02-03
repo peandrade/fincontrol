@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CreditCard as CardIcon, Trash2, ChevronRight } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { usePreferences } from "@/contexts";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { CreditCard } from "@/types/credit-card";
 
@@ -29,9 +30,14 @@ export function CardList({
   deletingId,
 }: CardListProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<CreditCard | null>(null);
+  const { privacy, general } = usePreferences();
 
   const handleDeleteClick = (e: React.MouseEvent, card: CreditCard) => {
     e.stopPropagation();
+    if (!general.confirmBeforeDelete) {
+      onDeleteCard(card.id);
+      return;
+    }
     setDeleteConfirm(card);
   };
 
@@ -43,12 +49,12 @@ export function CardList({
   };
   if (cards.length === 0) {
     return (
-      <div className="backdrop-blur rounded-2xl p-6 transition-colors duration-300" style={cardStyle}>
-        <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Meus Cartões</h3>
-        <div className="text-center py-8">
-          <CardIcon className="w-12 h-12 mx-auto mb-3" style={{ color: "var(--text-dimmed)" }} />
-          <p style={{ color: "var(--text-dimmed)" }}>Nenhum cartão cadastrado</p>
-          <p className="text-sm mt-1" style={{ color: "var(--text-dimmed)" }}>
+      <div className="backdrop-blur rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-colors duration-300" style={cardStyle}>
+        <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: "var(--text-primary)" }}>Meus Cartões</h3>
+        <div className="text-center py-6 sm:py-8">
+          <CardIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3" style={{ color: "var(--text-dimmed)" }} />
+          <p className="text-sm sm:text-base" style={{ color: "var(--text-dimmed)" }}>Nenhum cartão cadastrado</p>
+          <p className="text-xs sm:text-sm mt-1" style={{ color: "var(--text-dimmed)" }}>
             Adicione seu primeiro cartão
           </p>
         </div>
@@ -57,9 +63,9 @@ export function CardList({
   }
 
   return (
-    <div className="backdrop-blur rounded-2xl p-6 transition-colors duration-300" style={cardStyle}>
-      <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Meus Cartões</h3>
-      <div className="space-y-3">
+    <div className="backdrop-blur rounded-2xl p-4 sm:p-6 transition-colors duration-300" style={cardStyle}>
+      <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: "var(--text-primary)" }}>Meus Cartões</h3>
+      <div className="space-y-2 sm:space-y-3">
         {cards.map((card) => {
           const isSelected = selectedCardId === card.id;
 
@@ -88,7 +94,7 @@ export function CardList({
             <div
               key={card.id}
               onClick={() => onSelectCard(card)}
-              className="p-4 rounded-xl cursor-pointer transition-all group"
+              className="p-3 sm:p-4 rounded-xl cursor-pointer transition-all group"
               style={{
                 backgroundColor: isSelected ? "var(--bg-hover-strong)" : "var(--bg-hover)",
                 borderWidth: "1px",
@@ -102,78 +108,80 @@ export function CardList({
                 if (!isSelected) e.currentTarget.style.backgroundColor = "var(--bg-hover)";
               }}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                   {}
                   <div
-                    className="w-12 h-8 rounded-md flex items-center justify-center"
+                    className="w-10 h-7 sm:w-12 sm:h-8 rounded-md flex items-center justify-center shrink-0"
                     style={{ backgroundColor: card.color }}
                   >
-                    <CardIcon className="w-5 h-5 text-white" />
+                    <CardIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium" style={{ color: "var(--text-primary)" }}>{card.name}</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                      <p className="font-medium text-sm sm:text-base truncate" style={{ color: "var(--text-primary)" }}>{card.name}</p>
                       {card.lastDigits && (
-                        <span className="text-sm" style={{ color: "var(--text-dimmed)" }}>
+                        <span className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>
                           •••• {card.lastDigits}
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-sm">
+                    <div className="flex items-center gap-1 sm:gap-3 text-[10px] sm:text-sm">
                       <span style={{ color: "var(--text-dimmed)" }}>
-                        Fecha dia {card.closingDay}
+                        Fecha {card.closingDay}
                       </span>
                       <span style={{ color: "var(--text-dimmed)" }}>•</span>
                       <span style={{ color: "var(--text-dimmed)" }}>
-                        Vence dia {card.dueDay}
+                        Vence {card.dueDay}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                   <div className="text-right">
-                    <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
-                      {formatCurrency(displayTotal)}
+                    <p className="font-semibold text-sm sm:text-base" style={{ color: "var(--text-primary)" }}>
+                      {privacy.hideValues ? "•••••" : formatCurrency(displayTotal)}
                     </p>
-                    <p className="text-sm" style={{ color: "var(--text-dimmed)" }}>
+                    <p className="text-[10px] sm:text-sm hidden sm:block" style={{ color: "var(--text-dimmed)" }}>
                       {displayTotal > 0 && displayInvoice
                         ? `Fatura ${displayInvoice.month}/${displayInvoice.year}`
                         : "Fatura atual"}
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2">
                     <button
                       onClick={(e) => handleDeleteClick(e, card)}
                       disabled={deletingId === card.id}
-                      className="p-2 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded-lg transition-all"
+                      className="p-1.5 sm:p-2 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all"
+                      title="Excluir cartão"
+                      aria-label="Excluir cartão"
                     >
                       {deletingId === card.id ? (
-                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" aria-label="Excluindo..." />
                       ) : (
-                        <Trash2 className="w-4 h-4 text-red-400" />
+                        <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
                       )}
                     </button>
-                    <ChevronRight className={`w-5 h-5 transition-transform ${
+                    <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${
                       isSelected ? "rotate-90" : ""
-                    }`} style={{ color: "var(--text-dimmed)" }} />
+                    }`} style={{ color: "var(--text-dimmed)" }} aria-hidden="true" />
                   </div>
                 </div>
               </div>
 
               {}
               {card.limit > 0 && (
-                <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border-color)" }}>
-                  <div className="flex justify-between text-xs mb-1" style={{ color: "var(--text-dimmed)" }}>
-                    <span>Limite: {formatCurrency(card.limit)}</span>
+                <div className="mt-2 sm:mt-3 pt-2 sm:pt-3" style={{ borderTop: "1px solid var(--border-color)" }}>
+                  <div className="flex justify-between text-[10px] sm:text-xs mb-1" style={{ color: "var(--text-dimmed)" }}>
+                    <span>Limite: {privacy.hideValues ? "•••••" : formatCurrency(card.limit)}</span>
                     <span className={usagePercent > 80 ? "text-red-400" : usagePercent > 50 ? "text-yellow-400" : ""}>
-                      {usagePercent.toFixed(0)}% usado ({formatCurrency(usedLimit)})
+                      {usagePercent.toFixed(0)}% usado
                     </span>
                   </div>
-                  <div className="w-full rounded-full h-1.5" style={{ backgroundColor: "var(--bg-hover)" }}>
+                  <div className="w-full rounded-full h-1 sm:h-1.5" style={{ backgroundColor: "var(--bg-hover)" }}>
                     <div
                       className="h-full rounded-full transition-all"
                       style={{

@@ -1,9 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useId } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { formatCurrency } from "@/lib/utils";
+import { usePreferences } from "@/contexts";
 import { DynamicIcon } from "@/components/categories/icon-picker";
+
+const HIDDEN = "•••••";
 import type { Transaction } from "@/types";
 import type { Category } from "@/store/category-store";
 
@@ -23,6 +26,9 @@ interface CategoryData {
 }
 
 export function CategoryReport({ transactions, categories, type }: CategoryReportProps) {
+  const { privacy } = usePreferences();
+  const descriptionId = useId();
+  const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
   const categoryData = useMemo(() => {
 
     const filtered = transactions.filter((t) => {
@@ -80,7 +86,7 @@ export function CategoryReport({ transactions, categories, type }: CategoryRepor
             <span className="font-medium text-[var(--text-primary)]">{data.name}</span>
           </div>
           <p className="text-sm text-[var(--text-muted)]">
-            {formatCurrency(data.value)} ({data.percentage.toFixed(1)}%)
+            {fmt(data.value)} ({data.percentage.toFixed(1)}%)
           </p>
           <p className="text-xs text-[var(--text-dimmed)]">
             {data.count} {data.count === 1 ? "transação" : "transações"}
@@ -101,9 +107,16 @@ export function CategoryReport({ transactions, categories, type }: CategoryRepor
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {}
+      {/* Chart */}
       <div className="flex flex-col items-center">
-        <div className="h-64 w-full">
+        <p id={descriptionId} className="sr-only">
+          Gráfico de pizza mostrando distribuição de {type === "expense" ? "despesas" : type === "income" ? "receitas" : "transações"} por categoria.
+          {privacy.hideValues
+            ? " Valores ocultos."
+            : ` Total: ${formatCurrency(categoryData.total)}. ${categoryData.data.slice(0, 3).map(d => `${d.name}: ${d.percentage.toFixed(0)}%`).join(", ")}.`
+          }
+        </p>
+        <div className="h-64 w-full" role="img" aria-describedby={descriptionId}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -126,7 +139,7 @@ export function CategoryReport({ transactions, categories, type }: CategoryRepor
         <div className="text-center mt-4">
           <p className="text-sm text-[var(--text-dimmed)]">Total</p>
           <p className="text-2xl font-bold text-[var(--text-primary)]">
-            {formatCurrency(categoryData.total)}
+            {fmt(categoryData.total)}
           </p>
         </div>
       </div>
@@ -155,7 +168,7 @@ export function CategoryReport({ transactions, categories, type }: CategoryRepor
             </div>
             <div className="text-right">
               <p className="font-semibold text-[var(--text-primary)]">
-                {formatCurrency(item.value)}
+                {fmt(item.value)}
               </p>
               <p className="text-xs text-[var(--text-dimmed)]">
                 {item.percentage.toFixed(1)}%

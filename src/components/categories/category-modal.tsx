@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { X, RefreshCw } from "lucide-react";
 import { ColorPicker } from "./color-picker";
 import { IconPicker, DynamicIcon } from "./icon-picker";
@@ -21,6 +21,7 @@ export function CategoryModal({
   isSubmitting,
   category,
 }: CategoryModalProps) {
+  const titleId = useId();
   const [name, setName] = useState("");
   const [type, setType] = useState<"income" | "expense">("expense");
   const [icon, setIcon] = useState("Tag");
@@ -69,17 +70,23 @@ export function CategoryModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp"
+      >
         {}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)]">
-          <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+          <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">
             {isEditing ? "Editar Categoria" : "Nova Categoria"}
           </h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Fechar"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
         </div>
 
@@ -148,7 +155,7 @@ export function CategoryModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ex: Academia, Assinaturas..."
-              className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+              className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
               required
             />
           </div>
@@ -181,7 +188,7 @@ export function CategoryModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 py-3 px-4 rounded-xl font-medium bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-500 hover:to-indigo-500 transition-all shadow-lg shadow-violet-500/25 disabled:opacity-50"
+              className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white hover:opacity-90 transition-all shadow-lg shadow-primary disabled:opacity-50"
             >
               {isSubmitting ? (
                 <span className="flex items-center justify-center gap-2">

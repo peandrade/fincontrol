@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useId } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { usePreferences } from "@/contexts";
 import type { Transaction } from "@/types";
+
+const HIDDEN = "•••••";
 
 interface MonthlyComparisonProps {
   transactions: Transaction[];
@@ -25,6 +28,9 @@ const MONTH_NAMES = [
 ];
 
 export function MonthlyComparison({ transactions, currentMonth, currentYear }: MonthlyComparisonProps) {
+  const { privacy } = usePreferences();
+  const descriptionId = useId();
+  const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
   const { chartData, comparison } = useMemo(() => {
 
     const months: { month: number; year: number; label: string }[] = [];
@@ -116,7 +122,7 @@ export function MonthlyComparison({ transactions, currentMonth, currentYear }: M
           <p className="font-medium text-[var(--text-primary)] mb-2">{label}</p>
           {payload.map((entry, index) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.name === "receitas" ? "Receitas" : "Despesas"}: {formatCurrency(entry.value)}
+              {entry.name === "receitas" ? "Receitas" : "Despesas"}: {fmt(entry.value)}
             </p>
           ))}
         </div>
@@ -165,10 +171,10 @@ export function MonthlyComparison({ transactions, currentMonth, currentYear }: M
             <ChangeIndicator value={comparison.receitas.change} />
           </div>
           <p className="text-2xl font-bold text-emerald-400">
-            {formatCurrency(comparison.receitas.current)}
+            {fmt(comparison.receitas.current)}
           </p>
           <p className="text-xs text-[var(--text-dimmed)] mt-1">
-            Mês anterior: {formatCurrency(comparison.receitas.previous)}
+            Mês anterior: {fmt(comparison.receitas.previous)}
           </p>
         </div>
 
@@ -179,10 +185,10 @@ export function MonthlyComparison({ transactions, currentMonth, currentYear }: M
             <ChangeIndicator value={comparison.despesas.change} inverted />
           </div>
           <p className="text-2xl font-bold text-red-400">
-            {formatCurrency(comparison.despesas.current)}
+            {fmt(comparison.despesas.current)}
           </p>
           <p className="text-xs text-[var(--text-dimmed)] mt-1">
-            Mês anterior: {formatCurrency(comparison.despesas.previous)}
+            Mês anterior: {fmt(comparison.despesas.previous)}
           </p>
         </div>
 
@@ -209,16 +215,23 @@ export function MonthlyComparison({ transactions, currentMonth, currentYear }: M
               comparison.saldo.current >= 0 ? "text-blue-400" : "text-orange-400"
             }`}
           >
-            {formatCurrency(comparison.saldo.current)}
+            {fmt(comparison.saldo.current)}
           </p>
           <p className="text-xs text-[var(--text-dimmed)] mt-1">
-            Mês anterior: {formatCurrency(comparison.saldo.previous)}
+            Mês anterior: {fmt(comparison.saldo.previous)}
           </p>
         </div>
       </div>
 
-      {}
-      <div className="h-64">
+      {/* Chart */}
+      <p id={descriptionId} className="sr-only">
+        Gráfico de barras comparando receitas e despesas dos últimos 3 meses.
+        {privacy.hideValues
+          ? " Valores ocultos."
+          : ` Mês atual: receitas ${formatCurrency(comparison.receitas.current)}, despesas ${formatCurrency(comparison.despesas.current)}.`
+        }
+      </p>
+      <div className="h-64" role="img" aria-describedby={descriptionId}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} barGap={8}>
             <XAxis

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateRecurringCache } from "@/lib/api-utils";
+import { createRecurringExpenseSchema, validateBody } from "@/lib/schemas";
+import { checkRateLimit, getClientIp, rateLimitPresets } from "@/lib/rate-limit";
+import { recurringRepository } from "@/repositories";
 
 export interface RecurringExpenseWithStatus {
   id: string;
@@ -18,18 +20,16 @@ export interface RecurringExpenseWithStatus {
 }
 
 export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
+  return withAuth(async (session) => {
+    // Get expenses using repository (handles decryption)
+    const expenses = await recurringRepository.findByUser(session.user.id);
 
-    const expenses = await prisma.recurringExpense.findMany({
-      where: { userId: session.user.id },
-      orderBy: [
-        { isActive: "desc" },
-        { dueDay: "asc" },
-      ],
+    // Sort by active status and due day
+    const sortedExpenses = [...expenses].sort((a, b) => {
+      if (a.isActive !== b.isActive) {
+        return a.isActive ? -1 : 1;
+      }
+      return a.dueDay - b.dueDay;
     });
 
     const now = new Date();
@@ -37,7 +37,10 @@ export async function GET() {
     const currentYear = now.getFullYear();
     const today = now.getDate();
 
-    const expensesWithStatus: RecurringExpenseWithStatus[] = expenses.map((expense) => {
+    const expensesWithStatus: RecurringExpenseWithStatus[] = sortedExpenses.map((expense) => {
+      const description = expense.description as string;
+      const value = expense.value as unknown as number;
+      const notes = expense.notes as string | null;
 
       const lastLaunched = expense.lastLaunchedAt
         ? new Date(expense.lastLaunchedAt)
@@ -52,13 +55,13 @@ export async function GET() {
 
       return {
         id: expense.id,
-        description: expense.description,
-        value: expense.value,
+        description,
+        value,
         category: expense.category,
         dueDay: expense.dueDay,
         isActive: expense.isActive,
         lastLaunchedAt: expense.lastLaunchedAt?.toISOString() || null,
-        notes: expense.notes,
+        notes,
         isLaunchedThisMonth,
         dueDate: dueDate.toISOString(),
         isPastDue,
@@ -87,51 +90,50 @@ export async function GET() {
       },
       currentMonth: currentMonth + 1,
       currentYear,
+    }, {
+      headers: {
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+      },
     });
-  } catch (error) {
-    console.error("Erro ao buscar despesas recorrentes:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar despesas recorrentes" },
-      { status: 500 }
-    );
-  }
+  });
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  // Rate limit: 30 mutations per minute
+  const rateLimit = checkRateLimit(getClientIp(request), {
+    ...rateLimitPresets.mutation,
+    identifier: "recurring-expenses-create",
+  });
+
+  if (!rateLimit.success) {
+    return errorResponse("Muitas requisições. Tente novamente em breve.", 429, "RATE_LIMITED");
+  }
+
+  return withAuth(async (session, req) => {
+    const body = await req.json();
+
+    // Validate with Zod schema
+    const validation = validateBody(createRecurringExpenseSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const body = await request.json();
-    const { description, value, category, dueDay, notes } = body;
+    const { name, value, category, dueDay, description } = validation.data;
 
-    if (!description || !value || !category) {
-      return NextResponse.json(
-        { error: "Descrição, valor e categoria são obrigatórios" },
-        { status: 400 }
-      );
-    }
-
-    const expense = await prisma.recurringExpense.create({
-      data: {
-        description,
-        value,
-        category,
-        dueDay: dueDay || 1,
-        notes: notes || null,
-        isActive: true,
-        userId: session.user.id,
-      },
+    // Create expense using repository (handles encryption)
+    const expense = await recurringRepository.create({
+      userId: session.user.id,
+      description: name,
+      value,
+      category,
+      dueDay,
+      notes: description || undefined,
+      isActive: true,
     });
 
+    // Invalidate related caches
+    invalidateRecurringCache(session.user.id);
+
     return NextResponse.json(expense, { status: 201 });
-  } catch (error) {
-    console.error("Erro ao criar despesa recorrente:", error);
-    return NextResponse.json(
-      { error: "Erro ao criar despesa recorrente" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }

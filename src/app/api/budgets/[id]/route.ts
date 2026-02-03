@@ -1,93 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateBudgetCache } from "@/lib/api-utils";
+import { updateBudgetSchema, validateBody } from "@/lib/schemas";
+import { budgetRepository } from "@/repositories";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const { id } = await params;
 
-    const existing = await prisma.budget.findUnique({
-      where: { id },
-    });
+    const existing = await budgetRepository.findById(id, session.user.id);
 
     if (!existing) {
-      return NextResponse.json(
-        { error: "Orçamento não encontrado" },
-        { status: 404 }
-      );
+      return errorResponse("Orçamento não encontrado", 404, "NOT_FOUND");
     }
 
-    if (existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
-    }
+    await budgetRepository.delete(id, session.user.id);
 
-    await prisma.budget.delete({
-      where: { id },
-    });
+    // Invalidate related caches
+    invalidateBudgetCache(session.user.id);
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Erro ao deletar orçamento:", error);
-    return NextResponse.json(
-      { error: "Erro ao deletar orçamento" },
-      { status: 500 }
-    );
-  }
+    return new NextResponse(null, { status: 204 });
+  });
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session, req) => {
     const { id } = await params;
-    const body = await request.json();
-    const { limit } = body;
+    const body = await req.json();
 
-    if (limit === undefined) {
-      return NextResponse.json(
-        { error: "Limite é obrigatório" },
-        { status: 400 }
-      );
+    const validation = validateBody(updateBudgetSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const existing = await prisma.budget.findUnique({
-      where: { id },
-    });
+    const existing = await budgetRepository.findById(id, session.user.id);
 
     if (!existing) {
-      return NextResponse.json(
-        { error: "Orçamento não encontrado" },
-        { status: 404 }
-      );
+      return errorResponse("Orçamento não encontrado", 404, "NOT_FOUND");
     }
 
-    if (existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
-    }
+    const { category, limit } = validation.data;
 
-    const budget = await prisma.budget.update({
-      where: { id },
-      data: { limit },
+    await budgetRepository.update(id, session.user.id, {
+      ...(category !== undefined && { category }),
+      ...(limit !== undefined && { limit }),
     });
 
+    // Fetch updated budget to return
+    const budget = await budgetRepository.findById(id, session.user.id);
+
+    // Invalidate related caches
+    invalidateBudgetCache(session.user.id);
+
     return NextResponse.json(budget);
-  } catch (error) {
-    console.error("Erro ao atualizar orçamento:", error);
-    return NextResponse.json(
-      { error: "Erro ao atualizar orçamento" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }

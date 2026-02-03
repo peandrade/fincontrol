@@ -60,7 +60,7 @@ const ModalContent = React.forwardRef<
         className={cn(
           "absolute right-4 top-4 p-2 rounded-lg",
           "text-gray-400 hover:text-white hover:bg-white/10",
-          "transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500"
+          "transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
         )}
       >
         <X className="h-5 w-5" />

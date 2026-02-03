@@ -1,5 +1,6 @@
 "use client";
 
+import { useId, useEffect, useCallback } from "react";
 import { AlertTriangle, X } from "lucide-react";
 
 interface ConfirmDialogProps {
@@ -25,6 +26,26 @@ export function ConfirmDialog({
   variant = "danger",
   isLoading = false,
 }: ConfirmDialogProps) {
+  const titleId = useId();
+  const descriptionId = useId();
+
+  // Handle Escape key to close dialog
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isLoading) {
+        onClose();
+      }
+    },
+    [onClose, isLoading]
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [isOpen, handleKeyDown]);
+
   if (!isOpen) return null;
 
   const variantStyles = {
@@ -41,28 +62,44 @@ export function ConfirmDialog({
   const styles = variantStyles[variant];
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-sm shadow-2xl animate-slideUp">
-        {}
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isLoading) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-sm shadow-2xl animate-slideUp"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
         <div className="flex items-center justify-between p-6 pb-0">
           <div className={`p-3 rounded-xl ${styles.icon}`}>
-            <AlertTriangle className="w-6 h-6" />
+            <AlertTriangle className="w-6 h-6" aria-hidden="true" />
           </div>
           <button
             onClick={onClose}
             disabled={isLoading}
             className="p-2 hover:bg-[var(--bg-hover)] rounded-lg transition-colors disabled:opacity-50"
+            aria-label="Fechar diálogo"
           >
-            <X className="w-5 h-5 text-[var(--text-muted)]" />
+            <X className="w-5 h-5 text-[var(--text-muted)]" aria-hidden="true" />
           </button>
         </div>
 
-        {}
+        {/* Content */}
         <div className="p-6">
-          <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
+          <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)] mb-2">
             {title}
           </h2>
-          <p className="text-[var(--text-muted)] text-sm">
+          <p id={descriptionId} className="text-[var(--text-muted)] text-sm">
             {message}
           </p>
         </div>

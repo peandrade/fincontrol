@@ -1,5 +1,53 @@
 import type { InvestmentType } from "@/types";
 
+// ============================================
+// Date/Time Constants
+// ============================================
+
+export const MONTH_NAMES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+] as const;
+
+export const MONTH_NAMES_SHORT = [
+  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+  "Jul", "Ago", "Set", "Out", "Nov", "Dez"
+] as const;
+
+export const DAY_NAMES = [
+  "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"
+] as const;
+
+export const DAY_NAMES_SHORT = [
+  "Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"
+] as const;
+
+// ============================================
+// Cache Duration Constants (in milliseconds)
+// ============================================
+
+export const CACHE_DURATIONS = {
+  /** 2 minutes - for frequently changing data like stock quotes */
+  QUOTES: 2 * 60 * 1000,
+  /** 1 hour - for rates like CDI, Selic */
+  RATES: 60 * 60 * 1000,
+  /** 24 hours - for rarely changing data */
+  DAILY: 24 * 60 * 60 * 1000,
+  /** 5 minutes - for dashboard data */
+  DASHBOARD: 5 * 60 * 1000,
+} as const;
+
+// ============================================
+// Financial Constants
+// ============================================
+
+/** Default CDI daily rate (approximate) */
+export const CDI_DAILY_RATE_DEFAULT = 0.055;
+
+// ============================================
+// Categories
+// ============================================
+
 export const EXPENSE_CATEGORIES = [
   "Aluguel",
   "Supermercado",

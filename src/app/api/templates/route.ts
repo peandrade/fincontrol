@@ -1,81 +1,57 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateTemplateCache } from "@/lib/api-utils";
+import { createTemplateSchema, validateBody } from "@/lib/schemas";
+import { checkRateLimit, getClientIp, rateLimitPresets } from "@/lib/rate-limit";
+import { templateRepository } from "@/repositories";
 
 export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
+  return withAuth(async (session) => {
+    // Get templates using repository (handles decryption)
+    const templates = await templateRepository.findByUser(session.user.id);
 
-    const templates = await prisma.transactionTemplate.findMany({
-      where: { userId: session.user.id },
-      orderBy: [
-        { usageCount: "desc" },
-        { updatedAt: "desc" },
-      ],
+    return NextResponse.json(templates, {
+      headers: {
+        "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+      },
     });
-
-    return NextResponse.json(templates);
-  } catch (error) {
-    console.error("Erro ao buscar templates:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar templates" },
-      { status: 500 }
-    );
-  }
+  });
 }
 
 export async function POST(request: Request) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  // Rate limit: 30 mutations per minute
+  const rateLimit = checkRateLimit(getClientIp(request), {
+    ...rateLimitPresets.mutation,
+    identifier: "templates-create",
+  });
+
+  if (!rateLimit.success) {
+    return errorResponse("Muitas requisições. Tente novamente em breve.", 429, "RATE_LIMITED");
+  }
+
+  return withAuth(async (session, req) => {
+    const body = await req.json();
+
+    // Validate with Zod schema
+    const validation = validateBody(createTemplateSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const body = await request.json();
+    const { name, type, category, description, value } = validation.data;
 
-    if (!body.name || !body.category || !body.type) {
-      return NextResponse.json(
-        { error: "Campos obrigatórios: name, category, type" },
-        { status: 400 }
-      );
-    }
-
-    if (!["income", "expense"].includes(body.type)) {
-      return NextResponse.json(
-        { error: "Tipo deve ser 'income' ou 'expense'" },
-        { status: 400 }
-      );
-    }
-
-    if (body.value !== undefined && body.value !== null) {
-      if (typeof body.value !== "number" || body.value < 0) {
-        return NextResponse.json(
-          { error: "Valor deve ser um número não negativo" },
-          { status: 400 }
-        );
-      }
-    }
-
-    const template = await prisma.transactionTemplate.create({
-      data: {
-        name: body.name,
-        description: body.description || null,
-        category: body.category,
-        type: body.type,
-        value: body.value || null,
-        userId: session.user.id,
-      },
+    // Create template using repository (handles encryption)
+    const template = await templateRepository.create({
+      userId: session.user.id,
+      name,
+      type,
+      category,
+      description: description || null,
+      value: value || null,
     });
 
+    // Invalidate related caches
+    invalidateTemplateCache(session.user.id);
+
     return NextResponse.json(template, { status: 201 });
-  } catch (error) {
-    console.error("Erro ao criar template:", error);
-    return NextResponse.json(
-      { error: "Erro ao criar template" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }

@@ -93,7 +93,7 @@ export function RegisterForm() {
     >
       {}
       <div className="text-center mb-8">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center mx-auto shadow-lg shadow-violet-500/25 mb-4">
+        <div className="w-16 h-16 rounded-2xl bg-primary-gradient flex items-center justify-center mx-auto shadow-lg shadow-primary mb-4">
           <span className="text-3xl">💰</span>
         </div>
         <h1
@@ -136,7 +136,7 @@ export function RegisterForm() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Seu nome"
-              className="w-full pl-12 pr-4 py-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+              className="w-full pl-12 pr-4 py-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50"
               style={{
                 backgroundColor: "var(--bg-primary)",
                 borderColor: "var(--border-color)",
@@ -166,7 +166,7 @@ export function RegisterForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
               required
-              className="w-full pl-12 pr-4 py-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+              className="w-full pl-12 pr-4 py-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50"
               style={{
                 backgroundColor: "var(--bg-primary)",
                 borderColor: "var(--border-color)",
@@ -197,7 +197,7 @@ export function RegisterForm() {
               placeholder="••••••••"
               required
               minLength={6}
-              className="w-full pl-12 pr-12 py-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+              className="w-full pl-12 pr-12 py-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50"
               style={{
                 backgroundColor: "var(--bg-primary)",
                 borderColor: "var(--border-color)",
@@ -262,7 +262,7 @@ export function RegisterForm() {
               placeholder="••••••••"
               required
               minLength={6}
-              className="w-full pl-12 pr-12 py-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+              className="w-full pl-12 pr-12 py-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50"
               style={{
                 backgroundColor: "var(--bg-primary)",
                 borderColor: "var(--border-color)",
@@ -296,7 +296,7 @@ export function RegisterForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-medium shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full py-3 px-4 rounded-xl bg-primary-gradient text-white font-medium shadow-lg shadow-primary hover:shadow-[var(--color-primary)]/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>
@@ -320,7 +320,7 @@ export function RegisterForm() {
         Já tem uma conta?{" "}
         <Link
           href="/login"
-          className="text-violet-500 hover:text-violet-400 font-medium"
+          className="text-primary-color hover:opacity-80 font-medium"
         >
           Entrar
         </Link>

@@ -1,135 +1,73 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateCardCache } from "@/lib/api-utils";
+import { updateCreditCardSchema, validateBody } from "@/lib/schemas";
+import { cardRepository } from "@/repositories";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const { id } = await params;
 
-    const card = await prisma.creditCard.findUnique({
-      where: { id },
-      include: {
-        invoices: {
-          orderBy: [{ year: "desc" }, { month: "desc" }],
-          include: {
-            purchases: {
-              orderBy: { date: "desc" },
-            },
-          },
-        },
-      },
-    });
+    // Use repository for proper decryption (includes ownership check)
+    const card = await cardRepository.findById(id, session.user.id, true);
 
     if (!card) {
-      return NextResponse.json(
-        { error: "Cartão não encontrado" },
-        { status: 404 }
-      );
-    }
-
-    if (card.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      return errorResponse("Cartão não encontrado", 404, "NOT_FOUND");
     }
 
     return NextResponse.json(card);
-  } catch (error) {
-    console.error("Erro ao buscar cartão:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar cartão" },
-      { status: 500 }
-    );
-  }
+  });
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session, req) => {
     const { id } = await params;
-    const body = await request.json();
+    const body = await req.json();
 
-    const existing = await prisma.creditCard.findUnique({
-      where: { id },
-    });
+    // Validate with Zod schema
+    const validation = validateBody(updateCreditCardSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
+    }
 
+    // Check existence and ownership
+    const existing = await cardRepository.findById(id, session.user.id);
     if (!existing) {
-      return NextResponse.json(
-        { error: "Cartão não encontrado" },
-        { status: 404 }
-      );
+      return errorResponse("Cartão não encontrado ou não autorizado", 404, "NOT_FOUND");
     }
 
-    if (existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
-    }
+    // Use repository for proper encryption
+    await cardRepository.update(id, session.user.id, validation.data);
 
-    const card = await prisma.creditCard.update({
-      where: { id },
-      data: body,
-      include: {
-        invoices: {
-          orderBy: [{ year: "desc" }, { month: "desc" }],
-          take: 12,
-        },
-      },
-    });
+    // Fetch updated card with invoices
+    const card = await cardRepository.findById(id, session.user.id, true);
+
+    // Invalidate related caches
+    invalidateCardCache(session.user.id);
 
     return NextResponse.json(card);
-  } catch (error) {
-    console.error("Erro ao atualizar cartão:", error);
-    return NextResponse.json(
-      { error: "Erro ao atualizar cartão" },
-      { status: 500 }
-    );
-  }
+  }, request);
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
+  return withAuth(async (session) => {
     const { id } = await params;
 
-    const existing = await prisma.creditCard.findUnique({
-      where: { id },
-    });
-
+    // Check existence and ownership
+    const existing = await cardRepository.findById(id, session.user.id);
     if (!existing) {
-      return NextResponse.json(
-        { error: "Cartão não encontrado" },
-        { status: 404 }
-      );
+      return errorResponse("Cartão não encontrado ou não autorizado", 404, "NOT_FOUND");
     }
 
-    if (existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
-    }
+    // Use repository for delete (no encryption needed, just ownership check)
+    await cardRepository.delete(id, session.user.id);
 
-    await prisma.creditCard.delete({
-      where: { id },
-    });
+    // Invalidate related caches
+    invalidateCardCache(session.user.id);
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Erro ao deletar cartão:", error);
-    return NextResponse.json(
-      { error: "Erro ao deletar cartão" },
-      { status: 500 }
-    );
-  }
+    return new NextResponse(null, { status: 204 });
+  });
 }

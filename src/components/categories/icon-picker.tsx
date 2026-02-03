@@ -57,7 +57,7 @@ export function IconPicker({ value, onChange, color = "#8B5CF6" }: IconPickerPro
             onClick={() => onChange(iconName)}
             className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${
               isSelected
-                ? "ring-2 ring-offset-2 ring-offset-[var(--bg-secondary)] ring-violet-500"
+                ? "ring-2 ring-offset-2 ring-offset-[var(--bg-secondary)] ring-[var(--color-primary)]"
                 : "hover:bg-[var(--bg-hover)]"
             }`}
             style={{

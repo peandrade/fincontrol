@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import { getInvoiceStatusColor } from "@/lib/card-constants";
@@ -21,8 +22,10 @@ const cardStyle = {
 
 export function InvoicePreviewChart({ data, title = "Previsão de Faturas" }: InvoicePreviewChartProps) {
   const { theme } = useTheme();
+  const descriptionId = useId();
 
   const axisTickColor = theme === "dark" ? "#9CA3AF" : "#4B5563";
+  const totalAmount = data.reduce((sum, d) => sum + d.amount, 0);
   const tooltipStyle = {
     backgroundColor: theme === "dark" ? "#1f2937" : "#ffffff",
     border: theme === "dark" ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)",
@@ -43,42 +46,49 @@ export function InvoicePreviewChart({ data, title = "Previsão de Faturas" }: In
   }
 
   return (
-    <div className="backdrop-blur rounded-2xl p-6 transition-colors duration-300" style={cardStyle}>
-      <div className="flex items-center justify-between mb-6">
+    <div className="backdrop-blur rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-colors duration-300" style={cardStyle}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
         <div>
-          <h3 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>{title}</h3>
-          <p className="text-sm" style={{ color: "var(--text-dimmed)" }}>Próximos 6 meses</p>
+          <h3 className="text-base sm:text-lg font-semibold" style={{ color: "var(--text-primary)" }}>{title}</h3>
+          <p className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>Próximos 6 meses</p>
         </div>
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+        <div className="flex items-center gap-3 sm:gap-4 text-[10px] sm:text-xs">
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-blue-500" />
             <span style={{ color: "var(--text-muted)" }}>Aberta</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500" />
             <span style={{ color: "var(--text-muted)" }}>Paga</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-yellow-500" />
             <span style={{ color: "var(--text-muted)" }}>Fechada</span>
           </div>
         </div>
       </div>
 
-      <div className="h-64">
+      <p id={descriptionId} className="sr-only">
+        Gráfico de barras mostrando previsão de faturas dos próximos 6 meses.
+        Total previsto: {formatCurrency(totalAmount)}.
+        {data.slice(0, 3).map(d => `${d.label}: ${formatCurrency(d.amount)}`).join(", ")}.
+      </p>
+
+      <div className="h-48 sm:h-64" role="img" aria-describedby={descriptionId}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+          <BarChart data={data} margin={{ top: 10, right: 5, left: 0, bottom: 0 }}>
             <XAxis
               dataKey="label"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: axisTickColor, fontSize: 12 }}
+              tick={{ fill: axisTickColor, fontSize: 10 }}
+              interval={0}
             />
             <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ fill: axisTickColor, fontSize: 12 }}
-              width={50}
+              tick={{ fill: axisTickColor, fontSize: 10 }}
+              width={40}
               tickFormatter={(value: number) => {
                 if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
                 if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
@@ -92,7 +102,7 @@ export function InvoicePreviewChart({ data, title = "Previsão de Faturas" }: In
               itemStyle={{ color: theme === "dark" ? "#f3f4f6" : "#1f2937" }}
               formatter={(value) => [formatCurrency(Number(value)), "Valor"]}
             />
-            <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
+            <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
               {data.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
@@ -105,12 +115,12 @@ export function InvoicePreviewChart({ data, title = "Previsão de Faturas" }: In
       </div>
 
       {}
-      <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--border-color)" }}>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+      <div className="mt-3 sm:mt-4 pt-3 sm:pt-4" style={{ borderTop: "1px solid var(--border-color)" }}>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2">
           {data.map((item) => (
             <div key={`${item.month}-${item.year}`} className="text-center">
-              <p className="text-xs" style={{ color: "var(--text-dimmed)" }}>{item.label}</p>
-              <p className="font-medium text-sm" style={{ color: "var(--text-primary)" }}>
+              <p className="text-[10px] sm:text-xs" style={{ color: "var(--text-dimmed)" }}>{item.label}</p>
+              <p className="font-medium text-[11px] sm:text-sm truncate" style={{ color: "var(--text-primary)" }}>
                 {formatCurrency(item.amount)}
               </p>
             </div>

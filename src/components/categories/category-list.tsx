@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, Trash2, Lock } from "lucide-react";
+import { usePreferences } from "@/contexts";
 import { DynamicIcon } from "./icon-picker";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { Category } from "@/store/category-store";
@@ -20,8 +21,13 @@ export function CategoryList({
   isDeleting,
 }: CategoryListProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<Category | null>(null);
+  const { general } = usePreferences();
 
   const handleDeleteClick = (category: Category) => {
+    if (!general.confirmBeforeDelete) {
+      onDelete(category);
+      return;
+    }
     setDeleteConfirm(category);
   };
 
@@ -76,17 +82,19 @@ export function CategoryList({
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => onEdit(category)}
-                  className="p-2 hover:bg-violet-500/20 rounded-lg transition-colors"
+                  className="p-2 hover:bg-primary-medium rounded-lg transition-colors"
                   title="Editar"
+                  aria-label={`Editar categoria ${category.name}`}
                 >
-                  <Pencil className="w-4 h-4 text-violet-400" />
+                  <Pencil className="w-4 h-4 text-primary-color" aria-hidden="true" />
                 </button>
                 <button
                   onClick={() => handleDeleteClick(category)}
                   className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
                   title="Excluir"
+                  aria-label={`Excluir categoria ${category.name}`}
                 >
-                  <Trash2 className="w-4 h-4 text-red-400" />
+                  <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
                 </button>
               </div>
             )}

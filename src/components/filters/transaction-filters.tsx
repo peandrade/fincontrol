@@ -74,7 +74,7 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
             placeholder="Buscar transações..."
-            className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 pl-12 pr-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+            className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 pl-12 pr-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
           />
           {localSearch && (
             <button
@@ -91,14 +91,14 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
           onClick={() => setIsExpanded(!isExpanded)}
           className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-all ${
             isExpanded || hasActiveFilters()
-              ? "bg-violet-600/20 text-violet-400 border border-violet-500/30"
+              ? "bg-primary-soft text-primary-color border border-[var(--color-primary)]/30"
               : "bg-[var(--bg-hover)] text-[var(--text-muted)] border border-[var(--border-color-strong)] hover:bg-[var(--bg-hover-strong)]"
           }`}
         >
           <Filter className="w-5 h-5" />
           <span className="hidden sm:inline">Filtros</span>
           {activeFiltersCount > 0 && (
-            <span className="bg-violet-500 text-white text-xs px-2 py-0.5 rounded-full">
+            <span className="bg-[var(--color-primary)] text-white text-xs px-2 py-0.5 rounded-full">
               {activeFiltersCount}
             </span>
           )}
@@ -133,7 +133,7 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
                         ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                         : value === "expense"
                         ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                        : "bg-violet-500/20 text-violet-400 border border-violet-500/30"
+                        : "bg-primary-soft text-primary-color border border-[var(--color-primary)]/30"
                       : "bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-transparent hover:bg-[var(--bg-hover-strong)]"
                   }`}
                 >
@@ -153,7 +153,7 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
                 type="date"
                 value={filters.startDate || ""}
                 onChange={(e) => setFilters({ startDate: e.target.value || null })}
-                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-xl py-2.5 px-3 text-[var(--text-primary)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all text-sm"
+                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-xl py-2.5 px-3 text-[var(--text-primary)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all text-sm"
               />
             </div>
             <div>
@@ -164,7 +164,7 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
                 type="date"
                 value={filters.endDate || ""}
                 onChange={(e) => setFilters({ endDate: e.target.value || null })}
-                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-xl py-2.5 px-3 text-[var(--text-primary)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all text-sm"
+                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-xl py-2.5 px-3 text-[var(--text-primary)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all text-sm"
               />
             </div>
           </div>
@@ -183,7 +183,7 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
                   value={filters.minValue?.toString() || ""}
                   onChange={(value) => setFilters({ minValue: value ? parseFloat(value) : null })}
                   placeholder="0,00"
-                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-xl py-2.5 pl-10 pr-3 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all text-sm"
+                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-xl py-2.5 pl-10 pr-3 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all text-sm"
                 />
               </div>
             </div>
@@ -199,7 +199,7 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
                   value={filters.maxValue?.toString() || ""}
                   onChange={(value) => setFilters({ maxValue: value ? parseFloat(value) : null })}
                   placeholder="0,00"
-                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-xl py-2.5 pl-10 pr-3 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all text-sm"
+                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-xl py-2.5 pl-10 pr-3 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all text-sm"
                 />
               </div>
             </div>
@@ -218,7 +218,7 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
                     onClick={() => handleCategoryToggle(categoryName)}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       filters.categories.includes(categoryName)
-                        ? "bg-violet-500/20 text-violet-400 border border-violet-500/30"
+                        ? "bg-primary-soft text-primary-color border border-[var(--color-primary)]/30"
                         : "bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-transparent hover:bg-[var(--bg-hover-strong)]"
                     }`}
                   >

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { FileBarChart, Calendar, Download, Filter, RefreshCw } from "lucide-react";
+import { FileBarChart, Calendar, Download, Filter, RefreshCw, Lightbulb, TrendingUp } from "lucide-react";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useCategoryStore } from "@/store/category-store";
-import { CategoryReport, MonthlyComparison } from "@/components/reports";
+import { useAnalytics } from "@/hooks";
+import { CategoryReport, MonthlyComparison, AdvancedAnalytics, InsightsContent, SpendingVelocityContent } from "@/components/reports";
 import { generateReportPDF } from "@/lib/pdf-generator";
 
 const MONTHS = [
@@ -19,15 +20,37 @@ export default function RelatoriosPage() {
   const [filterType, setFilterType] = useState<"expense" | "income" | "all">("expense");
   const [isExporting, setIsExporting] = useState(false);
 
+  // Popup states
+  const [isInsightsOpen, setIsInsightsOpen] = useState(false);
+  const [isVelocityOpen, setIsVelocityOpen] = useState(false);
+  const insightsRef = useRef<HTMLDivElement>(null);
+  const velocityRef = useRef<HTMLDivElement>(null);
+
   const reportRef = useRef<HTMLDivElement>(null);
 
   const { transactions, isLoading: isLoadingTransactions, fetchTransactions } = useTransactionStore();
   const { categories, isLoading: isLoadingCategories, fetchCategories } = useCategoryStore();
+  const { data: analyticsData } = useAnalytics();
 
   useEffect(() => {
     fetchTransactions();
     fetchCategories();
   }, [fetchTransactions, fetchCategories]);
+
+  // Close popups on click outside
+  useEffect(() => {
+    if (!isInsightsOpen && !isVelocityOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (isInsightsOpen && insightsRef.current && !insightsRef.current.contains(e.target as Node)) {
+        setIsInsightsOpen(false);
+      }
+      if (isVelocityOpen && velocityRef.current && !velocityRef.current.contains(e.target as Node)) {
+        setIsVelocityOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isInsightsOpen, isVelocityOpen]);
 
   const filteredTransactions = transactions.filter((t) => {
     const date = new Date(t.date);
@@ -63,7 +86,7 @@ export default function RelatoriosPage() {
         style={{ backgroundColor: "var(--bg-primary)" }}
       >
         <div className="text-center">
-          <RefreshCw className="w-8 h-8 text-violet-500 animate-spin mx-auto mb-4" />
+          <RefreshCw className="w-8 h-8 text-primary-color animate-spin mx-auto mb-4" />
           <p style={{ color: "var(--text-muted)" }}>Carregando relatórios...</p>
         </div>
       </div>
@@ -77,18 +100,18 @@ export default function RelatoriosPage() {
     >
       {}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-violet-600/20 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 -left-40 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] rounded-full blur-3xl" />
+        <div className="absolute top-1/2 -left-40 w-80 h-80 bg-[color-mix(in_srgb,var(--color-secondary)_10%,transparent)] rounded-full blur-3xl" />
         <div className="absolute -bottom-40 right-1/3 w-80 h-80 bg-fuchsia-600/10 rounded-full blur-3xl" />
       </div>
 
       {}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">
         {}
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-3" style={{ color: "var(--text-primary)" }}>
-              <FileBarChart className="w-8 h-8 text-violet-500" />
+              <FileBarChart className="w-8 h-8 text-primary-color" />
               Relatórios
             </h1>
             <p className="mt-1" style={{ color: "var(--text-dimmed)" }}>
@@ -98,7 +121,7 @@ export default function RelatoriosPage() {
           <button
             onClick={handleExportPDF}
             disabled={isExporting || filteredTransactions.length === 0}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl font-medium transition-all shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 text-white disabled:opacity-50"
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-primary-gradient rounded-xl font-medium transition-all shadow-lg shadow-primary text-white disabled:opacity-50"
           >
             {isExporting ? (
               <>
@@ -123,7 +146,7 @@ export default function RelatoriosPage() {
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                className="bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-2 px-3 text-[var(--text-primary)] focus:outline-none focus:border-violet-500 appearance-none cursor-pointer"
+                className="bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-2 px-3 text-[var(--text-primary)] focus:outline-none focus:border-primary-color appearance-none cursor-pointer"
               >
                 {MONTHS.map((month, index) => (
                   <option key={index} value={index + 1} className="bg-[var(--bg-secondary)]">
@@ -137,7 +160,7 @@ export default function RelatoriosPage() {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-2 px-3 text-[var(--text-primary)] focus:outline-none focus:border-violet-500 appearance-none cursor-pointer"
+              className="bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-2 px-3 text-[var(--text-primary)] focus:outline-none focus:border-primary-color appearance-none cursor-pointer"
             >
               {years.map((year) => (
                 <option key={year} value={year} className="bg-[var(--bg-secondary)]">
@@ -177,7 +200,7 @@ export default function RelatoriosPage() {
                   onClick={() => setFilterType("all")}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                     filterType === "all"
-                      ? "bg-violet-500/20 text-violet-400 border border-violet-500/30"
+                      ? "bg-primary-soft text-primary-color border border-[var(--color-primary)]/30"
                       : "bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)]"
                   }`}
                 >
@@ -192,9 +215,45 @@ export default function RelatoriosPage() {
         <div ref={reportRef} className="space-y-6">
           {}
           <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-6">
-              Relatório por Categoria - {MONTHS[selectedMonth - 1]} {selectedYear}
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                Relatório por Categoria - {MONTHS[selectedMonth - 1]} {selectedYear}
+              </h2>
+              {analyticsData && analyticsData.insights.length > 0 && (
+                <div className="relative" ref={insightsRef}>
+                  <button
+                    onClick={() => setIsInsightsOpen(!isInsightsOpen)}
+                    className={`flex items-center justify-center p-2 rounded-lg border transition-all ${
+                      isInsightsOpen
+                        ? "border-amber-500/50 bg-amber-500/10"
+                        : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
+                    }`}
+                    title="Insights Inteligentes"
+                  >
+                    <Lightbulb className="w-4 h-4 text-amber-400" />
+                  </button>
+                  {isInsightsOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-[380px] sm:w-[480px] max-h-[80vh] overflow-y-auto rounded-2xl shadow-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] z-50 p-4 animate-[slideUp_0.3s_ease-out]">
+                      <style>{`
+                        @keyframes slideUp {
+                          from { opacity: 0; transform: translateY(20px); }
+                          to { opacity: 1; transform: translateY(0); }
+                        }
+                      `}</style>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-amber-500/10 rounded-lg">
+                          <Lightbulb className="w-5 h-5 text-amber-400" />
+                        </div>
+                        <h3 className="text-base font-semibold text-[var(--text-primary)]">
+                          Insights Inteligentes
+                        </h3>
+                      </div>
+                      <InsightsContent insights={analyticsData.insights} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <CategoryReport
               transactions={filteredTransactions}
               categories={categories}
@@ -204,14 +263,55 @@ export default function RelatoriosPage() {
 
           {}
           <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-6">
-              Comparativo Mensal
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                Comparativo Mensal
+              </h2>
+              {analyticsData && (
+                <div className="relative" ref={velocityRef}>
+                  <button
+                    onClick={() => setIsVelocityOpen(!isVelocityOpen)}
+                    className={`flex items-center justify-center p-2 rounded-lg border transition-all ${
+                      isVelocityOpen
+                        ? "border-primary-color/50 bg-primary-soft"
+                        : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
+                    }`}
+                    title="Velocidade de Gastos"
+                  >
+                    <TrendingUp className="w-4 h-4 text-primary-color" />
+                  </button>
+                  {isVelocityOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-[240px] rounded-xl shadow-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] z-50 p-3 animate-[slideUp_0.3s_ease-out]">
+                      <style>{`
+                        @keyframes slideUp {
+                          from { opacity: 0; transform: translateY(20px); }
+                          to { opacity: 1; transform: translateY(0); }
+                        }
+                      `}</style>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="p-1.5 bg-primary-soft rounded-lg">
+                          <TrendingUp className="w-4 h-4 text-primary-color" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                          Velocidade de Gastos
+                        </h3>
+                      </div>
+                      <SpendingVelocityContent velocity={analyticsData.spendingVelocity} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <MonthlyComparison
               transactions={transactions}
               currentMonth={selectedMonth}
               currentYear={selectedYear}
             />
+          </div>
+
+          {}
+          <div className="mt-6">
+            <AdvancedAnalytics />
           </div>
         </div>
       </div>

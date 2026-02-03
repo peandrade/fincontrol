@@ -33,7 +33,7 @@ const SelectTrigger = React.forwardRef<
 
         "data-placeholder:text-gray-500",
 
-        "focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500",
+        "focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)]",
 
         "disabled:cursor-not-allowed disabled:opacity-50",
 
@@ -172,7 +172,7 @@ const SelectItem = React.forwardRef<
     {}
     <span className="absolute left-3 flex h-4 w-4 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <Check className="h-4 w-4 text-violet-400" />
+        <Check className="h-4 w-4 text-primary-color" />
       </SelectPrimitive.ItemIndicator>
     </span>
 

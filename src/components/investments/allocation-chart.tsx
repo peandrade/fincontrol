@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useId } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import { useTheme } from "@/contexts";
@@ -12,6 +12,7 @@ interface AllocationChartProps {
 
 export function AllocationChart({ data }: AllocationChartProps) {
   const { theme } = useTheme();
+  const descriptionId = useId();
 
   const chartData = useMemo(
     () => data.map((item) => ({ name: item.label, value: item.value })),
@@ -42,8 +43,13 @@ export function AllocationChart({ data }: AllocationChartProps) {
     >
       <h3 className="text-lg font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Alocação</h3>
       <p className="text-sm mb-4" style={{ color: "var(--text-dimmed)" }}>Distribuição por tipo de ativo</p>
+      <p id={descriptionId} className="sr-only">
+        Gráfico de pizza mostrando alocação de investimentos por tipo de ativo.
+        Total: {formatCurrency(total)}.
+        {data.slice(0, 3).map(d => `${d.label}: ${d.percentage.toFixed(0)}%`).join(", ")}.
+      </p>
 
-      <div className="h-48 flex items-center justify-center">
+      <div className="h-48 flex items-center justify-center" role="img" aria-describedby={descriptionId}>
         {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>

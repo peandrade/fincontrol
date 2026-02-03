@@ -1,29 +1,58 @@
 import { create } from "zustand";
+import { templatesApi, ApiClientError } from "@/lib/api-client";
 import type {
   TransactionTemplate,
   CreateTemplateInput,
   UpdateTemplateInput,
 } from "@/types";
 
-interface TemplateState {
+// ============================================
+// Types
+// ============================================
 
+interface TemplateState {
+  // State
   templates: TransactionTemplate[];
   isLoading: boolean;
   error: string | null;
 
+  // Actions
   fetchTemplates: () => Promise<void>;
   addTemplate: (data: CreateTemplateInput) => Promise<TransactionTemplate>;
   updateTemplate: (id: string, data: UpdateTemplateInput) => Promise<TransactionTemplate>;
   deleteTemplate: (id: string) => Promise<void>;
   useTemplate: (id: string) => Promise<TransactionTemplate>;
+  clearError: () => void;
 
+  // Selectors (computed data)
   getExpenseTemplates: () => TransactionTemplate[];
   getIncomeTemplates: () => TransactionTemplate[];
   getMostUsedTemplates: (limit?: number) => TransactionTemplate[];
 }
 
-export const useTemplateStore = create<TemplateState>((set, get) => ({
+// ============================================
+// Helpers
+// ============================================
 
+/**
+ * Extract error message from various error types.
+ */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    return error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Erro desconhecido";
+}
+
+// ============================================
+// Store
+// ============================================
+
+export const useTemplateStore = create<TemplateState>((set, get) => ({
+  // Initial state
   templates: [],
   isLoading: false,
   error: null,
@@ -32,19 +61,10 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await fetch("/api/templates");
-
-      if (!response.ok) {
-        throw new Error("Erro ao buscar templates");
-      }
-
-      const data = await response.json();
+      const data = await templatesApi.getAll<TransactionTemplate>();
       set({ templates: data, isLoading: false });
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
     }
   },
 
@@ -52,30 +72,14 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await fetch("/api/templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao criar template");
-      }
-
-      const newTemplate = await response.json();
-
+      const newTemplate = await templatesApi.create<TransactionTemplate, CreateTemplateInput>(data);
       set((state) => ({
         templates: [newTemplate, ...state.templates],
         isLoading: false,
       }));
-
       return newTemplate;
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
@@ -84,32 +88,14 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await fetch(`/api/templates/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao atualizar template");
-      }
-
-      const updatedTemplate = await response.json();
-
+      const updatedTemplate = await templatesApi.update<TransactionTemplate, UpdateTemplateInput>(id, data);
       set((state) => ({
-        templates: state.templates.map((t) =>
-          t.id === id ? updatedTemplate : t
-        ),
+        templates: state.templates.map((t) => (t.id === id ? updatedTemplate : t)),
         isLoading: false,
       }));
-
       return updatedTemplate;
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
@@ -118,52 +104,37 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await fetch(`/api/templates/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao excluir template");
-      }
-
+      await templatesApi.delete(id);
       set((state) => ({
         templates: state.templates.filter((t) => t.id !== id),
         isLoading: false,
       }));
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
 
   useTemplate: async (id: string) => {
     try {
-      const response = await fetch(`/api/templates/${id}`, {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        throw new Error("Erro ao usar template");
-      }
-
-      const updatedTemplate = await response.json();
-
+      const updatedTemplate = await templatesApi.use<TransactionTemplate>(id);
       set((state) => ({
-        templates: state.templates.map((t) =>
-          t.id === id ? updatedTemplate : t
-        ),
+        templates: state.templates.map((t) => (t.id === id ? updatedTemplate : t)),
       }));
-
       return updatedTemplate;
     } catch (error) {
       console.error("Erro ao incrementar uso do template:", error);
       throw error;
     }
   },
+
+  clearError: () => {
+    set({ error: null });
+  },
+
+  // ============================================
+  // Selectors (computed data from local state)
+  // ============================================
 
   getExpenseTemplates: () => {
     return get().templates.filter((t) => t.type === "expense");
@@ -174,8 +145,6 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
   },
 
   getMostUsedTemplates: (limit = 5) => {
-    return [...get().templates]
-      .sort((a, b) => b.usageCount - a.usageCount)
-      .slice(0, limit);
+    return [...get().templates].sort((a, b) => b.usageCount - a.usageCount).slice(0, limit);
   },
 }));

@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -19,6 +20,10 @@ model User {
   image     String?  // URL da foto de perfil
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  generalSettings      Json?
+  notificationSettings Json?
+  privacySettings      Json?
 
   transactions         Transaction[]
   investments          Investment[]
@@ -58,9 +63,9 @@ enum TransactionType {
 model Transaction {
   id          String          @id @default(cuid())
   type        TransactionType
-  value       Float
+  value       String          // Encrypted
   category    String
-  description String?
+  description String?         // Encrypted (nullable)
   date        DateTime
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -68,6 +73,9 @@ model Transaction {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, date])
+  @@index([userId, type])
+  @@index([userId, category])
   @@map("transactions")
 }
 
@@ -94,7 +102,7 @@ model TransactionTemplate {
   description String?
   category    String
   type        TransactionType
-  value       Float?
+  value       String?         // Encrypted (nullable)
   usageCount  Int             @default(0)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -127,17 +135,17 @@ model Investment {
   name              String
   ticker            String?
   institution       String?
-  quantity          Float          @default(0)
-  averagePrice      Float          @default(0)
-  currentPrice      Float          @default(0)
-  totalInvested     Float          @default(0)
-  currentValue      Float          @default(0)
-  profitLoss        Float          @default(0)
-  profitLossPercent Float          @default(0)
-  goalValue         Float?
+  quantity          String         @default("") // Encrypted
+  averagePrice      String         @default("") // Encrypted
+  currentPrice      String         @default("") // Encrypted
+  totalInvested     String         @default("") // Encrypted
+  currentValue      String         @default("") // Encrypted
+  profitLoss        String         @default("") // Encrypted
+  profitLossPercent String         @default("") // Encrypted
+  goalValue         String?        // Encrypted (nullable)
 
   // Campos para Renda Fixa
-  interestRate Float?    // Taxa (ex: 100 para 100% CDI, 5 para IPCA+5%)
+  interestRate String?   // Encrypted (nullable)
   indexer      String?   // CDI, IPCA, SELIC, PREFIXADO
   maturityDate DateTime? // Data de vencimento
 
@@ -149,6 +157,8 @@ model Investment {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([userId, type])
   @@map("investments")
 }
 
@@ -157,14 +167,16 @@ model Operation {
   investmentId String
   investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
   type         String
-  quantity     Float      @default(0)
-  price        Float      @default(0)
-  total        Float
+  quantity     String     @default("") // Encrypted
+  price        String     @default("") // Encrypted
+  total        String                  // Encrypted
   date         DateTime
-  fees         Float      @default(0)
-  notes        String?
+  fees         String     @default("") // Encrypted
+  notes        String?                 // Encrypted (nullable)
   createdAt    DateTime   @default(now())
 
+  @@index([investmentId, date])
+  @@index([investmentId, type])
   @@map("operations")
 }
 
@@ -183,7 +195,7 @@ model CreditCard {
   id         String    @id @default(cuid())
   name       String
   lastDigits String?
-  limit      Float     @default(0)
+  limit      String    @default("") // Encrypted
   closingDay Int       @default(1)
   dueDay     Int       @default(10)
   color      String    @default("#8B5CF6")
@@ -196,6 +208,7 @@ model CreditCard {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, isActive])
   @@map("credit_cards")
 }
 
@@ -208,13 +221,14 @@ model Invoice {
   closingDate  DateTime
   dueDate      DateTime
   status       InvoiceStatus @default(open)
-  total        Float         @default(0)
-  paidAmount   Float         @default(0)
+  total        String        @default("") // Encrypted
+  paidAmount   String        @default("") // Encrypted
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   purchases Purchase[]
 
+  @@index([creditCardId, status])
   @@unique([creditCardId, month, year])
   @@map("invoices")
 }
@@ -223,18 +237,19 @@ model Purchase {
   id                 String   @id @default(cuid())
   invoiceId          String
   invoice            Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  description        String
-  value              Float
-  totalValue         Float
+  description        String   // Encrypted
+  value              String   // Encrypted
+  totalValue         String   // Encrypted
   category           String
   date               DateTime
   installments       Int      @default(1)
   currentInstallment Int      @default(1)
   isRecurring        Boolean  @default(false)
   parentPurchaseId   String?
-  notes              String?
+  notes              String?  // Encrypted (nullable)
   createdAt          DateTime @default(now())
 
+  @@index([invoiceId, date])
   @@map("purchases")
 }
 
@@ -245,7 +260,7 @@ model Purchase {
 model Budget {
   id        String   @id @default(cuid())
   category  String
-  limit     Float
+  limit     String   // Encrypted
   month     Int      @default(0) // 0 = orçamento fixo (todo mês)
   year      Int      @default(0) // 0 = orçamento fixo (todo mês)
   createdAt DateTime @default(now())
@@ -254,6 +269,7 @@ model Budget {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, month, year])
   @@unique([category, month, year, userId])
   @@map("budgets")
 }
@@ -264,13 +280,13 @@ model Budget {
 
 model RecurringExpense {
   id             String    @id @default(cuid())
-  description    String
-  value          Float
+  description    String    // Encrypted
+  value          String    // Encrypted
   category       String
   dueDay         Int       @default(1) // Dia do mês para vencer/lançar
   isActive       Boolean   @default(true)
   lastLaunchedAt DateTime? // Última vez que foi lançada como transação
-  notes          String?
+  notes          String?   // Encrypted (nullable)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -299,10 +315,10 @@ model FinancialGoal {
   name         String
   description  String?
   category     GoalCategory
-  targetValue  Float // Valor alvo
-  currentValue Float        @default(0) // Valor atual guardado
-  targetDate   DateTime? // Data prevista para alcançar
-  icon         String? // Ícone personalizado
+  targetValue  String       // Encrypted
+  currentValue String       @default("") // Encrypted
+  targetDate   DateTime?    // Data prevista para alcançar
+  icon         String?      // Ícone personalizado
   color        String       @default("#8B5CF6") // Cor do progresso
   isCompleted  Boolean      @default(false)
   completedAt  DateTime?
@@ -314,6 +330,9 @@ model FinancialGoal {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([userId, isCompleted])
+  @@index([userId, category])
   @@map("financial_goals")
 }
 
@@ -321,10 +340,11 @@ model GoalContribution {
   id        String        @id @default(cuid())
   goalId    String
   goal      FinancialGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  value     Float
+  value     String        // Encrypted
   date      DateTime
-  notes     String?
+  notes     String?       // Encrypted (nullable)
   createdAt DateTime      @default(now())
 
+  @@index([goalId, date])
   @@map("goal_contributions")
 }

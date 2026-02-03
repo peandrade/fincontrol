@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Wallet, RefreshCw } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { useFeedback } from "@/hooks/use-feedback";
+import { usePreferences } from "@/contexts";
+
+const HIDDEN = "•••••";
 import { BudgetList } from "./budget-list";
 import { BudgetModal } from "./budget-modal";
 import type { BudgetWithSpent } from "@/app/api/budgets/route";
@@ -27,8 +31,12 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
   const [data, setData] = useState<BudgetData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editBudget, setEditBudget] = useState<BudgetWithSpent | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const feedback = useFeedback();
+  const { privacy } = usePreferences();
+  const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
   const fetchBudgets = useCallback(async () => {
     try {
@@ -66,11 +74,38 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
       });
 
       if (response.ok) {
+        feedback.success();
         await fetchBudgets();
         setIsModalOpen(false);
       }
     } catch (error) {
       console.error("Erro ao salvar orçamento:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditSave = async (budgetData: {
+    category: string;
+    limit: number;
+    isFixed: boolean;
+  }) => {
+    if (!editBudget) return;
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/budgets/${editBudget.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: budgetData.limit }),
+      });
+
+      if (response.ok) {
+        feedback.success();
+        await fetchBudgets();
+        setEditBudget(null);
+      }
+    } catch (error) {
+      console.error("Erro ao editar orçamento:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -96,7 +131,7 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
   const getProgressColor = (percentage: number): string => {
     if (percentage >= 100) return "from-red-500 to-red-600";
     if (percentage >= 80) return "from-amber-500 to-orange-500";
-    return "from-violet-500 to-indigo-500";
+    return "from-[var(--color-primary)] to-[var(--color-secondary)]";
   };
 
   if (isLoading) {
@@ -119,13 +154,13 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
 
   return (
     <>
-      <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
+      <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] overflow-hidden h-full flex flex-col">
         {}
         <div className="p-6 border-b border-[var(--border-color)]">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-violet-500/10 rounded-lg">
-                <Wallet className="w-5 h-5 text-violet-400" />
+              <div className="p-2 bg-primary-soft rounded-lg">
+                <Wallet className="w-5 h-5 text-primary-color" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-[var(--text-primary)]">
@@ -141,7 +176,7 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
             </div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-500 hover:to-indigo-500 transition-all shadow-lg shadow-violet-500/25 text-sm"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary text-sm"
             >
               <Plus className="w-4 h-4" />
               Novo Orçamento
@@ -157,10 +192,10 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
                 </span>
                 <div className="text-right">
                   <span className="text-lg font-bold text-[var(--text-primary)]">
-                    {formatCurrency(summary.totalSpent)}
+                    {fmt(summary.totalSpent)}
                   </span>
                   <span className="text-sm text-[var(--text-dimmed)]">
-                    {" "}/ {formatCurrency(summary.totalLimit)}
+                    {" "}/ {fmt(summary.totalLimit)}
                   </span>
                 </div>
               </div>
@@ -189,8 +224,8 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
                   </span>
                   <span className={summary.totalRemaining < 0 ? "text-red-400 font-medium" : "text-[var(--text-dimmed)]"}>
                     {summary.totalRemaining < 0
-                      ? `Excedeu em ${formatCurrency(Math.abs(summary.totalRemaining))}`
-                      : `Restam ${formatCurrency(summary.totalRemaining)}`
+                      ? `Excedeu em ${fmt(Math.abs(summary.totalRemaining))}`
+                      : `Restam ${fmt(summary.totalRemaining)}`
                     }
                   </span>
                 </div>
@@ -200,10 +235,11 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
         </div>
 
         {}
-        <div className="p-6">
+        <div className="p-6 flex-1 overflow-y-auto">
           <BudgetList
             budgets={data?.budgets || []}
             onDelete={handleDelete}
+            onEdit={(budget) => setEditBudget(budget)}
             isDeleting={isDeleting}
           />
         </div>
@@ -215,6 +251,19 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
         onSave={handleSave}
         isSubmitting={isSubmitting}
         existingCategories={existingCategories}
+      />
+
+      <BudgetModal
+        isOpen={!!editBudget}
+        onClose={() => setEditBudget(null)}
+        onSave={handleEditSave}
+        isSubmitting={isSubmitting}
+        existingCategories={existingCategories}
+        editData={editBudget ? {
+          category: editBudget.category,
+          limit: editBudget.limit,
+          isFixed: editBudget.month === 0,
+        } : null}
       />
     </>
   );

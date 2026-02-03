@@ -63,7 +63,7 @@ export interface CategoryData {
   color: string;
 }
 
-export type EvolutionPeriod = "1w" | "15d" | "1m" | "6m" | "1y";
+export type EvolutionPeriod = "1w" | "1m" | "3m" | "6m" | "1y";
 
 export interface MonthlyEvolution {
   month: string;
@@ -82,7 +82,7 @@ export type InvestmentType =
   | "savings"
   | "other";
 
-export type OperationType = "buy" | "sell" | "deposit" | "withdraw";
+export type OperationType = "buy" | "sell" | "deposit" | "withdraw" | "dividend";
 
 export const VARIABLE_INCOME_TYPES: InvestmentType[] = [
   "stock", "fii", "etf", "crypto"
@@ -191,7 +191,7 @@ export interface CreateOperationInput {
   quantity?: number;
   price?: number;
   total?: number;
-  date: Date;
+  date: Date | string;
   fees?: number;
   notes?: string;
 
@@ -214,7 +214,5 @@ export interface AllocationData {
   color: string;
 }
 
-export interface ApiResponse<T> {
-  data?: T;
-  error?: string;
-}
+// Re-export API types
+export * from "./api";

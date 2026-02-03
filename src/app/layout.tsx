@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Navbar, Footer } from "@/components/layout";
-import { ThemeProvider } from "@/contexts";
+import { AppShell } from "@/components/layout";
+import { ThemeProvider, UserProvider, AppearanceProvider, PreferencesProvider, SidebarProvider } from "@/contexts";
 import { SessionProvider } from "@/components/providers/session-provider";
+import { AutoLockGuard } from "@/components/providers/auto-lock-guard";
+import { ToastProvider } from "@/components/ui/toast";
 
 export const metadata: Metadata = {
   title: "FinControl - Controle Financeiro Pessoal",
@@ -19,13 +21,23 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className="antialiased min-h-screen flex flex-col">
+      <body className="antialiased min-h-screen overflow-x-hidden">
         <SessionProvider>
-          <ThemeProvider>
-            <Navbar />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </ThemeProvider>
+          <UserProvider>
+            <AppearanceProvider>
+              <ThemeProvider>
+                <ToastProvider>
+                  <PreferencesProvider>
+                    <SidebarProvider>
+                      <AutoLockGuard>
+                        <AppShell>{children}</AppShell>
+                      </AutoLockGuard>
+                    </SidebarProvider>
+                  </PreferencesProvider>
+                </ToastProvider>
+              </ThemeProvider>
+            </AppearanceProvider>
+          </UserProvider>
         </SessionProvider>
       </body>
     </html>

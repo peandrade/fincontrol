@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, RefreshCw, ShoppingCart, CreditCard, Layers } from "lucide-react";
+import { Plus, RefreshCw, ShoppingCart, CreditCard, Layers, AlertTriangle } from "lucide-react";
 import { useCardStore } from "@/store/card-store";
+import { useFeedback, useCardsAnalytics } from "@/hooks";
 import {
   SummaryCards,
   CardList,
@@ -12,7 +13,8 @@ import {
   CardModal,
   PurchaseModal,
 } from "@/components/cards";
-import { formatCurrency } from "@/lib/utils";
+import { CardAnalytics, CardAlertsContent } from "@/components/cards/card-analytics";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import type {
   CreditCard as CardType,
   CreateCardInput,
@@ -31,6 +33,13 @@ function CartoesContent() {
   const [viewMode, setViewMode] = useState<"all" | "single">("all");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
+  // Alerts popup state
+  const [isAlertsOpen, setIsAlertsOpen] = useState(false);
+  const alertsRef = useRef<HTMLDivElement>(null);
+
+  // Use cards analytics hook
+  const { data: analyticsData } = useCardsAnalytics();
+
   const {
     cards,
     selectedCard,
@@ -48,9 +57,23 @@ function CartoesContent() {
     getCardInvoices,
   } = useCardStore();
 
+  const feedback = useFeedback();
+
   useEffect(() => {
     fetchCards();
   }, [fetchCards]);
+
+  // Close alerts popup on click outside
+  useEffect(() => {
+    if (!isAlertsOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (alertsRef.current && !alertsRef.current.contains(e.target as Node)) {
+        setIsAlertsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isAlertsOpen]);
 
   useEffect(() => {
     if (cardIdFromUrl && cards.length > 0) {
@@ -93,6 +116,7 @@ function CartoesContent() {
     setIsSubmitting(true);
     try {
       await addCard(data);
+      feedback.success();
     } finally {
       setIsSubmitting(false);
     }
@@ -102,6 +126,7 @@ function CartoesContent() {
     setIsSubmitting(true);
     try {
       await addPurchase(data);
+      feedback.success();
     } finally {
       setIsSubmitting(false);
     }
@@ -134,16 +159,6 @@ function CartoesContent() {
     setSelectedInvoice(invoice);
   };
 
-  const getNextInvoiceWithValue = (card: CardType) => {
-    const invoices = card.invoices || [];
-
-    const sorted = [...invoices].sort((a, b) => {
-      if (a.year !== b.year) return a.year - b.year;
-      return a.month - b.month;
-    });
-    return sorted.find((inv) => inv.total > 0 && inv.status !== "paid");
-  };
-
   if (isLoading && cards.length === 0) {
     return (
       <div
@@ -151,7 +166,7 @@ function CartoesContent() {
         style={{ backgroundColor: "var(--bg-primary)" }}
       >
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 border-4 border-primary-color border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p style={{ color: "var(--text-muted)" }}>Carregando cartões...</p>
         </div>
       </div>
@@ -170,13 +185,13 @@ function CartoesContent() {
 
       {}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-violet-600/20 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] rounded-full blur-3xl" />
         <div className="absolute top-1/2 -left-40 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-40 right-1/3 w-80 h-80 bg-pink-600/10 rounded-full blur-3xl" />
       </div>
 
       {}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">
         {}
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
@@ -186,6 +201,39 @@ function CartoesContent() {
             <p className="mt-1" style={{ color: "var(--text-dimmed)" }}>Gerencie suas faturas</p>
           </div>
           <div className="flex items-center gap-3">
+            {/* Alerts Button */}
+            {analyticsData && analyticsData.alerts.length > 0 && (
+              <div className="relative" ref={alertsRef}>
+                <button
+                  onClick={() => setIsAlertsOpen(!isAlertsOpen)}
+                  className={`relative flex items-center justify-center p-3 rounded-xl border transition-all ${
+                    isAlertsOpen
+                      ? "border-red-500/50 bg-red-500/10"
+                      : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
+                  }`}
+                  title="Alertas de Cartões"
+                >
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                  <span className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-[10px] font-bold bg-red-500 text-white rounded-full">
+                    {analyticsData.alerts.length}
+                  </span>
+                </button>
+                {isAlertsOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-[380px] sm:w-[420px] max-h-[80vh] overflow-y-auto rounded-2xl shadow-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] z-50 animate-slideUp p-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-red-500/10 rounded-lg">
+                        <AlertTriangle className="w-5 h-5 text-red-400" />
+                      </div>
+                      <h3 className="text-base font-semibold text-[var(--text-primary)]">
+                        Alertas de Cartões
+                      </h3>
+                    </div>
+                    <CardAlertsContent alerts={analyticsData.alerts} />
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               onClick={() => fetchCards()}
               className="p-3 hover:bg-[var(--bg-hover)] rounded-xl transition-colors"
@@ -204,7 +252,7 @@ function CartoesContent() {
             )}
             <button
               onClick={() => setIsCardModalOpen(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl font-medium transition-all shadow-lg shadow-violet-500/25 text-white"
+              className="flex items-center gap-2 px-6 py-3 bg-primary-gradient rounded-xl font-medium transition-all shadow-lg shadow-primary text-white"
             >
               <Plus className="w-5 h-5" />
               Novo Cartão
@@ -212,16 +260,16 @@ function CartoesContent() {
           </div>
         </header>
 
-        {}
+        {/* Summary Cards */}
         <SummaryCards summary={summary} />
 
-        {}
+        {/* View Mode Tabs */}
         <div className="flex items-center gap-2 mb-6">
           <button
             onClick={() => setViewMode("all")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
               viewMode === "all"
-                ? "bg-violet-600 text-white"
+                ? "bg-primary-gradient text-white"
                 : "bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)]"
             }`}
           >
@@ -232,7 +280,7 @@ function CartoesContent() {
             onClick={() => setViewMode("single")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
               viewMode === "single"
-                ? "bg-violet-600 text-white"
+                ? "bg-primary-gradient text-white"
                 : "bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)]"
             }`}
           >
@@ -246,127 +294,46 @@ function CartoesContent() {
           )}
         </div>
 
-        {}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {}
-          <CardList
-            cards={cards}
-            selectedCardId={viewMode === "single" ? selectedCard?.id : null}
-            onSelectCard={handleSelectCard}
-            onDeleteCard={handleDeleteCard}
-            deletingId={deletingId}
-          />
+          <ErrorBoundary>
+            <CardList
+              cards={cards}
+              selectedCardId={viewMode === "single" ? selectedCard?.id : null}
+              onSelectCard={handleSelectCard}
+              onDeleteCard={handleDeleteCard}
+              deletingId={deletingId}
+            />
+          </ErrorBoundary>
 
-          {}
-          <InvoicePreviewChart
-            data={invoicePreview}
-            cardColor={viewMode === "single" ? selectedCard?.color : "#8B5CF6"}
-            title={viewMode === "all" ? "Previsão Total (Todos os Cartões)" : "Previsão de Faturas"}
-          />
+          <ErrorBoundary>
+            <InvoicePreviewChart
+              data={invoicePreview}
+              cardColor={viewMode === "single" ? selectedCard?.color : "#8B5CF6"}
+              title={viewMode === "all" ? "Previsão Total (Todos os Cartões)" : "Previsão de Faturas"}
+            />
+          </ErrorBoundary>
         </div>
 
-        {}
         {viewMode === "single" && (
-          <InvoiceDetail
-            invoices={cardInvoices}
-            selectedInvoice={selectedInvoice}
-            cardName={selectedCard?.name || ""}
-            cardColor={selectedCard?.color || "#8B5CF6"}
-            onSelectInvoice={handleSelectInvoice}
-            onPayInvoice={handlePayInvoice}
-            onDeletePurchase={handleDeletePurchase}
-            isLoading={isLoading}
-          />
+          <ErrorBoundary>
+            <InvoiceDetail
+              invoices={cardInvoices}
+              selectedInvoice={selectedInvoice}
+              cardName={selectedCard?.name || ""}
+              cardColor={selectedCard?.color || "#8B5CF6"}
+              onSelectInvoice={handleSelectInvoice}
+              onPayInvoice={handlePayInvoice}
+              onDeletePurchase={handleDeletePurchase}
+              isLoading={isLoading}
+            />
+          </ErrorBoundary>
         )}
 
-        {}
-        {viewMode === "all" && (
-          <div
-            className="backdrop-blur rounded-2xl p-6 transition-colors duration-300"
-            style={{
-              backgroundColor: "var(--card-bg)",
-              borderWidth: "1px",
-              borderStyle: "solid",
-              borderColor: "var(--border-color)"
-            }}
-          >
-            <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-              Resumo de Todos os Cartões
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {cards.map((card) => {
-
-                const nextInvoice = getNextInvoiceWithValue(card);
-                const invoiceTotal = nextInvoice?.total || 0;
-                const usagePercent = card.limit > 0 ? (invoiceTotal / card.limit) * 100 : 0;
-
-                return (
-                  <div
-                    key={card.id}
-                    onClick={() => handleSelectCard(card)}
-                    className="p-4 rounded-xl cursor-pointer transition-all"
-                    style={{ backgroundColor: "var(--bg-hover)" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-hover-strong)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-hover)"; }}
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div
-                        className="w-10 h-7 rounded-md flex items-center justify-center"
-                        style={{ backgroundColor: card.color }}
-                      >
-                        <CreditCard className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-medium" style={{ color: "var(--text-primary)" }}>{card.name}</p>
-                        {card.lastDigits && (
-                          <p className="text-xs" style={{ color: "var(--text-dimmed)" }}>•••• {card.lastDigits}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-end mb-2">
-                      <div>
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                          {nextInvoice
-                            ? `Fatura ${nextInvoice.month}/${nextInvoice.year}`
-                            : "Próxima Fatura"}
-                        </p>
-                        <p className="font-semibold text-lg" style={{ color: "var(--text-primary)" }}>
-                          {formatCurrency(invoiceTotal)}
-                        </p>
-                      </div>
-                      <p className="text-xs" style={{ color: "var(--text-dimmed)" }}>
-                        Vence dia {card.dueDay}
-                      </p>
-                    </div>
-
-                    {}
-                    {card.limit > 0 && (
-                      <div className="mt-2">
-                        <div className="flex justify-between text-xs mb-1" style={{ color: "var(--text-dimmed)" }}>
-                          <span>Limite: {formatCurrency(card.limit)}</span>
-                          <span>{usagePercent.toFixed(0)}%</span>
-                        </div>
-                        <div className="w-full rounded-full h-1.5" style={{ backgroundColor: "var(--bg-hover)" }}>
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{
-                              width: `${Math.min(usagePercent, 100)}%`,
-                              backgroundColor: usagePercent > 80
-                                ? "#EF4444"
-                                : usagePercent > 50
-                                  ? "#F59E0B"
-                                  : card.color,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        <div className="mt-6">
+          <ErrorBoundary>
+            <CardAnalytics />
+          </ErrorBoundary>
+        </div>
       </div>
 
       {}
@@ -397,7 +364,7 @@ export default function CartoesPage() {
           style={{ backgroundColor: "var(--bg-primary)" }}
         >
           <div className="text-center">
-            <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <div className="w-12 h-12 border-4 border-primary-color border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p style={{ color: "var(--text-muted)" }}>Carregando cartões...</p>
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
 import { X, PiggyBank } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCurrency } from "@/lib/utils";
@@ -22,6 +22,7 @@ export function ContributeModal({
   goalName,
   remaining,
 }: ContributeModalProps) {
+  const titleId = useId();
   const [value, setValue] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -43,15 +44,20 @@ export function ContributeModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-sm shadow-2xl animate-slideUp">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-sm shadow-2xl animate-slideUp"
+      >
         {}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)]">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-emerald-500/10 rounded-lg">
-              <PiggyBank className="w-5 h-5 text-emerald-400" />
+              <PiggyBank className="w-5 h-5 text-emerald-400" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+              <h2 id={titleId} className="text-lg font-semibold text-[var(--text-primary)]">
                 Guardar Dinheiro
               </h2>
               <p className="text-[var(--text-dimmed)] text-sm truncate max-w-[180px]">
@@ -62,8 +68,9 @@ export function ContributeModal({
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Fechar"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
         </div>
 

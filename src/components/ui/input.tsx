@@ -44,7 +44,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
               "px-4 py-3",
 
-              "focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500",
+              "focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)]",
 
               "transition-all duration-200",
 

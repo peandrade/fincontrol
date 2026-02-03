@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* ===== VARIÁVEIS DE APARÊNCIA ===== */
+:root {
+  --color-primary: #8B5CF6;
+  --color-secondary: #6366F1;
+  --font-weight-base: 400;
+  --font-size-multiplier: 1;
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 64px;
+}
+
 /* ===== TEMA ESCURO (padrão) ===== */
 :root,
 .dark {
@@ -46,17 +56,54 @@
 }
 
 /* Base styles */
-html,
+html {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
 body {
+  width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
+  font-weight: var(--font-weight-base);
+  font-size: calc(16px * var(--font-size-multiplier));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Prevent horizontal overflow on all elements */
+* {
+  box-sizing: border-box;
+}
+
+/* Mobile overflow protection */
+@media (max-width: 640px) {
+  * {
+    max-width: 100vw;
+  }
+
+  /* Force text elements to wrap or truncate */
+  p, span, h1, h2, h3, h4, h5, h6 {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Ensure flex containers don't overflow */
+  .flex {
+    min-width: 0;
+  }
+
+  /* Grid items should not overflow */
+  [class*="grid"] > * {
+    min-width: 0;
+    overflow: hidden;
+  }
 }
 
 /* Scrollbar customizada */
@@ -108,7 +155,7 @@ input[type="number"] {
 
 /* Seleção de texto */
 ::selection {
-  background: #8b5cf6;
+  background: var(--color-primary);
   color: white;
 }
 
@@ -129,4 +176,68 @@ select {
 
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+/* Hide scrollbar for mobile horizontal scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe area for mobile bottom navigation */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ===== CLASSES DE COR DINÂMICA ===== */
+.bg-primary-gradient {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+}
+
+.bg-primary-soft {
+  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.bg-primary-medium {
+  background-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.text-primary-color {
+  color: var(--color-primary);
+}
+
+.border-primary-color {
+  border-color: var(--color-primary);
+}
+
+.shadow-primary {
+  box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+/* Hover states */
+.hover\:bg-primary-soft:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.hover\:bg-primary-medium:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+/* Touch target minimum size for mobile */
+@media (max-width: 640px) {
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Smaller buttons explicitly set should keep their size */
+  button.p-1, button.p-1\.5, button.p-2,
+  a.p-1, a.p-1\.5, a.p-2 {
+    min-height: unset;
+    min-width: unset;
+  }
 }

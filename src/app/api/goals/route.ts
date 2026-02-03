@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { GoalCategory } from "@prisma/client";
+import { withAuth, errorResponse, invalidateGoalCache } from "@/lib/api-utils";
+import { createGoalSchema, validateBody } from "@/lib/schemas";
+import { checkRateLimit, getClientIp, rateLimitPresets } from "@/lib/rate-limit";
+import { goalRepository } from "@/repositories";
 
 export interface GoalWithProgress {
   id: string;
@@ -25,27 +27,33 @@ export interface GoalWithProgress {
 }
 
 export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
-    const goals = await prisma.financialGoal.findMany({
-      where: { userId: session.user.id },
-      include: {
-        contributions: {
-          orderBy: { date: "desc" },
-        },
-      },
-      orderBy: [{ isCompleted: "asc" }, { targetDate: "asc" }],
+  return withAuth(async (session) => {
+    // Get goals using repository (handles decryption)
+    const goals = await goalRepository.findByUser(session.user.id, {
+      includeContributions: true,
     });
 
-    const goalsWithProgress: GoalWithProgress[] = goals.map((goal) => {
-      const progress = goal.targetValue > 0
-        ? Math.min((goal.currentValue / goal.targetValue) * 100, 100)
+    // Sort by completion status and target date
+    const sortedGoals = [...goals].sort((a, b) => {
+      if (a.isCompleted !== b.isCompleted) {
+        return a.isCompleted ? 1 : -1;
+      }
+      if (a.targetDate && b.targetDate) {
+        return new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime();
+      }
+      return 0;
+    });
+
+    const goalsWithProgress: GoalWithProgress[] = sortedGoals.map((goal) => {
+      const targetValue = goal.targetValue as unknown as number;
+      const currentValue = goal.currentValue as unknown as number;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const contributions = (goal as any).contributions || [];
+
+      const progress = targetValue > 0
+        ? Math.min((currentValue / targetValue) * 100, 100)
         : 0;
-      const remaining = Math.max(goal.targetValue - goal.currentValue, 0);
+      const remaining = Math.max(targetValue - currentValue, 0);
 
       let monthlyNeeded: number | null = null;
       if (goal.targetDate && remaining > 0) {
@@ -62,76 +70,81 @@ export async function GET() {
 
       return {
         ...goal,
+        targetValue,
+        currentValue,
         progress,
         remaining,
         monthlyNeeded,
-        contributionsCount: goal.contributions.length,
+        contributionsCount: contributions.length,
       };
     });
 
     const summary = {
       totalGoals: goals.length,
       completedGoals: goals.filter((g) => g.isCompleted).length,
-      totalTargetValue: goals.reduce((sum, g) => sum + g.targetValue, 0),
-      totalCurrentValue: goals.reduce((sum, g) => sum + g.currentValue, 0),
+      totalTargetValue: goals.reduce((sum, g) => sum + (g.targetValue as unknown as number), 0),
+      totalCurrentValue: goals.reduce((sum, g) => sum + (g.currentValue as unknown as number), 0),
       overallProgress: goals.length > 0
-        ? goals.reduce((sum, g) => sum + g.currentValue, 0) /
-          goals.reduce((sum, g) => sum + g.targetValue, 0) * 100
+        ? goals.reduce((sum, g) => sum + (g.currentValue as unknown as number), 0) /
+          goals.reduce((sum, g) => sum + (g.targetValue as unknown as number), 0) * 100
         : 0,
     };
 
-    return NextResponse.json({ goals: goalsWithProgress, summary });
-  } catch (error) {
-    console.error("Erro ao buscar metas:", error);
-    return NextResponse.json({ error: "Erro ao buscar metas" }, { status: 500 });
-  }
+    return NextResponse.json({ goals: goalsWithProgress, summary }, {
+      headers: {
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+      },
+    });
+  });
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  // Rate limit: 30 mutations per minute
+  const rateLimit = checkRateLimit(getClientIp(request), {
+    ...rateLimitPresets.mutation,
+    identifier: "goals-create",
+  });
+
+  if (!rateLimit.success) {
+    return errorResponse("Muitas requisições. Tente novamente em breve.", 429, "RATE_LIMITED");
+  }
+
+  return withAuth(async (session, req) => {
+    const body = await req.json();
+
+    // Validate with Zod schema
+    const validation = validateBody(createGoalSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 400, "VALIDATION_ERROR", validation.details);
     }
 
-    const body = await request.json();
-    const { name, description, category, targetValue, targetDate, icon, color, currentValue } = body;
+    const { name, description, type, targetValue, deadline, icon, color, currentValue } = validation.data;
 
-    if (!name || !category || !targetValue) {
-      return NextResponse.json(
-        { error: "Nome, categoria e valor alvo são obrigatórios" },
-        { status: 400 }
-      );
-    }
-
-    const goal = await prisma.financialGoal.create({
-      data: {
-        name,
-        description,
-        category,
-        targetValue,
-        currentValue: currentValue || 0,
-        targetDate: targetDate ? new Date(targetDate) : null,
-        icon,
-        color: color || "#8B5CF6",
-        userId: session.user.id,
-      },
+    // Create goal using repository (handles encryption)
+    const goal = await goalRepository.create({
+      userId: session.user.id,
+      name,
+      description: description || undefined,
+      category: type, // Schema uses 'type', DB uses 'category'
+      targetValue,
+      currentValue: currentValue || 0,
+      targetDate: deadline ? new Date(deadline) : undefined,
+      icon: icon || undefined,
+      color: color || "#8B5CF6",
     });
 
+    // Create initial contribution if there's a starting value
     if (currentValue && currentValue > 0) {
-      await prisma.goalContribution.create({
-        data: {
-          goalId: goal.id,
-          value: currentValue,
-          date: new Date(),
-          notes: "Valor inicial",
-        },
+      await goalRepository.addContribution(goal.id, session.user.id, {
+        value: currentValue,
+        date: new Date(),
+        notes: "Valor inicial",
       });
     }
 
+    // Invalidate related caches
+    invalidateGoalCache(session.user.id);
+
     return NextResponse.json(goal, { status: 201 });
-  } catch (error) {
-    console.error("Erro ao criar meta:", error);
-    return NextResponse.json({ error: "Erro ao criar meta" }, { status: 500 });
-  }
+  }, request);
 }

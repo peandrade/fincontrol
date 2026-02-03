@@ -12,6 +12,11 @@ import {
   getInvestmentTypeLabel,
   getInvestmentTypeColor,
 } from "@/lib/constants";
+import { investmentApi, ApiClientError } from "@/lib/api-client";
+
+// ============================================
+// Types
+// ============================================
 
 interface QuotesRefreshResult {
   success: boolean;
@@ -25,7 +30,23 @@ interface YieldsRefreshResult {
   lastUpdate: string | null;
 }
 
+interface QuotesApiResponse {
+  success: boolean;
+  updated: number;
+  errors?: Array<{ ticker: string; error: string }>;
+}
+
+interface YieldsApiResponse {
+  yields?: Array<{ calculation: unknown }>;
+  lastUpdate: string | null;
+}
+
+interface OperationResponse {
+  investment: Investment;
+}
+
 interface InvestmentStore {
+  // State
   investments: Investment[];
   isLoading: boolean;
   isRefreshingQuotes: boolean;
@@ -34,6 +55,7 @@ interface InvestmentStore {
   lastQuotesUpdate: Date | null;
   lastYieldsUpdate: Date | null;
 
+  // Actions
   fetchInvestments: () => Promise<void>;
   addInvestment: (data: CreateInvestmentInput) => Promise<void>;
   updateInvestment: (id: string, data: UpdateInvestmentInput) => Promise<void>;
@@ -41,13 +63,37 @@ interface InvestmentStore {
   addOperation: (data: CreateOperationInput) => Promise<void>;
   refreshQuotes: () => Promise<QuotesRefreshResult>;
   refreshYields: () => Promise<YieldsRefreshResult>;
+  clearError: () => void;
 
+  // Selectors (computed data)
   getSummary: () => InvestmentSummary;
   getAllocationByType: () => AllocationData[];
   getInvestmentsByType: (type: InvestmentType) => Investment[];
 }
 
+// ============================================
+// Helpers
+// ============================================
+
+/**
+ * Extract error message from various error types.
+ */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    return error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Erro desconhecido";
+}
+
+// ============================================
+// Store
+// ============================================
+
 export const useInvestmentStore = create<InvestmentStore>((set, get) => ({
+  // Initial state
   investments: [],
   isLoading: false,
   isRefreshingQuotes: false,
@@ -58,131 +104,88 @@ export const useInvestmentStore = create<InvestmentStore>((set, get) => ({
 
   fetchInvestments: async () => {
     set({ isLoading: true, error: null });
+
     try {
-      const response = await fetch("/api/investments");
-      if (!response.ok) throw new Error("Erro ao buscar investimentos");
-      const data = await response.json();
+      const data = await investmentApi.getAll<Investment>();
       set({ investments: data, isLoading: false });
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
     }
   },
 
   addInvestment: async (data: CreateInvestmentInput) => {
     set({ isLoading: true, error: null });
+
     try {
-      const response = await fetch("/api/investments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error("Erro ao criar investimento");
-      const newInvestment = await response.json();
+      const newInvestment = await investmentApi.create<Investment, CreateInvestmentInput>(data);
       set((state) => ({
         investments: [newInvestment, ...state.investments],
         isLoading: false,
       }));
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
 
   updateInvestment: async (id: string, data: UpdateInvestmentInput) => {
     set({ isLoading: true, error: null });
+
     try {
-      const response = await fetch(`/api/investments/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error("Erro ao atualizar investimento");
-      const updated = await response.json();
+      const updated = await investmentApi.update<Investment, UpdateInvestmentInput>(id, data);
       set((state) => ({
-        investments: state.investments.map((inv) =>
-          inv.id === id ? updated : inv
-        ),
+        investments: state.investments.map((inv) => (inv.id === id ? updated : inv)),
         isLoading: false,
       }));
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
 
   deleteInvestment: async (id: string) => {
     set({ isLoading: true, error: null });
+
     try {
-      const response = await fetch(`/api/investments/${id}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Erro ao deletar investimento");
+      await investmentApi.delete(id);
       set((state) => ({
         investments: state.investments.filter((inv) => inv.id !== id),
         isLoading: false,
       }));
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
 
   addOperation: async (data: CreateOperationInput) => {
     set({ isLoading: true, error: null });
+
     try {
-      const response = await fetch(
-        `/api/investments/${data.investmentId}/operations`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        }
+      const { investment: updated } = await investmentApi.addOperation<OperationResponse, CreateOperationInput>(
+        data.investmentId,
+        data
       );
-      if (!response.ok) throw new Error("Erro ao criar operação");
-      const { investment: updated } = await response.json();
       set((state) => ({
-        investments: state.investments.map((inv) =>
-          inv.id === data.investmentId ? updated : inv
-        ),
+        investments: state.investments.map((inv) => (inv.id === data.investmentId ? updated : inv)),
         isLoading: false,
       }));
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isLoading: false,
-      });
+      set({ error: getErrorMessage(error), isLoading: false });
       throw error;
     }
   },
 
   refreshQuotes: async (): Promise<QuotesRefreshResult> => {
     set({ isRefreshingQuotes: true, error: null });
+
     try {
-      const response = await fetch("/api/investments/quotes", {
-        method: "POST",
-      });
-      if (!response.ok) throw new Error("Erro ao atualizar cotações");
+      const result = await investmentApi.refreshQuotes<QuotesApiResponse>();
 
-      const result = await response.json();
-
+      // Refetch investments if any were updated
       if (result.updated > 0) {
-        const investmentsResponse = await fetch("/api/investments");
-        if (investmentsResponse.ok) {
-          const investments = await investmentsResponse.json();
-          set({ investments });
-        }
+        const investments = await investmentApi.getAll<Investment>();
+        set({ investments });
       }
 
       set({
@@ -196,31 +199,24 @@ export const useInvestmentStore = create<InvestmentStore>((set, get) => ({
         errors: result.errors || [],
       };
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isRefreshingQuotes: false,
-      });
+      set({ error: getErrorMessage(error), isRefreshingQuotes: false });
       return {
         success: false,
         updated: 0,
-        errors: [{ ticker: "all", error: error instanceof Error ? error.message : "Erro desconhecido" }],
+        errors: [{ ticker: "all", error: getErrorMessage(error) }],
       };
     }
   },
 
   refreshYields: async (): Promise<YieldsRefreshResult> => {
     set({ isRefreshingYields: true, error: null });
+
     try {
-      const response = await fetch("/api/investments/yields");
-      if (!response.ok) throw new Error("Erro ao calcular rendimentos");
+      const result = await investmentApi.getYields<YieldsApiResponse>();
 
-      const result = await response.json();
-
-      const investmentsResponse = await fetch("/api/investments");
-      if (investmentsResponse.ok) {
-        const investments = await investmentsResponse.json();
-        set({ investments });
-      }
+      // Refetch investments to get updated values
+      const investments = await investmentApi.getAll<Investment>();
+      set({ investments });
 
       set({
         isRefreshingYields: false,
@@ -229,14 +225,11 @@ export const useInvestmentStore = create<InvestmentStore>((set, get) => ({
 
       return {
         success: true,
-        updated: result.yields?.filter((y: { calculation: unknown }) => y.calculation).length || 0,
+        updated: result.yields?.filter((y) => y.calculation).length || 0,
         lastUpdate: result.lastUpdate,
       };
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        isRefreshingYields: false,
-      });
+      set({ error: getErrorMessage(error), isRefreshingYields: false });
       return {
         success: false,
         updated: 0,
@@ -244,6 +237,14 @@ export const useInvestmentStore = create<InvestmentStore>((set, get) => ({
       };
     }
   },
+
+  clearError: () => {
+    set({ error: null });
+  },
+
+  // ============================================
+  // Selectors (computed data from local state)
+  // ============================================
 
   getSummary: (): InvestmentSummary => {
     const { investments } = get();

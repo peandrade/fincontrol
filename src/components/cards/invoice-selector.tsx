@@ -62,7 +62,7 @@ export function InvoiceSelector({
               onClick={() => onSelectInvoice(invoice)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 isSelected
-                  ? "bg-violet-600 text-white"
+                  ? "bg-[var(--color-primary)] text-white"
                   : hasValue
                   ? "bg-white/10 text-white hover:bg-white/20"
                   : "bg-white/5 text-gray-500 hover:bg-white/10"

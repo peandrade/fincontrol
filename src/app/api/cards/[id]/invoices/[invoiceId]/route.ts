@@ -1,92 +1,90 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateCardCache, invalidateTransactionCache } from "@/lib/api-utils";
+import { updateInvoiceSchema, validateBody } from "@/lib/schemas";
+import { invoiceRepository, transactionRepository, cardRepository } from "@/repositories";
 
 interface RouteParams {
   params: Promise<{ id: string; invoiceId: string }>;
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  return withAuth(async (session, req) => {
+    const { id: cardId, invoiceId } = await params;
+    const body = await req.json();
+
+    const validation = validateBody(updateInvoiceSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 422, "VALIDATION_ERROR", validation.details);
     }
 
-    const { id: cardId, invoiceId } = await params;
-    const body = await request.json();
-
-    const card = await prisma.creditCard.findUnique({
-      where: { id: cardId },
-    });
+    // Use repository for proper ownership check
+    const card = await cardRepository.findById(cardId, session.user.id);
 
     if (!card) {
-      return NextResponse.json({ error: "Cartão não encontrado" }, { status: 404 });
+      return errorResponse("Cartão não encontrado", 404, "NOT_FOUND");
     }
 
-    if (card.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
-    }
-
-    const currentInvoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
-      include: { creditCard: true },
-    });
+    // Use repository for proper decryption of encrypted fields
+    const currentInvoice = await invoiceRepository.findById(invoiceId, true);
 
     if (!currentInvoice) {
-      return NextResponse.json({ error: "Fatura não encontrada" }, { status: 404 });
+      return errorResponse("Fatura não encontrada", 404, "NOT_FOUND");
     }
 
-    const updateData: Record<string, unknown> = {};
+    if (currentInvoice.creditCardId !== cardId) {
+      return errorResponse("Fatura não pertence a este cartão", 400, "INVALID_REFERENCE");
+    }
+
+    const { status, paidAmount } = validation.data;
+    const updateData: Partial<{ status: string; paidAmount: number }> = {};
     let paymentAmount = 0;
 
-    if (body.status) {
-      updateData.status = body.status;
+    // Values are already decrypted by repository
+    const invoiceTotal = currentInvoice.total as unknown as number;
+    const invoicePaidAmount = currentInvoice.paidAmount as unknown as number;
 
-      if (body.status === "paid") {
-        paymentAmount = currentInvoice.total - currentInvoice.paidAmount;
-        updateData.paidAmount = currentInvoice.total;
+    if (status) {
+      updateData.status = status;
+
+      if (status === "paid") {
+        paymentAmount = invoiceTotal - invoicePaidAmount;
+        updateData.paidAmount = invoiceTotal;
       }
     }
 
-    if (body.paidAmount !== undefined && body.paidAmount > currentInvoice.paidAmount) {
-      paymentAmount = body.paidAmount - currentInvoice.paidAmount;
-      updateData.paidAmount = body.paidAmount;
+    if (paidAmount !== undefined && paidAmount > invoicePaidAmount) {
+      paymentAmount = paidAmount - invoicePaidAmount;
+      updateData.paidAmount = paidAmount;
     }
 
-    const invoice = await prisma.invoice.update({
-      where: { id: invoiceId },
-      data: updateData,
-      include: {
-        purchases: {
-          orderBy: { date: "desc" },
-        },
-      },
-    });
+    // Update invoice using repository
+    const invoice = await invoiceRepository.update(invoiceId, updateData as Parameters<typeof invoiceRepository.update>[1]);
+
+    // Fetch updated invoice with purchases for response
+    const updatedInvoice = await invoiceRepository.findById(invoiceId, true);
 
     if (paymentAmount > 0) {
       const cardName = currentInvoice.creditCard?.name || "Cartão";
       const monthName = new Date(currentInvoice.year, currentInvoice.month - 1)
         .toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
-      await prisma.transaction.create({
-        data: {
-          type: "expense",
-          value: paymentAmount,
-          category: "Fatura Cartão",
-          description: `Fatura ${cardName} - ${monthName}`,
-          date: new Date(),
-          userId: session.user.id,
-        },
+      // Create transaction using repository
+      await transactionRepository.create({
+        type: "expense",
+        value: paymentAmount,
+        category: "Fatura Cartão",
+        description: `Fatura ${cardName} - ${monthName}`,
+        date: new Date(),
+        userId: session.user.id,
       });
+
+      // Invalidate transaction cache since we created a transaction
+      invalidateTransactionCache(session.user.id);
     }
 
-    return NextResponse.json(invoice);
-  } catch (error) {
-    console.error("Erro ao atualizar fatura:", error);
-    return NextResponse.json(
-      { error: "Erro ao atualizar fatura" },
-      { status: 500 }
-    );
-  }
+    // Invalidate card cache for invoice update
+    invalidateCardCache(session.user.id);
+
+    return NextResponse.json(updatedInvoice);
+  }, request);
 }

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse, invalidateCategoryCache } from "@/lib/api-utils";
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, CATEGORY_COLORS } from "@/lib/constants";
+import { createCategorySchema, validateBody } from "@/lib/schemas";
+import { checkRateLimit, getClientIp, rateLimitPresets } from "@/lib/rate-limit";
 
 const DEFAULT_ICONS: Record<string, string> = {
 
@@ -29,13 +31,9 @@ const DEFAULT_ICONS: Record<string, string> = {
 };
 
 export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
-    const customCategories = await prisma.category.findMany({
+  return withAuth(async (session) => {
+    try {
+      const customCategories = await prisma.category.findMany({
       where: { userId: session.user.id },
       orderBy: { name: "asc" },
     });
@@ -70,43 +68,48 @@ export async function GET() {
       ...customCategories.map((c) => ({ ...c, isDefault: false })),
     ];
 
-    return NextResponse.json(allCategories);
-  } catch (error) {
-    console.error("Erro ao buscar categorias:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar categorias" },
-      { status: 500 }
-    );
-  }
+      return NextResponse.json(allCategories, {
+        headers: {
+          "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao buscar categorias:", error);
+      return errorResponse("Erro ao buscar categorias", 500, "CATEGORIES_ERROR");
+    }
+  });
 }
 
 export async function POST(request: Request) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
+  // Rate limit: 30 mutations per minute
+  const rateLimit = checkRateLimit(getClientIp(request), {
+    ...rateLimitPresets.mutation,
+    identifier: "categories-create",
+  });
 
-    const body = await request.json();
+  if (!rateLimit.success) {
+    return errorResponse("Muitas requisições. Tente novamente em breve.", 429, "RATE_LIMITED");
+  }
 
-    if (!body.name || !body.type || !body.icon || !body.color) {
+  return withAuth(async (session, req) => {
+    try {
+      const body = await req.json();
+
+    // Validate with Zod schema
+    const validation = validateBody(createCategorySchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Campos obrigatórios: name, type, icon, color" },
+        { error: validation.error, details: validation.details },
         { status: 400 }
       );
     }
 
-    if (!["income", "expense"].includes(body.type)) {
-      return NextResponse.json(
-        { error: "Tipo deve ser 'income' ou 'expense'" },
-        { status: 400 }
-      );
-    }
+    const { name, type, icon, color } = validation.data;
 
     const existingCategory = await prisma.category.findFirst({
       where: {
-        name: body.name,
-        type: body.type,
+        name,
+        type,
         userId: session.user.id,
       },
     });
@@ -118,8 +121,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const defaultCategories = body.type === "expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
-    if (defaultCategories.includes(body.name)) {
+    const defaultCategories = type === "expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+    if ((defaultCategories as readonly string[]).includes(name)) {
       return NextResponse.json(
         { error: "Não é possível criar uma categoria com o mesmo nome de uma categoria padrão" },
         { status: 400 }
@@ -128,21 +131,22 @@ export async function POST(request: Request) {
 
     const category = await prisma.category.create({
       data: {
-        name: body.name,
-        type: body.type,
-        icon: body.icon,
-        color: body.color,
+        name,
+        type,
+        icon,
+        color,
         isDefault: false,
         userId: session.user.id,
       },
     });
 
-    return NextResponse.json(category, { status: 201 });
-  } catch (error) {
-    console.error("Erro ao criar categoria:", error);
-    return NextResponse.json(
-      { error: "Erro ao criar categoria" },
-      { status: 500 }
-    );
-  }
+      // Invalidate related caches
+      invalidateCategoryCache(session.user.id);
+
+      return NextResponse.json(category, { status: 201 });
+    } catch (error) {
+      console.error("Erro ao criar categoria:", error);
+      return errorResponse("Erro ao criar categoria", 500, "CREATE_CATEGORY_ERROR");
+    }
+  }, request);
 }

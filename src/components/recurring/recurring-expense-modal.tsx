@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
 import { X, Repeat, Calendar } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { useCategoryStore } from "@/store/category-store";
@@ -16,6 +16,13 @@ interface RecurringExpenseModalProps {
     notes?: string;
   }) => Promise<void>;
   isSubmitting: boolean;
+  initialData?: {
+    description: string;
+    value: number;
+    category: string;
+    dueDay: number;
+    notes?: string | null;
+  } | null;
 }
 
 export function RecurringExpenseModal({
@@ -23,18 +30,54 @@ export function RecurringExpenseModal({
   onClose,
   onSave,
   isSubmitting,
+  initialData,
 }: RecurringExpenseModalProps) {
   const [description, setDescription] = useState("");
   const [value, setValue] = useState("");
   const [category, setCategory] = useState("");
   const [dueDay, setDueDay] = useState("1");
   const [notes, setNotes] = useState("");
+  const isEditing = !!initialData;
+  const titleId = useId();
 
   const { fetchCategories, getExpenseCategories } = useCategoryStore();
+
+  // Handle Escape key to close modal
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSubmitting) {
+        onClose();
+      }
+    },
+    [onClose, isSubmitting]
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [isOpen, handleKeyDown]);
 
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
+
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setDescription(initialData.description);
+      setValue(initialData.value.toString());
+      setCategory(initialData.category);
+      setDueDay(initialData.dueDay.toString());
+      setNotes(initialData.notes || "");
+    } else if (isOpen && !initialData) {
+      setDescription("");
+      setValue("");
+      setCategory("");
+      setDueDay("1");
+      setNotes("");
+    }
+  }, [isOpen, initialData]);
 
   const expenseCategories = getExpenseCategories();
 
@@ -61,28 +104,44 @@ export function RecurringExpenseModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp max-h-[90vh] flex flex-col">
-        {}
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp max-h-[90vh] flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)] flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-amber-500/10 rounded-lg">
-              <Repeat className="w-5 h-5 text-amber-400" />
+              <Repeat className="w-5 h-5 text-amber-400" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]">
-                Nova Despesa Recorrente
+              <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">
+                {isEditing ? "Editar Despesa Recorrente" : "Nova Despesa Recorrente"}
               </h2>
               <p className="text-[var(--text-dimmed)] text-sm">
-                Lançada automaticamente todo mês
+                {isEditing ? "Altere os dados da despesa" : "Lançada automaticamente todo mês"}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            disabled={isSubmitting}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+            aria-label="Fechar modal"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
         </div>
 
@@ -202,7 +261,7 @@ export function RecurringExpenseModal({
               disabled={isSubmitting || !description || !value || !category}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/25 disabled:opacity-50"
             >
-              {isSubmitting ? "Salvando..." : "Criar Despesa"}
+              {isSubmitting ? "Salvando..." : isEditing ? "Salvar" : "Criar Despesa"}
             </button>
           </div>
         </form>

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { withAuth, errorResponse } from "@/lib/api-utils";
 import { isFixedIncome } from "@/types";
 import {
   fetchCDIHistory,
@@ -9,44 +8,44 @@ import {
   calculateIR,
   type YieldCalculationResult,
 } from "@/lib/cdi-history-service";
+import { investmentRepository } from "@/repositories";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
 
+export async function GET(request: NextRequest, { params }: RouteParams) {
+  return withAuth(async (session) => {
     const { id } = await params;
 
-    const investment = await prisma.investment.findUnique({
-      where: { id },
-      include: {
-        operations: {
-          orderBy: { date: "asc" },
-        },
-      },
-    });
+    // Use repository for proper decryption of encrypted fields
+    const investmentRaw = await investmentRepository.findById(id, session.user.id, true);
 
-    if (!investment) {
-      return NextResponse.json(
-        { error: "Investimento não encontrado" },
-        { status: 404 }
-      );
+    if (!investmentRaw) {
+      return errorResponse("Investimento não encontrado", 404, "NOT_FOUND");
     }
 
-    if (investment.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
-    }
+    // Type assertion for included operations
+    const investment = investmentRaw as typeof investmentRaw & {
+      operations?: Array<{
+        id: string;
+        type: string;
+        quantity: number;
+        price: number;
+        total: number;
+        date: Date;
+        fees: number;
+        notes: string | null;
+      }>;
+    };
+
+    // Sort operations by date ascending for yield calculation
+    const sortedOperations = [...(investment.operations || [])].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
 
     if (!isFixedIncome(investment.type as Parameters<typeof isFixedIncome>[0])) {
-      return NextResponse.json(
-        { error: "Este investimento não é de renda fixa" },
-        { status: 400 }
-      );
+      return errorResponse("Este investimento não é de renda fixa", 400, "NOT_FIXED_INCOME");
     }
 
     if (!investment.indexer || investment.indexer === "NA") {
@@ -61,14 +60,11 @@ export async function GET(
     const cdiHistory = await fetchCDIHistory(1500);
 
     if (!cdiHistory) {
-      return NextResponse.json(
-        { error: "Não foi possível buscar histórico do CDI" },
-        { status: 503 }
-      );
+      return errorResponse("Não foi possível buscar histórico do CDI", 503, "CDI_UNAVAILABLE");
     }
 
-    const deposits = investment.operations.filter(op => op.type === "deposit" || op.type === "buy");
-    const withdrawals = investment.operations.filter(op => op.type === "sell" || op.type === "withdraw");
+    const deposits = sortedOperations.filter(op => op.type === "deposit" || op.type === "buy");
+    const withdrawals = sortedOperations.filter(op => op.type === "sell" || op.type === "withdraw");
 
     if (deposits.length === 0) {
       return NextResponse.json({
@@ -98,12 +94,12 @@ export async function GET(
     for (const deposit of deposits) {
       const depositDate = new Date(deposit.date).toISOString().split("T")[0];
 
-      const depositValue = deposit.price;
+      const depositValue = deposit.price as unknown as number;
 
       const result = calculateFixedIncomeYield(
         depositValue,
         depositDate,
-        investment.interestRate || 100,
+        (investment.interestRate as unknown as number) || 100,
         investment.indexer,
         cdiHistory
       );
@@ -134,7 +130,7 @@ export async function GET(
 
     let totalWithdrawals = 0;
     for (const withdrawal of withdrawals) {
-      totalWithdrawals += withdrawal.price;
+      totalWithdrawals += withdrawal.price as unknown as number;
     }
 
     totalNetValue = totalGrossValue - totalIofAmount - totalIrAmount - totalWithdrawals;
@@ -190,11 +186,5 @@ export async function GET(
         totalDays: cdiHistory.entries.length,
       },
     });
-  } catch (error) {
-    console.error("Erro ao calcular rendimento:", error);
-    return NextResponse.json(
-      { error: "Erro ao calcular rendimento" },
-      { status: 500 }
-    );
-  }
+  });
 }

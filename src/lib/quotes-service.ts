@@ -1,4 +1,5 @@
-
+import { CACHE_DURATIONS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/utils";
 
 interface BrapiQuote {
   symbol: string;
@@ -43,7 +44,6 @@ const cache: {
   coingecko: null,
 };
 
-const CACHE_DURATION = 2 * 60 * 1000;
 
 const CRYPTO_TICKER_TO_COINGECKO: Record<string, string> = {
   BTC: "bitcoin",
@@ -94,7 +94,7 @@ const CRYPTO_TICKER_TO_COINGECKO: Record<string, string> = {
 
 function isCacheValid(entry: CacheEntry | null): boolean {
   if (!entry) return false;
-  return Date.now() - entry.timestamp < CACHE_DURATION;
+  return Date.now() - entry.timestamp < CACHE_DURATIONS.QUOTES;
 }
 
 function delay(ms: number): Promise<void> {
@@ -158,7 +158,7 @@ async function fetchSingleBrapiQuote(
       ticker: upperTicker,
       price: 0,
       source: "error",
-      error: error instanceof Error ? error.message : "Erro desconhecido",
+      error: getErrorMessage(error),
     };
   }
 }
@@ -304,7 +304,7 @@ async function fetchCoinGeckoQuotes(tickers: string[]): Promise<QuoteResult[]> {
       ticker,
       price: 0,
       source: "error" as const,
-      error: error instanceof Error ? error.message : "Erro desconhecido",
+      error: getErrorMessage(error),
     }));
   }
 

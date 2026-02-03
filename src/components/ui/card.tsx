@@ -78,7 +78,7 @@ const summaryCardVariants = {
   income: "from-emerald-500/90 to-teal-600/90 shadow-emerald-500/20",
   expense: "from-orange-500/90 to-red-500/90 shadow-orange-500/20",
   balance: "from-cyan-500/90 to-blue-600/90 shadow-cyan-500/20",
-  neutral: "from-violet-500/90 to-purple-600/90 shadow-violet-500/20",
+  neutral: "from-[var(--color-primary)]/90 to-[var(--color-secondary)]/90 shadow-primary",
 };
 
 const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(

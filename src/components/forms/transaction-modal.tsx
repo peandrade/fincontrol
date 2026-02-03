@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
 import { X, Bookmark } from "lucide-react";
 import { formatDateForInput } from "@/lib/utils";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { useCategoryStore } from "@/store/category-store";
-import type { CreateTransactionInput, TransactionType, TransactionTemplate } from "@/types";
+import type { CreateTransactionInput, Transaction, TransactionType, TransactionTemplate } from "@/types";
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -14,6 +14,7 @@ interface TransactionModalProps {
   isSubmitting: boolean;
   initialType?: TransactionType;
   template?: TransactionTemplate | null;
+  editTransaction?: Transaction | null;
 }
 
 export function TransactionModal({
@@ -23,7 +24,9 @@ export function TransactionModal({
   isSubmitting,
   initialType,
   template,
+  editTransaction,
 }: TransactionModalProps) {
+  const isEditing = !!editTransaction;
   const [type, setType] = useState<TransactionType>("expense");
   const [value, setValue] = useState("");
   const [category, setCategory] = useState("");
@@ -32,7 +35,25 @@ export function TransactionModal({
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [templateName, setTemplateName] = useState("");
 
+  const titleId = useId();
   const { fetchCategories, getExpenseCategories, getIncomeCategories } = useCategoryStore();
+
+  // Handle Escape key to close modal
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSubmitting) {
+        onClose();
+      }
+    },
+    [onClose, isSubmitting]
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [isOpen, handleKeyDown]);
 
   useEffect(() => {
     fetchCategories();
@@ -40,7 +61,15 @@ export function TransactionModal({
 
   useEffect(() => {
     if (isOpen) {
-      if (template) {
+      if (editTransaction) {
+        setType(editTransaction.type);
+        setCategory(editTransaction.category);
+        setDescription(editTransaction.description || "");
+        setValue(editTransaction.value?.toString() || "");
+        setDate(formatDateForInput(new Date(editTransaction.date)));
+        setSaveAsTemplate(false);
+        setTemplateName("");
+      } else if (template) {
         setType(template.type);
         setCategory(template.category);
         setDescription(template.description || "");
@@ -58,7 +87,7 @@ export function TransactionModal({
         setTemplateName("");
       }
     }
-  }, [isOpen, template, initialType]);
+  }, [isOpen, template, initialType, editTransaction]);
 
   const categoryList = type === "income" ? getIncomeCategories() : getExpenseCategories();
 
@@ -94,16 +123,36 @@ export function TransactionModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp">
-        {}
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)]">
-          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Nova Transação</h2>
+          <h2
+            id={titleId}
+            className="text-xl font-semibold text-[var(--text-primary)]"
+          >
+            {isEditing ? "Editar Transação" : "Nova Transação"}
+          </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            disabled={isSubmitting}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+            aria-label="Fechar modal"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
         </div>
 
@@ -148,7 +197,7 @@ export function TransactionModal({
                 value={value}
                 onChange={setValue}
                 placeholder="0,00"
-                className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 pl-12 pr-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+                className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 pl-12 pr-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
                 required
               />
             </div>
@@ -162,7 +211,7 @@ export function TransactionModal({
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all appearance-none cursor-pointer"
+              className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all appearance-none cursor-pointer"
               required
             >
               <option value="" className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">
@@ -185,7 +234,7 @@ export function TransactionModal({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+              className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
               required
             />
           </div>
@@ -200,7 +249,7 @@ export function TransactionModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Ex: Compras do mês"
-              className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+              className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
             />
           </div>
 
@@ -212,7 +261,7 @@ export function TransactionModal({
                   type="checkbox"
                   checked={saveAsTemplate}
                   onChange={(e) => setSaveAsTemplate(e.target.checked)}
-                  className="w-4 h-4 rounded border-[var(--border-color-strong)] bg-[var(--bg-hover)] text-violet-500 focus:ring-violet-500 focus:ring-offset-0"
+                  className="w-4 h-4 rounded border-[var(--border-color-strong)] bg-[var(--bg-hover)] text-primary-color focus:ring-[var(--color-primary)] focus:ring-offset-0"
                 />
                 <Bookmark className="w-4 h-4 text-[var(--text-dimmed)]" />
                 <span className="text-sm font-medium text-[var(--text-muted)]">
@@ -227,7 +276,7 @@ export function TransactionModal({
                     value={templateName}
                     onChange={(e) => setTemplateName(e.target.value)}
                     placeholder="Nome do atalho"
-                    className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-2.5 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all text-sm"
+                    className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-2.5 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all text-sm"
                     required={saveAsTemplate}
                   />
                 </div>
@@ -247,9 +296,9 @@ export function TransactionModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 py-3 px-4 rounded-xl font-medium bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-500 hover:to-indigo-500 transition-all shadow-lg shadow-violet-500/25 disabled:opacity-50"
+              className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary disabled:opacity-50"
             >
-              {isSubmitting ? "Salvando..." : "Adicionar"}
+              {isSubmitting ? "Salvando..." : isEditing ? "Salvar" : "Adicionar"}
             </button>
           </div>
         </form>

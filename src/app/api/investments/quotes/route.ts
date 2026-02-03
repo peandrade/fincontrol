@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { fetchQuotes } from "@/lib/quotes-service";
+import { withAuth, errorResponse } from "@/lib/api-utils";
 import { InvestmentType } from "@prisma/client";
+import { checkRateLimit, getClientIp, rateLimitPresets } from "@/lib/rate-limit";
+import { investmentRepository } from "@/repositories";
 
 const QUOTABLE_TYPES: InvestmentType[] = [
   InvestmentType.stock,
@@ -10,154 +12,140 @@ const QUOTABLE_TYPES: InvestmentType[] = [
   InvestmentType.crypto,
 ];
 
-export async function POST() {
-  try {
-    console.log("[Quotes API] Iniciando busca de investimentos...");
+export async function POST(request: Request) {
+  // Rate limit: 20 external API requests per minute
+  const rateLimit = checkRateLimit(getClientIp(request), {
+    ...rateLimitPresets.externalApi,
+    identifier: "quotes-update",
+  });
 
-    const investments = await prisma.investment.findMany({
-      where: {
-        ticker: { not: null },
-        type: { in: QUOTABLE_TYPES },
-      },
-      select: {
-        id: true,
-        ticker: true,
-        type: true,
-        quantity: true,
-        totalInvested: true,
-      },
-    });
+  if (!rateLimit.success) {
+    return errorResponse("Muitas requisições. Tente novamente em breve.", 429, "RATE_LIMITED");
+  }
 
-    console.log(`[Quotes API] Encontrados ${investments.length} investimentos`);
+  return withAuth(async (session) => {
+    try {
+      // Use repository for proper decryption of encrypted fields
+      const investments = await investmentRepository.findByType(
+        session.user.id,
+        QUOTABLE_TYPES,
+        { withTicker: true }
+      );
 
-    if (investments.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: "Nenhum investimento para atualizar",
-        updated: 0,
-        errors: [],
-      });
-    }
-
-    console.log("[Quotes API] Buscando cotações...");
-
-    const quotes = await fetchQuotes(
-      investments.map((inv) => ({ ticker: inv.ticker!, type: inv.type }))
-    );
-
-    console.log(`[Quotes API] Cotações recebidas: ${quotes.size}`);
-
-    const updated: string[] = [];
-    const errors: Array<{ ticker: string; error: string }> = [];
-
-    for (const investment of investments) {
-      const ticker = investment.ticker!.toUpperCase();
-      const quote = quotes.get(ticker);
-
-      if (!quote || quote.source === "error") {
-        errors.push({
-          ticker: investment.ticker!,
-          error: quote?.error || "Cotação não encontrada",
+      if (investments.length === 0) {
+        return NextResponse.json({
+          success: true,
+          message: "Nenhum investimento para atualizar",
+          updated: 0,
+          errors: [],
         });
-        continue;
       }
 
-      const currentPrice = quote.price;
-      const currentValue = investment.quantity * currentPrice;
-      const profitLoss = currentValue - investment.totalInvested;
-      const profitLossPercent =
-        investment.totalInvested > 0
-          ? (profitLoss / investment.totalInvested) * 100
-          : 0;
+      const quotes = await fetchQuotes(
+        investments.map((inv) => ({ ticker: inv.ticker!, type: inv.type }))
+      );
 
-      await prisma.investment.update({
-        where: { id: investment.id },
-        data: {
+      const updated: string[] = [];
+      const errors: Array<{ ticker: string; error: string }> = [];
+
+      for (const investment of investments) {
+        const ticker = investment.ticker!.toUpperCase();
+        const quote = quotes.get(ticker);
+
+        if (!quote || quote.source === "error") {
+          errors.push({
+            ticker: investment.ticker!,
+            error: quote?.error || "Cotação não encontrada",
+          });
+          continue;
+        }
+
+        const currentPrice = quote.price;
+        const quantity = investment.quantity as unknown as number;
+        const totalInvested = investment.totalInvested as unknown as number;
+        const currentValue = quantity * currentPrice;
+        const profitLoss = currentValue - totalInvested;
+        const profitLossPercent = totalInvested > 0 ? (profitLoss / totalInvested) * 100 : 0;
+
+        // Use repository for update with encryption
+        await investmentRepository.updateById(investment.id, {
           currentPrice,
           currentValue,
           profitLoss,
           profitLossPercent,
-        },
-      });
+        });
 
-      updated.push(investment.ticker!);
-    }
+        updated.push(investment.ticker!);
+      }
 
-    return NextResponse.json({
-      success: true,
-      message: `${updated.length} cotações atualizadas`,
-      updated: updated.length,
-      updatedTickers: updated,
-      errors,
-    });
-  } catch (error) {
-    console.error("Erro ao atualizar cotações:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Erro ao atualizar cotações",
-        details: error instanceof Error ? error.message : "Erro desconhecido",
-      },
-      { status: 500 }
-    );
-  }
-}
-
-export async function GET() {
-  try {
-    const investments = await prisma.investment.findMany({
-      where: {
-        ticker: { not: null },
-        type: { in: QUOTABLE_TYPES },
-      },
-      select: {
-        id: true,
-        ticker: true,
-        type: true,
-        name: true,
-        currentPrice: true,
-      },
-    });
-
-    if (investments.length === 0) {
       return NextResponse.json({
         success: true,
-        quotes: [],
+        message: `${updated.length} cotações atualizadas`,
+        updated: updated.length,
+        updatedTickers: updated,
+        errors,
       });
+    } catch (error) {
+      console.error("Erro ao atualizar cotações:", error);
+      return errorResponse("Erro ao atualizar cotações", 500, "UPDATE_QUOTES_ERROR");
     }
+  });
+}
 
-    const quotes = await fetchQuotes(
-      investments.map((inv) => ({ ticker: inv.ticker!, type: inv.type }))
-    );
+export async function GET(request: Request) {
+  // Rate limit: 20 external API requests per minute
+  const rateLimit = checkRateLimit(getClientIp(request), {
+    ...rateLimitPresets.externalApi,
+    identifier: "quotes-fetch",
+  });
 
-    const results = investments.map((inv) => {
-      const quote = quotes.get(inv.ticker!.toUpperCase());
-      return {
-        id: inv.id,
-        ticker: inv.ticker,
-        name: inv.name,
-        type: inv.type,
-        oldPrice: inv.currentPrice,
-        newPrice: quote?.price || null,
-        change: quote?.change,
-        changePercent: quote?.changePercent,
-        source: quote?.source || "error",
-        error: quote?.error,
-      };
-    });
-
-    return NextResponse.json({
-      success: true,
-      quotes: results,
-    });
-  } catch (error) {
-    console.error("Erro ao buscar cotações:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Erro ao buscar cotações",
-      },
-      { status: 500 }
-    );
+  if (!rateLimit.success) {
+    return errorResponse("Muitas requisições. Tente novamente em breve.", 429, "RATE_LIMITED");
   }
+
+  return withAuth(async (session) => {
+    try {
+      // Use repository for proper decryption of encrypted fields
+      const investments = await investmentRepository.findByType(
+        session.user.id,
+        QUOTABLE_TYPES,
+        { withTicker: true }
+      );
+
+      if (investments.length === 0) {
+        return NextResponse.json({
+          success: true,
+          quotes: [],
+        });
+      }
+
+      const quotes = await fetchQuotes(
+        investments.map((inv) => ({ ticker: inv.ticker!, type: inv.type }))
+      );
+
+      const results = investments.map((inv) => {
+        const quote = quotes.get(inv.ticker!.toUpperCase());
+        return {
+          id: inv.id,
+          ticker: inv.ticker,
+          name: inv.name,
+          type: inv.type,
+          oldPrice: inv.currentPrice,
+          newPrice: quote?.price || null,
+          change: quote?.change,
+          changePercent: quote?.changePercent,
+          source: quote?.source || "error",
+          error: quote?.error,
+        };
+      });
+
+      return NextResponse.json({
+        success: true,
+        quotes: results,
+      });
+    } catch (error) {
+      console.error("Erro ao buscar cotações:", error);
+      return errorResponse("Erro ao buscar cotações", 500, "FETCH_QUOTES_ERROR");
+    }
+  });
 }

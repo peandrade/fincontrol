@@ -1,15 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, ChevronDown, ChevronLeft, ArrowRight, PiggyBank, AlertTriangle, Wallet } from "lucide-react";
-import { formatDateForInput, formatCurrency } from "@/lib/utils";
-import { CurrencyInput } from "@/components/ui/currency-input";
-import {
-  INVESTMENT_TYPES,
-  getInvestmentTypeLabel,
-  getInvestmentTypeIcon,
-} from "@/lib/constants";
+import { useState, useEffect, useId } from "react";
+import { X, ChevronDown, ChevronLeft, ArrowRight } from "lucide-react";
+import { formatDateForInput } from "@/lib/utils";
+import { getInvestmentTypeLabel, getInvestmentTypeIcon } from "@/lib/constants";
 import { isFixedIncome, INDEXER_TYPES } from "@/types";
+import { InvestmentTypeSelector } from "./investment-type-selector";
+import { InvestmentDepositForm } from "./investment-deposit-form";
 import type { CreateInvestmentInput, InvestmentType, IndexerType } from "@/types";
 
 interface InvestmentModalProps {
@@ -25,7 +22,7 @@ export function InvestmentModal({
   onSave,
   isSubmitting,
 }: InvestmentModalProps) {
-
+  const titleId = useId();
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   const [type, setType] = useState<InvestmentType>("stock");
@@ -47,8 +44,6 @@ export function InvestmentModal({
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
   const showFixedIncomeFields = isFixedIncome(type);
-  const depositValue = parseFloat(initialDeposit) || 0;
-  const hasInsufficientBalance = availableBalance !== null && depositValue > availableBalance && !skipBalanceCheck;
 
   useEffect(() => {
     if (isOpen) {
@@ -142,7 +137,7 @@ export function InvestmentModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
       <style>{`
         .indexer-select {
           -webkit-appearance: none;
@@ -158,28 +153,34 @@ export function InvestmentModal({
           color: var(--text-primary);
         }
       `}</style>
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-2xl w-full max-w-md shadow-2xl animate-slideUp">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color-strong)] rounded-t-2xl sm:rounded-2xl w-full max-w-md shadow-2xl animate-slideUp max-h-[90vh] overflow-y-auto"
+      >
         {}
-        <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)]">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[var(--border-color-strong)] sticky top-0 bg-[var(--bg-secondary)] z-10">
+          <div className="flex items-center gap-2 sm:gap-3">
             {(step === 2 || step === 3) && (
               <button
                 onClick={handleBack}
-                className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
+                className="p-1.5 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover-strong)] rounded-lg transition-colors"
+                aria-label="Voltar"
               >
-                <ChevronLeft className="w-5 h-5 text-[var(--text-muted)]" />
+                <ChevronLeft className="w-5 h-5 text-[var(--text-muted)]" aria-hidden="true" />
               </button>
             )}
             <div>
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+              <h2 id={titleId} className="text-lg sm:text-xl font-semibold text-[var(--text-primary)]">
                 {step === 1 ? "Novo Investimento" : step === 3 ? "Depósito Inicial" : "Detalhes do Ativo"}
               </h2>
               {(step === 2 || step === 3) && (
-                <p className="text-sm text-[var(--text-dimmed)] flex items-center gap-1.5 mt-0.5">
-                  <span className="text-lg">{getInvestmentTypeIcon(type)}</span>
+                <p className="text-xs sm:text-sm text-[var(--text-dimmed)] flex items-center gap-1.5 mt-0.5">
+                  <span className="text-base sm:text-lg">{getInvestmentTypeIcon(type)}</span>
                   {getInvestmentTypeLabel(type)}
                   {showFixedIncomeFields && (
-                    <span className="text-[var(--text-dimmed)]">• Etapa {step === 2 ? "1" : "2"}/2</span>
+                    <span className="text-[var(--text-dimmed)]">• {step === 2 ? "1" : "2"}/2</span>
                   )}
                 </p>
               )}
@@ -187,48 +188,24 @@ export function InvestmentModal({
           </div>
           <button
             onClick={handleClose}
-            className="p-2 hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
+            className="p-2 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover-strong)] rounded-lg transition-colors"
+            aria-label="Fechar"
           >
-            <X className="w-5 h-5 text-[var(--text-muted)]" />
+            <X className="w-5 h-5 text-[var(--text-muted)]" aria-hidden="true" />
           </button>
         </div>
 
-        {}
+        {/* Step 1: Type Selection */}
         {step === 1 && (
-          <div className="p-6">
-            <p className="text-sm text-[var(--text-muted)] mb-4">
-              Selecione o tipo de investimento:
-            </p>
-            <div className="grid grid-cols-3 gap-3">
-              {INVESTMENT_TYPES.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => handleSelectType(t)}
-                  className="p-4 rounded-xl text-center transition-all bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] hover:text-[var(--text-primary)] border border-transparent hover:border-violet-500/50 group"
-                >
-                  <span className="text-2xl block mb-2 group-hover:scale-110 transition-transform">
-                    {getInvestmentTypeIcon(t)}
-                  </span>
-                  <span className="text-xs font-medium">{getInvestmentTypeLabel(t)}</span>
-                </button>
-              ))}
-            </div>
-            <div className="flex justify-end mt-6">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="py-2.5 px-5 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
+          <InvestmentTypeSelector
+            onSelectType={handleSelectType}
+            onCancel={handleClose}
+          />
         )}
 
         {}
         {step === 2 && (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3 sm:space-y-4">
             {}
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
@@ -243,7 +220,7 @@ export function InvestmentModal({
                     ? "Ex: CDB Nubank 100% CDI, Tesouro Selic 2029"
                     : "Ex: Petrobras, Bitcoin, IVVB11"
                 }
-                className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+                className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
                 autoFocus
                 required
               />
@@ -260,7 +237,7 @@ export function InvestmentModal({
                   value={ticker}
                   onChange={(e) => setTicker(e.target.value.toUpperCase())}
                   placeholder="Ex: PETR4, BTC, IVVB11"
-                  className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all uppercase"
+                  className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all uppercase"
                 />
               </div>
             )}
@@ -275,7 +252,7 @@ export function InvestmentModal({
                 value={institution}
                 onChange={(e) => setInstitution(e.target.value)}
                 placeholder={showFixedIncomeFields ? "Ex: Nubank, XP, Inter" : "Ex: XP, Clear, Rico"}
-                className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+                className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
               />
             </div>
 
@@ -296,7 +273,7 @@ export function InvestmentModal({
                           setIndexer(newIndexer);
                           if (newIndexer === "NA") setInterestRate("");
                         }}
-                        className="indexer-select w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 pr-10 text-[var(--text-primary)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all appearance-none cursor-pointer"
+                        className="indexer-select w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 pr-10 text-[var(--text-primary)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all appearance-none cursor-pointer"
                       >
                         {INDEXER_TYPES.map((idx) => (
                           <option key={idx.value} value={idx.value}>
@@ -318,7 +295,7 @@ export function InvestmentModal({
                       onChange={(e) => setInterestRate(e.target.value)}
                       placeholder={indexer === "CDI" ? "100" : indexer === "NA" ? "-" : "5.5"}
                       disabled={indexer === "NA"}
-                      className={`w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all ${indexer === "NA" ? "opacity-50 cursor-not-allowed" : ""}`}
+                      className={`w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all ${indexer === "NA" ? "opacity-50 cursor-not-allowed" : ""}`}
                     />
                   </div>
                 </div>
@@ -345,7 +322,7 @@ export function InvestmentModal({
                           setNoMaturity(e.target.checked);
                           if (e.target.checked) setMaturityDate("");
                         }}
-                        className="w-4 h-4 rounded border-[var(--border-color-strong)] bg-[var(--bg-hover)] text-violet-600 focus:ring-violet-500 focus:ring-offset-0 cursor-pointer"
+                        className="w-4 h-4 rounded border-[var(--border-color-strong)] bg-[var(--bg-hover)] text-primary-color focus:ring-[var(--color-primary)] focus:ring-offset-0 cursor-pointer"
                       />
                       <span className="text-xs text-[var(--text-muted)]">Sem vencimento</span>
                     </label>
@@ -359,7 +336,7 @@ export function InvestmentModal({
                       type="date"
                       value={maturityDate}
                       onChange={(e) => setMaturityDate(e.target.value)}
-                      className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+                      className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
                     />
                   )}
                 </div>
@@ -378,7 +355,7 @@ export function InvestmentModal({
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Anotações opcionais..."
                   rows={2}
-                  className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all resize-none"
+                  className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all resize-none"
                 />
               </div>
             )}
@@ -398,7 +375,7 @@ export function InvestmentModal({
                   type="button"
                   onClick={handleAdvanceToDeposit}
                   disabled={!name}
-                  className="flex-1 py-3 px-4 rounded-xl font-medium bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-500 hover:to-indigo-500 transition-all shadow-lg shadow-violet-500/25 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   Avançar
                   <ArrowRight className="w-4 h-4" />
@@ -407,7 +384,7 @@ export function InvestmentModal({
                 <button
                   type="submit"
                   disabled={isSubmitting || !name}
-                  className="flex-1 py-3 px-4 rounded-xl font-medium bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-500 hover:to-indigo-500 transition-all shadow-lg shadow-violet-500/25 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? "Salvando..." : "Criar Ativo"}
                   {!isSubmitting && <ArrowRight className="w-4 h-4" />}
@@ -417,136 +394,25 @@ export function InvestmentModal({
           </form>
         )}
 
-        {}
+        {/* Step 3: Deposit Form */}
         {step === 3 && showFixedIncomeFields && (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            {}
-            <div className="bg-[var(--bg-hover)] rounded-xl p-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-4 h-4 text-[var(--text-muted)]" />
-                <span className="text-sm text-[var(--text-muted)]">Saldo Disponível:</span>
-              </div>
-              <span className={`font-medium ${availableBalance !== null && availableBalance < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                {isLoadingBalance ? "Carregando..." : availableBalance !== null ? formatCurrency(availableBalance) : "—"}
-              </span>
-            </div>
-
-            {}
-            <div className="bg-[var(--bg-hover)] rounded-xl p-3 flex items-center gap-2">
-              <span className="text-sm text-[var(--text-muted)]">Ativo:</span>
-              <span className="text-[var(--text-primary)] font-medium">
-                {name}{institution && ` • ${institution}`}
-              </span>
-            </div>
-
-            {}
-            <div className={`bg-gradient-to-br ${hasInsufficientBalance ? 'from-red-500/10 to-orange-500/10 border-red-500/20' : 'from-emerald-500/10 to-teal-500/10 border-emerald-500/20'} border rounded-xl p-4 space-y-4`}>
-              <div className="flex items-center gap-2">
-                <PiggyBank className={`w-4 h-4 ${hasInsufficientBalance ? 'text-red-400' : 'text-emerald-400'}`} />
-                <span className={`text-sm font-medium ${hasInsufficientBalance ? 'text-red-400' : 'text-emerald-400'}`}>Depósito Inicial</span>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                  Valor *
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">R$</span>
-                  <CurrencyInput
-                    value={initialDeposit}
-                    onChange={setInitialDeposit}
-                    placeholder="0,00"
-                    className={`w-full bg-[var(--bg-hover)] border rounded-xl py-3 pl-12 pr-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none transition-all ${hasInsufficientBalance ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500' : 'border-[var(--border-color-strong)] focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'}`}
-                    autoFocus
-                    required
-                  />
-                </div>
-              </div>
-
-              {}
-              {hasInsufficientBalance && (
-                <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                  <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm">
-                    <p className="text-red-400 font-medium">Saldo insuficiente</p>
-                    <p className="text-[var(--text-muted)] text-xs mt-0.5">
-                      Você precisa de {formatCurrency(depositValue)} mas tem apenas {formatCurrency(availableBalance || 0)} disponível.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                  Data do Depósito *
-                </label>
-                <input
-                  type="date"
-                  value={depositDate}
-                  onChange={(e) => setDepositDate(e.target.value)}
-                  max={formatDateForInput(new Date())}
-                  className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
-                  required
-                />
-              </div>
-
-              <p className="text-xs text-[var(--text-dimmed)]">
-                Mínimo R$ 1,00. Novas operações só podem ser registradas a partir desta data.
-              </p>
-            </div>
-
-            {}
-            <div className="bg-[var(--bg-hover)] rounded-xl p-3">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={skipBalanceCheck}
-                  onChange={(e) => setSkipBalanceCheck(e.target.checked)}
-                  className="w-4 h-4 mt-0.5 rounded border-[var(--border-color-strong)] bg-[var(--bg-hover)] text-violet-600 focus:ring-violet-500 focus:ring-offset-0 cursor-pointer"
-                />
-                <div>
-                  <span className="text-sm text-[var(--text-primary)]">Investimento já existente</span>
-                  <p className="text-xs text-[var(--text-dimmed)] mt-0.5">
-                    Marque esta opção se você já tinha esse investimento antes de usar o sistema. O valor não será descontado do seu saldo.
-                  </p>
-                </div>
-              </label>
-            </div>
-
-            {}
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                Observações
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Anotações opcionais..."
-                rows={2}
-                className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all resize-none"
-              />
-            </div>
-
-            {}
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleBack}
-                className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all flex items-center justify-center gap-2"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Voltar
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || !initialDeposit || parseFloat(initialDeposit) < 1 || hasInsufficientBalance}
-                className="flex-1 py-3 px-4 rounded-xl font-medium bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-400 hover:to-teal-400 transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? "Salvando..." : skipBalanceCheck ? "Criar (Sem Desconto)" : "Criar Ativo"}
-                {!isSubmitting && <ArrowRight className="w-4 h-4" />}
-              </button>
-            </div>
-          </form>
+          <InvestmentDepositForm
+            name={name}
+            institution={institution}
+            initialDeposit={initialDeposit}
+            onInitialDepositChange={setInitialDeposit}
+            depositDate={depositDate}
+            onDepositDateChange={setDepositDate}
+            availableBalance={availableBalance}
+            isLoadingBalance={isLoadingBalance}
+            skipBalanceCheck={skipBalanceCheck}
+            onSkipBalanceCheckChange={setSkipBalanceCheck}
+            notes={notes}
+            onNotesChange={setNotes}
+            isSubmitting={isSubmitting}
+            onBack={handleBack}
+            onSubmit={handleSubmit}
+          />
         )}
       </div>
     </div>
