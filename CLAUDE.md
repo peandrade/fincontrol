@@ -304,69 +304,69 @@ npx prisma generate   # Generate client
 
 ## Melhorias Futuras
 
-### Criptografia de Dados Sensíveis (Pendente)
+### Animações nos Ícones com Lordicon (Pendente)
 
-**Objetivo:** Armazenar valores financeiros criptografados no banco de dados para maior privacidade.
+**Objetivo:** Substituir ícones Lucide estáticos por ícones animados Lordicon com animação no hover.
+
+**Stack:**
+- `@lordicon/element` (web component `<lord-icon>`)
+- `lottie-web` (engine de animação)
+- Trigger: `hover` (anima ao passar o mouse, reseta ao sair)
+
+**Hospedagem:** Self-hosted em `public/icons/lordicon/` (sem CDN externo)
+- Zero dependência externa — funciona mesmo se Lordicon cair
+- Carregamento mais rápido (mesmo domínio, sem DNS lookup extra)
+- Funciona offline em dev
+- Cada JSON pesa ~15-50KB
 
 **Como funciona:**
-```
-Salvar: valor → encrypt(AES-256) → banco (dado ilegível)
-Ler:    banco → decrypt() → valor (exibe normal na aplicação)
-```
+1. Instalar `@lordicon/element` e `lottie-web`
+2. Criar componente wrapper `"use client"` que chama `defineElement()` uma vez
+3. Usar `<lord-icon src="/icons/lordicon/nome.json" trigger="hover" />` nos componentes
 
-**Dados a criptografar:**
-- `Transaction.value`, `Transaction.description`
-- `Investment.quantity`, `Investment.averagePrice`
-- `Purchase.value`
-- `Budget.limit`
-- `FinancialGoal.targetValue`, `currentValue`
-- `RecurringExpense.value`
-- `Operation.quantity`, `Operation.price`
+**Ícones a substituir:**
 
-**Segurança:**
-- Algoritmo: **AES-256** (padrão bancário, impossível quebrar sem a chave)
-- Chave: `ENCRYPTION_KEY` em variável de ambiente (nunca no código)
-- Sem a chave, dados são ilegíveis mesmo com acesso direto ao banco
-- Nem IA, nem ferramentas online conseguem reverter
+| Componente | Ícone Lucide | Lordicon (buscar em lordicon.com) |
+|------------|-------------|----------------------------------|
+| Sidebar nav | LayoutDashboard | Dashboard/Home |
+| Sidebar nav | TrendingUp | Trending/Growth |
+| Sidebar nav | CreditCard | Credit Card |
+| Sidebar nav | FileBarChart | Bar Chart/Report |
+| Sidebar bottom | Sun | Sun/Day |
+| Sidebar bottom | Moon | Moon/Night |
+| Sidebar bottom | User | User/Profile |
+| Sidebar bottom | LogOut | Logout/Sign Out |
+| Sidebar bottom | ChevronsLeft/Right | Chevron/Arrow |
+| Sidebar bottom | Github | Github (ou manter Lucide) |
+| Sidebar bottom | Linkedin | Linkedin (ou manter Lucide) |
+| Notification | Bell | Bell/Notification |
+| Dashboard | CalendarDays | Calendar |
+| Conta cards | Palette | Palette/Paint |
+| Conta cards | Sliders | Sliders/Equalizer |
+| Conta cards | Settings | Gear/Settings |
+| Conta cards | Database | Database/Storage |
+| Conta cards | Shield | Shield/Security |
+| Conta admin | ShieldCheck | Shield Check |
+| Notification panel | ArrowLeft | Arrow Left |
+| Notification panel | X | Close/X |
+| Notification panel | CheckCheck | Checkmark/Done |
 
-**Implementação necessária:**
-1. Criar `lib/encryption.ts` com funções `encrypt()` e `decrypt()`
-2. Adicionar `ENCRYPTION_KEY` nas variáveis de ambiente
-3. Modificar APIs para criptografar ao salvar e descriptografar ao ler
-4. Migrar dados existentes (script de migração)
+**Passos para implementar:**
+1. Acessar lordicon.com/icons e buscar cada ícone
+2. Verificar quais são free (sem badge "PRO"); se necessário, assinar 1 mês PRO ($16), baixar tudo e cancelar
+3. Baixar os JSONs (Export > Lottie JSON) e salvar em `public/icons/lordicon/`
+4. Instalar: `npm install @lordicon/element lottie-web`
+5. Criar provider/wrapper component
+6. Substituir `<Icon>` Lucide por `<lord-icon>` nos componentes listados
 
-**Trade-offs:**
-- Perde capacidade de fazer cálculos no banco (SUM, AVG, etc.)
-- Todos os cálculos precisam ser feitos na aplicação após decrypt
-- Aumenta levemente o tempo de resposta das APIs
+**Famílias recomendadas:**
+- **System Regular/Solid** — 24px grid, minimalista, ideal para sidebar/nav (suporta CSS Variables)
+- **Wired Outline** — 2151 ícones, estilo clean com animações elaboradas
 
-**Exemplo de uso:**
-```typescript
-// lib/encryption.ts
-import crypto from 'crypto';
+**Lordicon Free vs PRO:**
+- Free: 8.900+ ícones (requer atribuição ao Lordicon)
+- PRO: +31.100 ícones ($16/mês ou $96/ano), sem atribuição, ícones baixados são seus para sempre mesmo após cancelar
 
-const ALGORITHM = 'aes-256-gcm';
-const KEY = Buffer.from(process.env.ENCRYPTION_KEY!, 'hex');
-
-export function encrypt(value: number): string {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv(ALGORITHM, KEY, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(value.toString(), 'utf8'),
-    cipher.final()
-  ]);
-  const tag = cipher.getAuthTag();
-  return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
-}
-
-export function decrypt(encrypted: string): number {
-  const [ivHex, tagHex, dataHex] = encrypted.split(':');
-  const iv = Buffer.from(ivHex, 'hex');
-  const tag = Buffer.from(tagHex, 'hex');
-  const data = Buffer.from(dataHex, 'hex');
-  const decipher = crypto.createDecipheriv(ALGORITHM, KEY, iv);
-  decipher.setAuthTag(tag);
-  const decrypted = Buffer.concat([decipher.update(data), decipher.final()]);
-  return parseFloat(decrypted.toString('utf8'));
-}
-```
+**Notas:**
+- Ícones sociais (Github, Linkedin) podem não ter equivalente free; manter Lucide nesses casos
+- Bottom tabs mobile não precisam de animação (touch não tem hover)

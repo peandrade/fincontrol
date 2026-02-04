@@ -30,6 +30,8 @@ model User {
   transactionTemplates TransactionTemplate[]
   transactions         Transaction[]
   feedbacks            Feedback[]
+  notifications        Notification[]
+  notificationsRead    NotificationRead[]
 
   @@map("users")
 }
@@ -320,17 +322,59 @@ enum FeedbackStatus {
 }
 
 model Feedback {
-  id          String         @id @default(cuid())
-  type        FeedbackType
-  description String
-  attachments String[]
-  status      FeedbackStatus @default(pending)
-  userId      String
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id            String         @id @default(cuid())
+  type          FeedbackType
+  description   String
+  attachments   String[]
+  status        FeedbackStatus @default(pending)
+  adminResponse String?
+  respondedAt   DateTime?
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([userId])
   @@index([status])
   @@map("feedbacks")
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  title     String
+  message   String
+  type      NotificationType
+  userId    String?            // null = global, set = personal notification
+  user      User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metadata  Json?              // Extra data (feedbackId, etc)
+  expiresAt DateTime?
+  isActive  Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  readBy    NotificationRead[]
+
+  @@index([userId])
+  @@index([isActive, createdAt])
+  @@map("notifications")
+}
+
+model NotificationRead {
+  id             String       @id @default(cuid())
+  userId         String
+  notificationId String
+  readAt         DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationId])
+  @@index([userId])
+  @@map("notification_reads")
+}
+
+enum NotificationType {
+  feature          // Nova funcionalidade
+  fix              // Correção de bug
+  alert            // Alerta importante
+  info             // Informação geral
+  feedback_response // Resposta do admin ao feedback
+  feedback_status   // Mudança de status do feedback
 }

@@ -38,6 +38,8 @@ export type {
 
 // Utility hooks
 export { useFeedback } from "./use-feedback";
+export { useNotifications } from "./use-notifications";
+export type { Notification } from "./use-notifications";
 export { useAvailableBalance } from "./use-available-balance";
 export type { UseAvailableBalanceOptions, UseAvailableBalanceReturn } from "./use-available-balance";
 export { useModalState } from "./use-modal-state";

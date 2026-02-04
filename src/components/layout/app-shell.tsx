@@ -8,6 +8,7 @@ import { useTheme, useUser, useSidebar } from "@/contexts";
 import { Sidebar } from "./sidebar";
 import { BottomTabs } from "./bottom-tabs";
 import { FeedbackButton } from "@/components/feedback";
+import { NotificationButton } from "@/components/notifications";
 
 const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
 
@@ -64,6 +65,7 @@ function MobileHeader() {
               <Sun className="w-5 h-5" />
             )}
           </button>
+          {session?.user && <NotificationButton />}
           {session?.user && (
             <button
               onClick={() => router.push("/conta")}

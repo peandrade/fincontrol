@@ -17,6 +17,8 @@ import {
   Trash2,
   ExternalLink,
   Loader2,
+  Bell,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -35,6 +37,8 @@ interface Feedback {
   description: string;
   attachments: string[];
   status: "pending" | "reviewing" | "resolved" | "closed";
+  adminResponse: string | null;
+  respondedAt: string | null;
   userId: string;
   user: FeedbackUser;
   createdAt: string;
@@ -65,6 +69,8 @@ export default function AdminFeedbackPage() {
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [filterType, setFilterType] = useState<string>("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [adminResponse, setAdminResponse] = useState<string>("");
+  const [isSendingResponse, setIsSendingResponse] = useState(false);
 
   const fetchFeedbacks = useCallback(async () => {
     setIsLoading(true);
@@ -151,6 +157,35 @@ export default function AdminFeedbackPage() {
     }
   };
 
+  const sendAdminResponse = async (id: string) => {
+    if (!adminResponse.trim()) return;
+
+    setIsSendingResponse(true);
+    try {
+      const response = await fetch(`/api/feedback/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminResponse }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao enviar resposta");
+      }
+
+      const updated = await response.json();
+      setFeedbacks((prev) => prev.map((f) => (f.id === id ? updated : f)));
+      if (selectedFeedback?.id === id) {
+        setSelectedFeedback(updated);
+      }
+      setAdminResponse("");
+      success("Resposta enviada! O usuario sera notificado.");
+    } catch (err) {
+      showError("Erro", err instanceof Error ? err.message : "Erro ao enviar resposta");
+    } finally {
+      setIsSendingResponse(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("pt-BR", {
       day: "2-digit",
@@ -199,6 +234,13 @@ export default function AdminFeedbackPage() {
               Gerencie os feedbacks dos usuarios
             </p>
           </div>
+          <button
+            onClick={() => router.push("/conta/admin/notificacoes")}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 transition-colors"
+          >
+            <Bell className="w-4 h-4" />
+            <span className="hidden sm:inline">Notificacoes</span>
+          </button>
           <Button variant="secondary" size="sm" onClick={fetchFeedbacks}>
             <RefreshCw className="w-4 h-4" />
             Atualizar
@@ -380,6 +422,54 @@ export default function AdminFeedbackPage() {
                   <p className="text-sm text-[var(--text-dimmed)] mb-2">Descricao</p>
                   <p className="text-[var(--text-primary)] whitespace-pre-wrap">
                     {selectedFeedback.description}
+                  </p>
+                </div>
+
+                {/* Previous Admin Response */}
+                {selectedFeedback.adminResponse && (
+                  <div className="p-4 border-b border-[var(--border-color)] bg-violet-500/5">
+                    <p className="text-sm text-[var(--text-dimmed)] mb-2">Resposta do Admin</p>
+                    <p className="text-[var(--text-primary)] whitespace-pre-wrap">
+                      {selectedFeedback.adminResponse}
+                    </p>
+                    {selectedFeedback.respondedAt && (
+                      <p className="text-xs text-[var(--text-dimmed)] mt-2">
+                        Respondido em {formatDate(selectedFeedback.respondedAt)}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Admin Response Input */}
+                <div className="p-4 border-b border-[var(--border-color)]">
+                  <p className="text-sm text-[var(--text-dimmed)] mb-2">
+                    {selectedFeedback.adminResponse ? "Nova resposta" : "Responder ao usuario"}
+                  </p>
+                  <div className="flex gap-2">
+                    <textarea
+                      value={adminResponse}
+                      onChange={(e) => setAdminResponse(e.target.value)}
+                      placeholder="Digite sua resposta..."
+                      rows={3}
+                      className="flex-1 p-3 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] resize-none focus:outline-none focus:border-violet-500"
+                    />
+                  </div>
+                  <div className="flex justify-end mt-2">
+                    <button
+                      onClick={() => sendAdminResponse(selectedFeedback.id)}
+                      disabled={!adminResponse.trim() || isSendingResponse}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-500 text-white hover:bg-violet-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSendingResponse ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                      Enviar resposta
+                    </button>
+                  </div>
+                  <p className="text-xs text-[var(--text-dimmed)] mt-2">
+                    O usuario sera notificado quando voce enviar a resposta.
                   </p>
                 </div>
 
