@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       if (cached) {
         return NextResponse.json(cached, {
           headers: {
-            "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+            "Cache-Control": "private, no-cache",
           },
         });
       }
@@ -299,7 +299,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(result, {
         headers: {
-          "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+          "Cache-Control": "private, no-cache",
         },
       });
     } catch (error) {

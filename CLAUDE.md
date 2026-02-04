@@ -304,69 +304,133 @@ npx prisma generate   # Generate client
 
 ## Melhorias Futuras
 
-### Animações nos Ícones com Lordicon (Pendente)
+### Calculadora de IR sobre Investimentos (Pendente)
 
-**Objetivo:** Substituir ícones Lucide estáticos por ícones animados Lordicon com animação no hover.
+**Objetivo:** Substituir a seção de proventos (dividendos) na página de investimentos por uma calculadora/resumo de Imposto de Renda sobre operações de renda variável.
 
-**Stack:**
-- `@lordicon/element` (web component `<lord-icon>`)
-- `lottie-web` (engine de animação)
-- Trigger: `hover` (anima ao passar o mouse, reseta ao sair)
+**Localização:** Página `/investimentos` — trocar o componente de proventos pelo novo componente de IR.
 
-**Hospedagem:** Self-hosted em `public/icons/lordicon/` (sem CDN externo)
-- Zero dependência externa — funciona mesmo se Lordicon cair
-- Carregamento mais rápido (mesmo domínio, sem DNS lookup extra)
-- Funciona offline em dev
-- Cada JSON pesa ~15-50KB
+**Regras fiscais a implementar:**
 
-**Como funciona:**
-1. Instalar `@lordicon/element` e `lottie-web`
-2. Criar componente wrapper `"use client"` que chama `defineElement()` uma vez
-3. Usar `<lord-icon src="/icons/lordicon/nome.json" trigger="hover" />` nos componentes
+| Tipo de Ativo | Alíquota Swing Trade | Alíquota Day Trade | Isenção mensal de vendas |
+|---------------|---------------------|--------------------|--------------------------|
+| Ações | 15% | 20% | R$ 20.000 (somente swing trade) |
+| FIIs | 20% | 20% | Sem isenção |
+| ETFs | 15% | 20% | Sem isenção |
+| Cripto | 15% | 15% | R$ 35.000 |
 
-**Ícones a substituir:**
+**Funcionalidades:**
+1. **Resumo mensal de IR** — calcula imposto devido no mês baseado nas operações de venda
+2. **Controle de prejuízo acumulado** — prejuízos podem ser compensados em meses futuros (mesmo tipo de ativo)
+3. **Isenção automática** — detecta se vendas do mês ficaram abaixo do limite de isenção
+4. **Cálculo de preço médio** — usa operações de compra para calcular preço médio ponderado
+5. **Indicador de DARF** — mostra se há imposto a pagar e o valor
 
-| Componente | Ícone Lucide | Lordicon (buscar em lordicon.com) |
-|------------|-------------|----------------------------------|
-| Sidebar nav | LayoutDashboard | Dashboard/Home |
-| Sidebar nav | TrendingUp | Trending/Growth |
-| Sidebar nav | CreditCard | Credit Card |
-| Sidebar nav | FileBarChart | Bar Chart/Report |
-| Sidebar bottom | Sun | Sun/Day |
-| Sidebar bottom | Moon | Moon/Night |
-| Sidebar bottom | User | User/Profile |
-| Sidebar bottom | LogOut | Logout/Sign Out |
-| Sidebar bottom | ChevronsLeft/Right | Chevron/Arrow |
-| Sidebar bottom | Github | Github (ou manter Lucide) |
-| Sidebar bottom | Linkedin | Linkedin (ou manter Lucide) |
-| Notification | Bell | Bell/Notification |
-| Dashboard | CalendarDays | Calendar |
-| Conta cards | Palette | Palette/Paint |
-| Conta cards | Sliders | Sliders/Equalizer |
-| Conta cards | Settings | Gear/Settings |
-| Conta cards | Database | Database/Storage |
-| Conta cards | Shield | Shield/Security |
-| Conta admin | ShieldCheck | Shield Check |
-| Notification panel | ArrowLeft | Arrow Left |
-| Notification panel | X | Close/X |
-| Notification panel | CheckCheck | Checkmark/Done |
+**Dados necessários (já existem no sistema):**
+- `Operation` — operações de compra/venda com data, quantidade, preço e tipo
+- `Investment` — tipo do ativo (stock, fii, etf, crypto)
+- Preço médio pode ser calculado a partir das operações de compra
 
-**Passos para implementar:**
-1. Acessar lordicon.com/icons e buscar cada ícone
-2. Verificar quais são free (sem badge "PRO"); se necessário, assinar 1 mês PRO ($16), baixar tudo e cancelar
-3. Baixar os JSONs (Export > Lottie JSON) e salvar em `public/icons/lordicon/`
-4. Instalar: `npm install @lordicon/element lottie-web`
-5. Criar provider/wrapper component
-6. Substituir `<Icon>` Lucide por `<lord-icon>` nos componentes listados
+**Escopo inicial (simplificado):**
+- Cálculo baseado nas operações de venda já registradas
+- Preço médio ponderado de compra
+- Compensação de prejuízo entre meses (mesmo tipo)
+- Sem DARF automático (apenas mostra valor devido)
+- Sem tratamento de eventos corporativos (desdobramento, bonificação)
 
-**Famílias recomendadas:**
-- **System Regular/Solid** — 24px grid, minimalista, ideal para sidebar/nav (suporta CSS Variables)
-- **Wired Outline** — 2151 ícones, estilo clean com animações elaboradas
-
-**Lordicon Free vs PRO:**
-- Free: 8.900+ ícones (requer atribuição ao Lordicon)
-- PRO: +31.100 ícones ($16/mês ou $96/ano), sem atribuição, ícones baixados são seus para sempre mesmo após cancelar
+**Componentes a criar:**
+- `TaxSummaryCard` — card com resumo do IR do mês atual
+- `TaxMonthlyBreakdown` — detalhamento por tipo de ativo
+- API: `GET /api/investments/tax?month={YYYY-MM}` — calcula IR do mês
 
 **Notas:**
-- Ícones sociais (Github, Linkedin) podem não ter equivalente free; manter Lucide nesses casos
-- Bottom tabs mobile não precisam de animação (touch não tem hover)
+- Day trade vs swing trade: operação de compra e venda do mesmo ativo no mesmo dia = day trade
+- IR retido na fonte (IRRF): 0,005% swing trade, 1% day trade (descontado do imposto devido)
+- DARF código 6015 (ações/ETFs), 6800 (FIIs), sem código específico para crypto (usa ganho de capital)
+
+### Conversão de Moeda para Exibição (Pendente)
+
+**Objetivo:** Permitir que o usuário escolha a moeda de exibição (USD, EUR, GBP, etc.). Todos os valores continuam armazenados em BRL no banco — a conversão é apenas visual, usando taxa de câmbio atualizada.
+
+**Abordagem:** Conversão de exibição (display-only). Não altera modelo de dados nem lógica de cálculos.
+
+**O que muda:**
+
+1. **`formatCurrency()` em `src/lib/utils.ts`:**
+   - Recebe moeda e locale como parâmetros opcionais (default: BRL/pt-BR)
+   - Multiplica o valor pela taxa de câmbio antes de formatar
+   - Ex: `formatCurrency(100, { currency: "USD", rate: 0.18 })` → `$18.00`
+
+2. **Preferência do usuário:**
+   - Novo campo `displayCurrency` em `User.settings.general` (default: "BRL")
+   - Adicionado ao `PreferencesContext` para acesso global
+   - Seletor de moeda na página `/conta/geral`
+
+3. **API de câmbio:**
+   - API: `GET /api/rates/exchange` — retorna taxas BRL → outras moedas
+   - Fonte: exchangerate.host (gratuito, sem key) ou Open Exchange Rates
+   - Cache de 1h (`CACHE_DURATIONS.RATES`)
+   - Fallback: se API falhar, exibe em BRL com aviso
+
+4. **Componentes:**
+   - Nenhum componente precisa mudar individualmente — todos já usam `formatCurrency()`
+   - Basta que `formatCurrency()` consulte a moeda/taxa do contexto
+
+**Moedas suportadas (inicial):**
+
+| Moeda | Locale | Símbolo |
+|-------|--------|---------|
+| BRL | pt-BR | R$ |
+| USD | en-US | $ |
+| EUR | de-DE | € |
+| GBP | en-GB | £ |
+
+**Limitações:**
+- Valores são aproximados (câmbio varia diariamente)
+- Relatórios exportados usam a moeda de exibição no momento da exportação
+- Cálculo de IR sempre em BRL (legislação brasileira)
+
+### Internacionalização — i18n (Pendente)
+
+**Objetivo:** Permitir troca de idioma da interface entre Português, Inglês e Espanhol via botão de seleção.
+
+**Stack:** `next-intl` (lib padrão para i18n com App Router)
+
+**Estrutura de traduções:**
+```
+messages/
+  pt.json     # Português (padrão)
+  en.json     # English
+  es.json     # Español
+```
+
+**Preferência do usuário:**
+- Novo campo `language` em `User.settings.general` (default: "pt")
+- Seletor de idioma na página `/conta/geral` e/ou na sidebar
+- Persistido no banco + localStorage para carregamento rápido
+
+**O que precisa ser traduzido:**
+
+| Área | Estimativa | Exemplos |
+|------|-----------|----------|
+| Componentes (~77) | ~400 strings | Títulos, labels, botões, placeholders, tooltips |
+| API routes (~46) | ~100 strings | Mensagens de erro e sucesso |
+| Validações Zod | ~50 strings | Mensagens de erro dos schemas |
+| Constantes (`constants.ts`) | ~80 strings | Categorias, meses, tipos de investimento, metas |
+| Formatação de datas | Global | `pt-BR` → locale dinâmico |
+
+**Passos para implementar:**
+1. Instalar: `npm install next-intl`
+2. Configurar `next-intl` no App Router (provider, middleware de locale)
+3. Criar `messages/pt.json` extraindo todas as strings existentes
+4. Traduzir para `en.json` e `es.json`
+5. Substituir strings hardcoded por `t("chave")` em cada componente
+6. Adaptar `formatCurrency()` e `formatDate()` para usar locale dinâmico
+7. Traduzir categorias padrão e constantes
+8. Adicionar seletor de idioma na UI
+
+**Notas:**
+- Categorias criadas pelo usuário não são traduzidas (são texto livre)
+- Cálculo de IR e regras fiscais permanecem em contexto brasileiro
+- Datas e números devem respeitar o locale (ex: `1,234.56` em inglês vs `1.234,56` em português)
+- Componente de seleção: dropdown/popover com bandeiras + nome do idioma

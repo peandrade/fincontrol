@@ -103,7 +103,11 @@ function ChartTooltip({
   return null;
 }
 
-export function WealthEvolutionChart() {
+interface WealthEvolutionChartProps {
+  refreshTrigger?: number;
+}
+
+export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChartProps) {
   const { theme } = useTheme();
   const { general, privacy, toggleHideValues, setSessionUnlocked, updatePrivacy, refreshPinStatus } = usePreferences();
   const descriptionId = useId();
@@ -113,7 +117,7 @@ export function WealthEvolutionChart() {
   const [showSetupPinModal, setShowSetupPinModal] = useState(false);
   const [showVerifyPinModal, setShowVerifyPinModal] = useState(false);
 
-  const { data, isLoading, refresh } = useWealthEvolution(period);
+  const { data, isLoading, refresh } = useWealthEvolution(period, [refreshTrigger]);
 
   const handleToggleVisibility = () => {
     const result = toggleHideValues();

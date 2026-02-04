@@ -29,8 +29,12 @@ const scoreColors = {
   poor: { bg: "from-red-500 to-rose-500", text: "text-red-400", ring: "ring-red-500/30" },
 };
 
-export function FinancialHealthScore() {
-  const { data, isLoading, refresh } = useFinancialHealth();
+interface FinancialHealthScoreProps {
+  refreshTrigger?: number;
+}
+
+export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScoreProps) {
+  const { data, isLoading, refresh } = useFinancialHealth([refreshTrigger]);
   const [isExpanded, setIsExpanded] = useState(false);
   const { privacy } = usePreferences();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));

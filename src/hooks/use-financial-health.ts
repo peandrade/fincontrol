@@ -10,8 +10,10 @@ export type {
   ComponentScores,
 } from "@/types/api-responses";
 
-export function useFinancialHealth(): UseFetchReturn<FinancialHealthData> {
+export function useFinancialHealth(deps: unknown[] = []): UseFetchReturn<FinancialHealthData> {
   return useFetch<FinancialHealthData>("/api/financial-health", {
     errorMessage: "Erro ao buscar saude financeira",
+    cacheTtl: 0,
+    deps,
   });
 }

@@ -1,5 +1,34 @@
+import https from "node:https";
 import { CACHE_DURATIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/utils";
+
+// Agent that bypasses corporate proxy self-signed certificate issues.
+// Only affects external API fetches (BRAPI, CoinGecko), not DB connections.
+const tlsAgent = new https.Agent({ rejectUnauthorized: false });
+
+/**
+ * Fetch wrapper for external HTTPS APIs via node:https.
+ * Handles corporate proxies with self-signed certificates.
+ */
+function externalFetch(
+  url: string,
+  options: { signal?: AbortSignal; headers?: Record<string, string> } = {}
+): Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }> {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { agent: tlsAgent, signal: options.signal, headers: options.headers }, (res) => {
+      let body = "";
+      res.on("data", (chunk) => (body += chunk));
+      res.on("end", () => {
+        resolve({
+          ok: res.statusCode! >= 200 && res.statusCode! < 300,
+          status: res.statusCode!,
+          json: () => Promise.resolve(JSON.parse(body)),
+        });
+      });
+    });
+    req.on("error", reject);
+  });
+}
 
 interface BrapiQuote {
   symbol: string;
@@ -108,12 +137,12 @@ async function fetchSingleBrapiQuote(
   const upperTicker = ticker.toUpperCase();
   const url = `https://brapi.dev/api/quote/${upperTicker}?token=${apiKey}`;
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "User-Agent": "FinControl/1.0",
-      },
+    const response = await externalFetch(url, {
+      signal: controller.signal,
     });
 
     if (response.status === 429) {
@@ -154,12 +183,19 @@ async function fetchSingleBrapiQuote(
       source: "brapi",
     };
   } catch (error) {
+    const cause = error instanceof Error && error.cause ? ` (${getErrorMessage(error.cause)})` : "";
+    const message = error instanceof DOMException && error.name === "AbortError"
+      ? "Timeout ao buscar cotação (10s)"
+      : `${getErrorMessage(error)}${cause}`;
+    console.error(`[Brapi] Erro ao buscar ${upperTicker}:`, message);
     return {
       ticker: upperTicker,
       price: 0,
       source: "error",
-      error: getErrorMessage(error),
+      error: message,
     };
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -250,13 +286,10 @@ async function fetchCoinGeckoQuotes(tickers: string[]): Promise<QuoteResult[]> {
 
   try {
     const coinIds = validTickers.map((v) => v.coinId).join(",");
-    const response = await fetch(
+    const response = await externalFetch(
       `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds}&vs_currencies=brl&include_24hr_change=true`,
       {
-        headers: {
-          Accept: "application/json",
-        },
-        cache: "no-store",
+        headers: { Accept: "application/json" },
       }
     );
 

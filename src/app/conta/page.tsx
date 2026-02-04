@@ -1,6 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { isAdmin } from "@/lib/admin";
 import {
   User,
   Palette,
@@ -8,6 +10,7 @@ import {
   Sliders,
   Database,
   Shield,
+  ShieldCheck,
   ChevronRight
 } from "lucide-react";
 
@@ -60,6 +63,14 @@ const settingsCards = [
     color: "red",
     href: "/conta/privacidade",
   },
+  {
+    id: "admin",
+    title: "Admin",
+    description: "Painel administrativo e feedbacks",
+    icon: ShieldCheck,
+    color: "cyan",
+    href: "/conta/admin",
+  },
 ];
 
 const colorClasses: Record<string, { bg: string; icon: string; border: string }> = {
@@ -93,10 +104,20 @@ const colorClasses: Record<string, { bg: string; icon: string; border: string }>
     icon: "text-red-400",
     border: "hover:border-red-500/50",
   },
+  cyan: {
+    bg: "bg-cyan-500/10",
+    icon: "text-cyan-400",
+    border: "hover:border-cyan-500/50",
+  },
 };
 
 export default function ContaPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+
+  const visibleCards = settingsCards.filter(
+    (card) => card.id !== "admin" || (session?.user?.id && isAdmin(session.user.id))
+  );
 
   return (
     <div
@@ -129,7 +150,7 @@ export default function ContaPage() {
 
         {}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {settingsCards.map((card) => {
+          {visibleCards.map((card) => {
             const Icon = card.icon;
             const colors = colorClasses[card.color];
 

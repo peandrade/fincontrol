@@ -54,8 +54,12 @@ interface DashboardSummary {
   };
 }
 
-export function QuickStats() {
-  const { data: hookData, isLoading } = useDashboardSummary();
+interface QuickStatsProps {
+  refreshTrigger?: number;
+}
+
+export function QuickStats({ refreshTrigger = 0 }: QuickStatsProps) {
+  const { data: hookData, isLoading } = useDashboardSummary([refreshTrigger]);
   const { privacy, toggleHideValues, setSessionUnlocked, updatePrivacy, refreshPinStatus } = usePreferences();
   const [showSetupPinModal, setShowSetupPinModal] = useState(false);
   const [showVerifyPinModal, setShowVerifyPinModal] = useState(false);

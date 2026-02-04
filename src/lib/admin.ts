@@ -3,7 +3,7 @@
  * These users have access to admin features like feedback management.
  */
 export const ADMIN_USER_IDS = [
-  "cml77zjgc0000jr047lf5oxv7",
+  "cml8dqk1x0000qeskfc4ykxg2",
 ] as const;
 
 /**

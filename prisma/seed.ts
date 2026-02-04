@@ -2,7 +2,7 @@ import { PrismaClient, GoalCategory } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const USER_ID = "cmkqcday50002qewcd7yriqx2";
+const USER_ID = "cml8dqk1x0000qeskfc4ykxg2";
 
 function getDate(daysAgo: number): Date {
   const date = new Date();

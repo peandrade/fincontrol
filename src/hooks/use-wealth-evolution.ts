@@ -12,13 +12,15 @@ export type {
 } from "@/types/api-responses";
 
 export function useWealthEvolution(
-  period: EvolutionPeriod = "1y"
+  period: EvolutionPeriod = "1y",
+  deps: unknown[] = []
 ): UseFetchReturn<WealthEvolutionData> {
   return useFetch<WealthEvolutionData>(
     () => `/api/wealth-evolution?period=${period}`,
     {
       errorMessage: "Erro ao buscar evolucao patrimonial",
-      deps: [period],
+      cacheTtl: 0,
+      deps: [period, ...deps],
     }
   );
 }

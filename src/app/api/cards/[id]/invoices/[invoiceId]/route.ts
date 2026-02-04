@@ -7,6 +7,10 @@ interface RouteParams {
   params: Promise<{ id: string; invoiceId: string }>;
 }
 
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  return PUT(request, { params });
+}
+
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   return withAuth(async (session, req) => {
     const { id: cardId, invoiceId } = await params;

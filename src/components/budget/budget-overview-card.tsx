@@ -40,7 +40,7 @@ export function BudgetOverviewCard({ refreshTrigger = 0 }: BudgetOverviewCardPro
 
   const fetchBudgets = useCallback(async () => {
     try {
-      const response = await fetch("/api/budgets");
+      const response = await fetch("/api/budgets", { cache: "no-store" });
       if (response.ok) {
         const budgetData = await response.json();
         setData(budgetData);

@@ -129,7 +129,11 @@ export async function cachedFetch<T>(
   // Create the fetch promise
   const fetchPromise = (async () => {
     try {
-      const response = await fetch(url, options);
+      // When cache is disabled (ttl === 0), bypass browser HTTP cache too
+      const fetchOptions = ttl === 0
+        ? { ...options, cache: "no-store" as RequestCache }
+        : options;
+      const response = await fetch(url, fetchOptions);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

@@ -8,6 +8,7 @@ import { useTemplateStore } from "@/store/template-store";
 import { usePreferences } from "@/contexts";
 import { getMonthYearLabel } from "@/lib/constants";
 import { SummaryCards, MonthlyChart, CategoryChart, TransactionList, WealthEvolutionChart, QuickStats } from "@/components/dashboard";
+import { NotificationButton } from "@/components/notifications";
 import { FinancialHealthScore } from "@/components/dashboard/financial-health-score";
 import { BillsCalendar } from "@/components/dashboard/bills-calendar";
 import { TransactionModal } from "@/components/forms/transaction-modal";
@@ -206,29 +207,32 @@ export default function DashboardPage() {
               <span className="truncate">{getMonthYearLabel()}</span>
             </p>
           </div>
-          <div className="relative flex-shrink-0" ref={calendarRef}>
-            <button
-              onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-              className={`flex items-center justify-center p-2.5 sm:p-3 rounded-xl border transition-all ${
-                isCalendarOpen
-                  ? "border-blue-500/50 bg-blue-500/10"
-                  : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
-              }`}
-              title="Calendário de Contas"
-            >
-              <CalendarDays className="w-5 h-5 text-blue-400" />
-            </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <NotificationButton />
+            <div className="relative" ref={calendarRef}>
+              <button
+                onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                className={`flex items-center justify-center p-2.5 sm:p-3 rounded-xl border transition-all ${
+                  isCalendarOpen
+                    ? "border-blue-500/50 bg-blue-500/10"
+                    : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
+                }`}
+                title="Calendário de Contas"
+              >
+                <CalendarDays className="w-5 h-5 text-blue-400" />
+              </button>
             {isCalendarOpen && (
               <div className="absolute right-0 top-full mt-2 w-[calc(100vw-24px)] sm:w-[420px] max-w-[420px] max-h-[80vh] overflow-y-auto rounded-2xl shadow-2xl border border-[var(--border-color)] z-50 animate-slideUp" style={{ right: '-12px' }}>
                 <BillsCalendar />
               </div>
             )}
+            </div>
           </div>
         </header>
 
         {/* Quick Stats - Always visible */}
         <ErrorBoundary>
-          <QuickStats />
+          <QuickStats refreshTrigger={budgetRefreshTrigger} />
         </ErrorBoundary>
 
         {/* Summary Cards - Always visible */}
@@ -252,12 +256,12 @@ export default function DashboardPage() {
           </div>
           <div className="lg:col-span-2">
             <ErrorBoundary>
-              <WealthEvolutionChart />
+              <WealthEvolutionChart refreshTrigger={budgetRefreshTrigger} />
             </ErrorBoundary>
           </div>
           <div className="h-full">
             <ErrorBoundary>
-              <FinancialHealthScore />
+              <FinancialHealthScore refreshTrigger={budgetRefreshTrigger} />
             </ErrorBoundary>
           </div>
         </div>
