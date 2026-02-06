@@ -106,8 +106,8 @@ export function getCategoryColor(category: string): string {
   return CATEGORY_COLORS[category] || CATEGORY_COLORS["Outros"];
 }
 
-export function getMonthYearLabel(date: Date = new Date()): string {
-  return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+export function getMonthYearLabel(date: Date = new Date(), locale?: string): string {
+  return date.toLocaleDateString(locale ?? "pt-BR", { month: "long", year: "numeric" });
 }
 
 export const INVESTMENT_TYPES: InvestmentType[] = [

@@ -2,8 +2,10 @@
 
 import { useState, useMemo, useId } from "react";
 import { X, ShoppingCart, Repeat, CreditCard, AlertTriangle } from "lucide-react";
-import { PURCHASE_CATEGORIES } from "@/lib/card-constants";
+import { useTranslations } from "next-intl";
+import { PURCHASE_CATEGORIES, PURCHASE_CATEGORY_KEYS } from "@/lib/card-constants";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { useCurrency } from "@/contexts/currency-context";
 import type { CreatePurchaseInput, CreditCard as CardType } from "@/types/credit-card";
 
 interface PurchaseModalProps {
@@ -21,7 +23,11 @@ export function PurchaseModal({
   onSave,
   isSubmitting,
 }: PurchaseModalProps) {
+  const t = useTranslations("cards");
+  const tc = useTranslations("common");
+  const tcat = useTranslations("categories");
   const titleId = useId();
+  const { currencySymbol, convertToBRL, formatCurrency } = useCurrency();
   const [description, setDescription] = useState("");
   const [value, setValue] = useState("");
   const [category, setCategory] = useState<string>(PURCHASE_CATEGORIES[0]);
@@ -53,7 +59,7 @@ export function PurchaseModal({
     await onSave({
       creditCardId: card.id,
       description,
-      value: parseFloat(value),
+      value: convertToBRL(parseFloat(value)),
       category,
       date: new Date(date),
       installments: parseInt(installments),
@@ -77,9 +83,6 @@ export function PurchaseModal({
     ? parseFloat(value) / parseInt(installments)
     : null;
 
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
-
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div
@@ -98,7 +101,7 @@ export function PurchaseModal({
               <ShoppingCart className="w-5 h-5" style={{ color: card.color }} aria-hidden="true" />
             </div>
             <div>
-              <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">Nova Compra</h2>
+              <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">{t("newPurchase")}</h2>
               <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
                 <CreditCard className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{card.name}</span>
@@ -108,7 +111,7 @@ export function PurchaseModal({
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            aria-label="Fechar"
+            aria-label={tc("close")}
           >
             <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
@@ -122,7 +125,7 @@ export function PurchaseModal({
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-[var(--text-dimmed)] mb-1">Limite Disponível</p>
+                <p className="text-xs text-[var(--text-dimmed)] mb-1">{t("availableLimit")}</p>
                 <p
                   className="text-xl font-bold"
                   style={{ color: availableLimit <= 0 ? "#EF4444" : card.color }}
@@ -131,7 +134,7 @@ export function PurchaseModal({
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-[var(--text-dimmed)] mb-1">Limite Total</p>
+                <p className="text-xs text-[var(--text-dimmed)] mb-1">{t("totalLimit")}</p>
                 <p className="text-sm font-medium text-[var(--text-muted)]">
                   {formatCurrency(card.limit)}
                 </p>
@@ -149,7 +152,7 @@ export function PurchaseModal({
                 />
               </div>
               <p className="text-xs text-[var(--text-dimmed)] mt-1 text-right">
-                {formatCurrency(usedLimit)} usado de {formatCurrency(card.limit)}
+                {t("usedOfLimit", { used: formatCurrency(usedLimit), total: formatCurrency(card.limit) })}
               </p>
             </div>
           </div>
@@ -160,13 +163,13 @@ export function PurchaseModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Descrição *
+              {t("description")} *
             </label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ex: Amazon, iFood, Uber..."
+              placeholder={t("purchaseDescriptionPlaceholder")}
               required
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color"
             />
@@ -176,10 +179,10 @@ export function PurchaseModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                Valor Total *
+                {t("totalValue")} *
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">R$</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">{currencySymbol}</span>
                 <CurrencyInput
                   value={value}
                   onChange={setValue}
@@ -191,7 +194,7 @@ export function PurchaseModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                Data *
+                {tc("date")} *
               </label>
               <input
                 type="date"
@@ -206,7 +209,7 @@ export function PurchaseModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Categoria *
+              {t("category")} *
             </label>
             <select
               value={category}
@@ -214,9 +217,9 @@ export function PurchaseModal({
               required
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] focus:outline-none focus:border-primary-color appearance-none cursor-pointer"
             >
-              {PURCHASE_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat} className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">
-                  {cat}
+              {PURCHASE_CATEGORY_KEYS.map((key, index) => (
+                <option key={key} value={PURCHASE_CATEGORIES[index]} className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">
+                  {tcat(`purchaseCategories.${key}`)}
                 </option>
               ))}
             </select>
@@ -225,14 +228,14 @@ export function PurchaseModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Parcelas
+              {t("installments")}
             </label>
             <select
               value={installments}
               onChange={(e) => setInstallments(e.target.value)}
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] focus:outline-none focus:border-primary-color appearance-none cursor-pointer"
             >
-              <option value="1" className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">À vista</option>
+              <option value="1" className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">{t("payInFull")}</option>
               {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => (
                 <option key={n} value={n} className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">
                   {n}x
@@ -241,10 +244,7 @@ export function PurchaseModal({
             </select>
             {installmentValue && (
               <p className="mt-1 text-sm text-gray-500">
-                {installments}x de {new Intl.NumberFormat("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                }).format(installmentValue)}
+                {t("installmentValue", { count: installments, value: formatCurrency(installmentValue) })}
               </p>
             )}
           </div>
@@ -267,10 +267,10 @@ export function PurchaseModal({
             </div>
             <div className="flex-1">
               <p className={`font-medium ${isRecurring ? "text-blue-400" : "text-[var(--text-primary)]"}`}>
-                Cobrança Recorrente
+                {t("recurringCharge")}
               </p>
               <p className="text-[var(--text-dimmed)] text-sm">
-                Assinaturas que se repetem todo mês
+                {t("recurringChargeDescription")}
               </p>
             </div>
             <div
@@ -287,12 +287,12 @@ export function PurchaseModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Observações (opcional)
+              {t("notesOptional")}
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Adicione detalhes..."
+              placeholder={t("addDetails")}
               rows={2}
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color resize-none"
             />
@@ -304,10 +304,10 @@ export function PurchaseModal({
               <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
               <div>
                 <p className="text-sm font-medium text-red-400">
-                  Valor excede o limite disponível
+                  {t("exceedsLimit")}
                 </p>
                 <p className="text-xs text-red-400/70">
-                  Limite disponível: {formatCurrency(availableLimit)} | Valor da compra: {formatCurrency(purchaseValue)}
+                  {t("exceedsLimitDetails", { available: formatCurrency(availableLimit), value: formatCurrency(purchaseValue) })}
                 </p>
               </div>
             </div>
@@ -320,7 +320,7 @@ export function PurchaseModal({
               onClick={onClose}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all"
             >
-              Cancelar
+              {tc("cancel")}
             </button>
             <button
               type="submit"
@@ -328,7 +328,7 @@ export function PurchaseModal({
               className="flex-1 py-3 px-4 rounded-xl font-medium text-white transition-all shadow-lg disabled:opacity-50"
               style={{ backgroundColor: card.color }}
             >
-              {isSubmitting ? "Adicionando..." : "Adicionar Compra"}
+              {isSubmitting ? t("adding") : t("addPurchase")}
             </button>
           </div>
         </form>

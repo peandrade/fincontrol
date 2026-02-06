@@ -2,18 +2,24 @@
 
 import { useState, useEffect, useRef } from "react";
 import { FileBarChart, Calendar, Download, Filter, RefreshCw, Lightbulb, TrendingUp } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useAnalytics } from "@/hooks";
 import { CategoryReport, MonthlyComparison, AdvancedAnalytics, InsightsContent, SpendingVelocityContent } from "@/components/reports";
 import { generateReportPDF } from "@/lib/pdf-generator";
 
-const MONTHS = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-];
+const MONTH_KEYS = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december"
+] as const;
 
 export default function RelatoriosPage() {
+  const t = useTranslations("reports");
+  const tc = useTranslations("common");
+  const tm = useTranslations("months");
+  const tt = useTranslations("transactions");
+
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
@@ -87,7 +93,7 @@ export default function RelatoriosPage() {
       >
         <div className="text-center">
           <RefreshCw className="w-8 h-8 text-primary-color animate-spin mx-auto mb-4" />
-          <p style={{ color: "var(--text-muted)" }}>Carregando relatórios...</p>
+          <p style={{ color: "var(--text-muted)" }}>{t("loadingReports")}</p>
         </div>
       </div>
     );
@@ -112,10 +118,10 @@ export default function RelatoriosPage() {
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-3" style={{ color: "var(--text-primary)" }}>
               <FileBarChart className="w-8 h-8 text-primary-color" />
-              Relatórios
+              {t("title")}
             </h1>
             <p className="mt-1" style={{ color: "var(--text-dimmed)" }}>
-              Análise detalhada das suas finanças
+              {t("subtitle")}
             </p>
           </div>
           <button
@@ -126,12 +132,12 @@ export default function RelatoriosPage() {
             {isExporting ? (
               <>
                 <RefreshCw className="w-5 h-5 animate-spin" />
-                Exportando...
+                {t("exporting")}
               </>
             ) : (
               <>
                 <Download className="w-5 h-5" />
-                Exportar PDF
+                {t("exportPDF")}
               </>
             )}
           </button>
@@ -148,9 +154,9 @@ export default function RelatoriosPage() {
                 onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
                 className="bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-2 px-3 text-[var(--text-primary)] focus:outline-none focus:border-primary-color appearance-none cursor-pointer"
               >
-                {MONTHS.map((month, index) => (
+                {MONTH_KEYS.map((monthKey, index) => (
                   <option key={index} value={index + 1} className="bg-[var(--bg-secondary)]">
-                    {month}
+                    {tm(monthKey)}
                   </option>
                 ))}
               </select>
@@ -184,7 +190,7 @@ export default function RelatoriosPage() {
                       : "bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)]"
                   }`}
                 >
-                  Despesas
+                  {tt("expenses")}
                 </button>
                 <button
                   onClick={() => setFilterType("income")}
@@ -194,7 +200,7 @@ export default function RelatoriosPage() {
                       : "bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)]"
                   }`}
                 >
-                  Receitas
+                  {tt("incomes")}
                 </button>
                 <button
                   onClick={() => setFilterType("all")}
@@ -204,7 +210,7 @@ export default function RelatoriosPage() {
                       : "bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)]"
                   }`}
                 >
-                  Ambos
+                  {tt("both")}
                 </button>
               </div>
             </div>
@@ -217,7 +223,7 @@ export default function RelatoriosPage() {
           <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-                Relatório por Categoria - {MONTHS[selectedMonth - 1]} {selectedYear}
+                {t("categoryReport")} - {tm(MONTH_KEYS[selectedMonth - 1])} {selectedYear}
               </h2>
               {analyticsData && analyticsData.insights.length > 0 && (
                 <div className="relative" ref={insightsRef}>
@@ -228,7 +234,7 @@ export default function RelatoriosPage() {
                         ? "border-amber-500/50 bg-amber-500/10"
                         : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
                     }`}
-                    title="Insights Inteligentes"
+                    title={t("smartInsights")}
                   >
                     <Lightbulb className="w-4 h-4 text-amber-400" />
                   </button>
@@ -245,7 +251,7 @@ export default function RelatoriosPage() {
                           <Lightbulb className="w-5 h-5 text-amber-400" />
                         </div>
                         <h3 className="text-base font-semibold text-[var(--text-primary)]">
-                          Insights Inteligentes
+                          {t("smartInsights")}
                         </h3>
                       </div>
                       <InsightsContent insights={analyticsData.insights} />
@@ -265,7 +271,7 @@ export default function RelatoriosPage() {
           <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-                Comparativo Mensal
+                {t("monthlyComparison")}
               </h2>
               {analyticsData && (
                 <div className="relative" ref={velocityRef}>
@@ -276,7 +282,7 @@ export default function RelatoriosPage() {
                         ? "border-primary-color/50 bg-primary-soft"
                         : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
                     }`}
-                    title="Velocidade de Gastos"
+                    title={t("spendingVelocity")}
                   >
                     <TrendingUp className="w-4 h-4 text-primary-color" />
                   </button>
@@ -293,7 +299,7 @@ export default function RelatoriosPage() {
                           <TrendingUp className="w-4 h-4 text-primary-color" />
                         </div>
                         <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                          Velocidade de Gastos
+                          {t("spendingVelocity")}
                         </h3>
                       </div>
                       <SpendingVelocityContent velocity={analyticsData.spendingVelocity} />

@@ -1,7 +1,9 @@
 "use client";
 
 import { ChevronLeft, ArrowRight, PiggyBank, AlertTriangle, Wallet } from "lucide-react";
-import { formatDateForInput, formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { formatDateForInput } from "@/lib/utils";
+import { useCurrency } from "@/contexts/currency-context";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
 interface InvestmentDepositFormProps {
@@ -39,6 +41,9 @@ export function InvestmentDepositForm({
   onBack,
   onSubmit,
 }: InvestmentDepositFormProps) {
+  const t = useTranslations("investments");
+  const tc = useTranslations("common");
+  const { currencySymbol, formatCurrency } = useCurrency();
   const depositValue = parseFloat(initialDeposit) || 0;
   const hasInsufficientBalance = availableBalance !== null && depositValue > availableBalance && !skipBalanceCheck;
 
@@ -48,16 +53,16 @@ export function InvestmentDepositForm({
       <div className="bg-[var(--bg-hover)] rounded-xl p-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Wallet className="w-4 h-4 text-[var(--text-muted)]" />
-          <span className="text-sm text-[var(--text-muted)]">Saldo Disponível:</span>
+          <span className="text-sm text-[var(--text-muted)]">{t("availableBalance")}</span>
         </div>
         <span className={`font-medium ${availableBalance !== null && availableBalance < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-          {isLoadingBalance ? "Carregando..." : availableBalance !== null ? formatCurrency(availableBalance) : "—"}
+          {isLoadingBalance ? tc("loading") : availableBalance !== null ? formatCurrency(availableBalance) : "—"}
         </span>
       </div>
 
       {/* Asset Info */}
       <div className="bg-[var(--bg-hover)] rounded-xl p-3 flex items-center gap-2">
-        <span className="text-sm text-[var(--text-muted)]">Ativo:</span>
+        <span className="text-sm text-[var(--text-muted)]">{t("assetLabel")}</span>
         <span className="text-[var(--text-primary)] font-medium">
           {name}{institution && ` • ${institution}`}
         </span>
@@ -67,15 +72,15 @@ export function InvestmentDepositForm({
       <div className={`bg-gradient-to-br ${hasInsufficientBalance ? 'from-red-500/10 to-orange-500/10 border-red-500/20' : 'from-emerald-500/10 to-teal-500/10 border-emerald-500/20'} border rounded-xl p-4 space-y-4`}>
         <div className="flex items-center gap-2">
           <PiggyBank className={`w-4 h-4 ${hasInsufficientBalance ? 'text-red-400' : 'text-emerald-400'}`} />
-          <span className={`text-sm font-medium ${hasInsufficientBalance ? 'text-red-400' : 'text-emerald-400'}`}>Depósito Inicial</span>
+          <span className={`text-sm font-medium ${hasInsufficientBalance ? 'text-red-400' : 'text-emerald-400'}`}>{t("initialDeposit")}</span>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-            Valor *
+            {tc("value")} *
           </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">R$</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">{currencySymbol}</span>
             <CurrencyInput
               value={initialDeposit}
               onChange={onInitialDepositChange}
@@ -92,9 +97,9 @@ export function InvestmentDepositForm({
           <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
             <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
             <div className="text-sm">
-              <p className="text-red-400 font-medium">Saldo insuficiente</p>
+              <p className="text-red-400 font-medium">{t("insufficientBalance")}</p>
               <p className="text-[var(--text-muted)] text-xs mt-0.5">
-                Você precisa de {formatCurrency(depositValue)} mas tem apenas {formatCurrency(availableBalance || 0)} disponível.
+                {t("insufficientBalanceDesc", { needed: formatCurrency(depositValue), available: formatCurrency(availableBalance || 0) })}
               </p>
             </div>
           </div>
@@ -102,7 +107,7 @@ export function InvestmentDepositForm({
 
         <div>
           <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-            Data do Depósito *
+            {t("depositDate")}
           </label>
           <input
             type="date"
@@ -115,7 +120,7 @@ export function InvestmentDepositForm({
         </div>
 
         <p className="text-xs text-[var(--text-dimmed)]">
-          Mínimo R$ 1,00. Novas operações só podem ser registradas a partir desta data.
+          {t("minDeposit", { symbol: currencySymbol })}
         </p>
       </div>
 
@@ -129,9 +134,9 @@ export function InvestmentDepositForm({
             className="w-4 h-4 mt-0.5 rounded border-[var(--border-color-strong)] bg-[var(--bg-hover)] text-primary-color focus:ring-[var(--color-primary)] focus:ring-offset-0 cursor-pointer"
           />
           <div>
-            <span className="text-sm text-[var(--text-primary)]">Investimento já existente</span>
+            <span className="text-sm text-[var(--text-primary)]">{t("existingInvestment")}</span>
             <p className="text-xs text-[var(--text-dimmed)] mt-0.5">
-              Marque esta opção se você já tinha esse investimento antes de usar o sistema. O valor não será descontado do seu saldo.
+              {t("existingInvestmentDesc")}
             </p>
           </div>
         </label>
@@ -140,12 +145,12 @@ export function InvestmentDepositForm({
       {/* Notes */}
       <div>
         <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-          Observações
+          {tc("notes")}
         </label>
         <textarea
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}
-          placeholder="Anotações opcionais..."
+          placeholder={tc("notesPlaceholder")}
           rows={2}
           className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all resize-none"
         />
@@ -159,14 +164,14 @@ export function InvestmentDepositForm({
           className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all flex items-center justify-center gap-2"
         >
           <ChevronLeft className="w-4 h-4" />
-          Voltar
+          {tc("back")}
         </button>
         <button
           type="submit"
           disabled={isSubmitting || !initialDeposit || parseFloat(initialDeposit) < 1 || hasInsufficientBalance}
           className="flex-1 py-3 px-4 rounded-xl font-medium bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-400 hover:to-teal-400 transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {isSubmitting ? "Salvando..." : skipBalanceCheck ? "Criar (Sem Desconto)" : "Criar Ativo"}
+          {isSubmitting ? tc("saving") : skipBalanceCheck ? t("createNoDiscount") : t("createAsset")}
           {!isSubmitting && <ArrowRight className="w-4 h-4" />}
         </button>
       </div>

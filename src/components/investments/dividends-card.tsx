@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { Coins, TrendingUp, Calendar, RefreshCw, ChevronRight } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations, useLocale } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 
 const HIDDEN = "•••••";
 
@@ -55,8 +56,13 @@ export function DividendsCard() {
   const [data, setData] = useState<DividendsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
+  const t = useTranslations("investments");
+  const tc = useTranslations("common");
+  const locale = useLocale();
   const { privacy } = usePreferences();
+  const { formatCurrency } = useCurrency();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
+  const getDateLocale = () => locale === "pt" ? "pt-BR" : locale === "es" ? "es-ES" : "en-US";
 
   useEffect(() => {
     fetchData();
@@ -70,7 +76,7 @@ export function DividendsCard() {
         setData(result);
       }
     } catch (error) {
-      console.error("Erro ao buscar dividendos:", error);
+      console.error("Error fetching dividends:", error);
     } finally {
       setIsLoading(false);
     }
@@ -97,11 +103,11 @@ export function DividendsCard() {
         </div>
         <div>
           <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-            Proventos
+            {t("dividends")}
           </h3>
           {hasData && (
             <p className="text-xs text-[var(--text-dimmed)]">
-              Yield: {data.summary.yieldOnCost.toFixed(2)}% a.a.
+              {t("yieldOnCost", { yield: data.summary.yieldOnCost.toFixed(2) })}
             </p>
           )}
         </div>
@@ -113,10 +119,10 @@ export function DividendsCard() {
             <Coins className="w-12 h-12 text-emerald-400/50" />
           </div>
           <p className="text-base font-medium text-[var(--text-muted)] mb-2">
-            Nenhum provento registrado
+            {t("noDividends")}
           </p>
           <p className="text-sm text-[var(--text-dimmed)] max-w-[200px]">
-            Registre dividendos, JCP e outros proventos nas operações dos seus investimentos
+            {t("dividendsHint")}
           </p>
         </div>
       ) : (
@@ -124,19 +130,19 @@ export function DividendsCard() {
           {/* Summary Cards */}
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
-              <p className="text-xs text-[var(--text-dimmed)]">Este Mês</p>
+              <p className="text-xs text-[var(--text-dimmed)]">{t("thisMonthLabel")}</p>
               <p className="text-sm sm:text-base font-bold text-emerald-400">
                 {fmt(data.summary.thisMonth)}
               </p>
             </div>
             <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
-              <p className="text-xs text-[var(--text-dimmed)]">Este Ano</p>
+              <p className="text-xs text-[var(--text-dimmed)]">{t("thisYearLabel")}</p>
               <p className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
                 {fmt(data.summary.thisYear)}
               </p>
             </div>
             <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
-              <p className="text-xs text-[var(--text-dimmed)]">Média/Mês</p>
+              <p className="text-xs text-[var(--text-dimmed)]">{t("avgPerMonth")}</p>
               <p className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
                 {fmt(data.summary.averageMonthly)}
               </p>
@@ -146,7 +152,7 @@ export function DividendsCard() {
           {/* Mini Chart - Monthly History */}
           {data.monthlyHistory.some((m) => m.value > 0) && (
             <div className="mb-4">
-              <p className="text-xs text-[var(--text-dimmed)] mb-2">Últimos 6 meses</p>
+              <p className="text-xs text-[var(--text-dimmed)] mb-2">{t("last6Months")}</p>
               <div className="flex items-end gap-1 h-16">
                 {data.monthlyHistory.map((month, index) => {
                   const maxValue = Math.max(...data.monthlyHistory.map((m) => m.value));
@@ -176,13 +182,13 @@ export function DividendsCard() {
           {data.recent.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-[var(--text-dimmed)]">Últimos Recebidos</p>
+                <p className="text-xs text-[var(--text-dimmed)]">{t("lastReceived")}</p>
                 {data.recent.length > 3 && (
                   <button
                     onClick={() => setShowAll(!showAll)}
                     className="text-xs text-primary-color hover:underline flex items-center gap-0.5"
                   >
-                    {showAll ? "Ver menos" : "Ver todos"}
+                    {showAll ? tc("showLess") : tc("showMore")}
                     <ChevronRight className={`w-3 h-3 transition-transform ${showAll ? "rotate-90" : ""}`} />
                   </button>
                 )}
@@ -203,7 +209,7 @@ export function DividendsCard() {
                           {dividend.ticker || dividend.investmentName}
                         </p>
                         <p className="text-xs text-[var(--text-dimmed)]">
-                          {new Date(dividend.date).toLocaleDateString("pt-BR")}
+                          {new Date(dividend.date).toLocaleDateString(getDateLocale())}
                         </p>
                       </div>
                     </div>
@@ -220,7 +226,7 @@ export function DividendsCard() {
           {data.summary.lastMonth > 0 && (
             <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-[var(--text-muted)]">vs. mês anterior</span>
+                <span className="text-[var(--text-muted)]">{tc("vsPrevMonth")}</span>
                 {(() => {
                   const diff = data.summary.thisMonth - data.summary.lastMonth;
                   const diffPercent = data.summary.lastMonth > 0
@@ -249,8 +255,13 @@ export function DividendsCard() {
 // Export a props-based version for use in the investments page
 export function DividendsCardWithData({ data }: { data: DividendsData | null }) {
   const [showAll, setShowAll] = useState(false);
+  const t = useTranslations("investments");
+  const tc = useTranslations("common");
+  const locale = useLocale();
   const { privacy } = usePreferences();
+  const { formatCurrency } = useCurrency();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
+  const getDateLocale = () => locale === "pt" ? "pt-BR" : locale === "es" ? "es-ES" : "en-US";
 
   const hasData = data && (data.summary.thisYear > 0 || data.recent.length > 0);
 
@@ -263,11 +274,11 @@ export function DividendsCardWithData({ data }: { data: DividendsData | null }) 
         </div>
         <div>
           <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-            Proventos
+            {t("dividends")}
           </h3>
           {hasData && data && (
             <p className="text-xs text-[var(--text-dimmed)]">
-              Yield: {data.summary.yieldOnCost.toFixed(2)}% a.a.
+              {t("yieldOnCost", { yield: data.summary.yieldOnCost.toFixed(2) })}
             </p>
           )}
         </div>
@@ -279,10 +290,10 @@ export function DividendsCardWithData({ data }: { data: DividendsData | null }) 
             <Coins className="w-12 h-12 text-emerald-400/50" />
           </div>
           <p className="text-base font-medium text-[var(--text-muted)] mb-2">
-            Nenhum provento registrado
+            {t("noDividends")}
           </p>
           <p className="text-sm text-[var(--text-dimmed)] max-w-[200px]">
-            Registre dividendos, JCP e outros proventos nas operações dos seus investimentos
+            {t("dividendsHint")}
           </p>
         </div>
       ) : (
@@ -290,19 +301,19 @@ export function DividendsCardWithData({ data }: { data: DividendsData | null }) 
           {/* Summary Cards */}
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
-              <p className="text-xs text-[var(--text-dimmed)]">Este Mês</p>
+              <p className="text-xs text-[var(--text-dimmed)]">{t("thisMonthLabel")}</p>
               <p className="text-sm sm:text-base font-bold text-emerald-400">
                 {fmt(data.summary.thisMonth)}
               </p>
             </div>
             <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
-              <p className="text-xs text-[var(--text-dimmed)]">Este Ano</p>
+              <p className="text-xs text-[var(--text-dimmed)]">{t("thisYearLabel")}</p>
               <p className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
                 {fmt(data.summary.thisYear)}
               </p>
             </div>
             <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
-              <p className="text-xs text-[var(--text-dimmed)]">Média/Mês</p>
+              <p className="text-xs text-[var(--text-dimmed)]">{t("avgPerMonth")}</p>
               <p className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
                 {fmt(data.summary.averageMonthly)}
               </p>
@@ -312,7 +323,7 @@ export function DividendsCardWithData({ data }: { data: DividendsData | null }) 
           {/* Mini Chart - Monthly History */}
           {data.monthlyHistory.some((m) => m.value > 0) && (
             <div className="mb-4">
-              <p className="text-xs text-[var(--text-dimmed)] mb-2">Últimos 6 meses</p>
+              <p className="text-xs text-[var(--text-dimmed)] mb-2">{t("last6Months")}</p>
               <div className="flex items-end gap-1 h-16">
                 {data.monthlyHistory.map((month, index) => {
                   const maxValue = Math.max(...data.monthlyHistory.map((m) => m.value));
@@ -342,13 +353,13 @@ export function DividendsCardWithData({ data }: { data: DividendsData | null }) 
           {data.recent.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-[var(--text-dimmed)]">Últimos Recebidos</p>
+                <p className="text-xs text-[var(--text-dimmed)]">{t("lastReceived")}</p>
                 {data.recent.length > 3 && (
                   <button
                     onClick={() => setShowAll(!showAll)}
                     className="text-xs text-primary-color hover:underline flex items-center gap-0.5"
                   >
-                    {showAll ? "Ver menos" : "Ver todos"}
+                    {showAll ? tc("showLess") : tc("showMore")}
                     <ChevronRight className={`w-3 h-3 transition-transform ${showAll ? "rotate-90" : ""}`} />
                   </button>
                 )}
@@ -369,7 +380,7 @@ export function DividendsCardWithData({ data }: { data: DividendsData | null }) 
                           {dividend.ticker || dividend.investmentName}
                         </p>
                         <p className="text-xs text-[var(--text-dimmed)]">
-                          {new Date(dividend.date).toLocaleDateString("pt-BR")}
+                          {new Date(dividend.date).toLocaleDateString(getDateLocale())}
                         </p>
                       </div>
                     </div>
@@ -386,7 +397,7 @@ export function DividendsCardWithData({ data }: { data: DividendsData | null }) 
           {data.summary.lastMonth > 0 && (
             <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-[var(--text-muted)]">vs. mês anterior</span>
+                <span className="text-[var(--text-muted)]">{tc("vsPrevMonth")}</span>
                 {(() => {
                   const diff = data.summary.thisMonth - data.summary.lastMonth;
                   const diffPercent = data.summary.lastMonth > 0

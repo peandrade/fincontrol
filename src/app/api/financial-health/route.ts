@@ -193,22 +193,22 @@ export async function GET() {
         scoreMessage = "Atenção! Revise suas finanças.";
       }
 
-      // Generate improvement tips
+      // Generate improvement tips (return keys for i18n translation on client)
       const tips: string[] = [];
       if (monthlySavingsRate < 20) {
-        tips.push("Tente aumentar sua taxa de poupança para pelo menos 20%");
+        tips.push("tipSavingsRate");
       }
       if (creditUtilization > 30) {
-        tips.push("Reduza o uso do cartão de crédito para menos de 30% do limite");
+        tips.push("tipCreditUsage");
       }
       if (emergencyFundMonths < 3) {
-        tips.push("Priorize construir uma reserva de emergência de 3-6 meses");
+        tips.push("tipEmergencyFund");
       }
       if (investmentTypes < 3) {
-        tips.push("Diversifique seus investimentos em mais classes de ativos");
+        tips.push("tipDiversification");
       }
       if (budgetAdherence < 80) {
-        tips.push("Revise seus orçamentos - você está gastando além do planejado");
+        tips.push("tipBudgetAdherence");
       }
 
       const result = {

@@ -2,8 +2,9 @@
 
 import { useState, useId } from "react";
 import { X, PiggyBank } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/contexts/currency-context";
 
 interface ContributeModalProps {
   isOpen: boolean;
@@ -22,6 +23,9 @@ export function ContributeModal({
   goalName,
   remaining,
 }: ContributeModalProps) {
+  const t = useTranslations("goals");
+  const tc = useTranslations("common");
+  const { formatCurrency, currencySymbol, convertToBRL } = useCurrency();
   const titleId = useId();
   const [value, setValue] = useState("");
   const [notes, setNotes] = useState("");
@@ -30,7 +34,7 @@ export function ContributeModal({
     e.preventDefault();
     if (!value) return;
 
-    await onSave(parseFloat(value), notes || undefined);
+    await onSave(convertToBRL(parseFloat(value)), notes || undefined);
 
     setValue("");
     setNotes("");
@@ -58,7 +62,7 @@ export function ContributeModal({
             </div>
             <div>
               <h2 id={titleId} className="text-lg font-semibold text-[var(--text-primary)]">
-                Guardar Dinheiro
+                {t("saveMoney")}
               </h2>
               <p className="text-[var(--text-dimmed)] text-sm truncate max-w-[180px]">
                 {goalName}
@@ -68,7 +72,7 @@ export function ContributeModal({
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            aria-label="Fechar"
+            aria-label={tc("close")}
           >
             <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
@@ -78,7 +82,7 @@ export function ContributeModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {}
           <div className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
-            <p className="text-xs text-[var(--text-dimmed)] mb-1">Faltam</p>
+            <p className="text-xs text-[var(--text-dimmed)] mb-1">{t("remaining")}</p>
             <p className="text-lg font-bold text-emerald-400">
               {formatCurrency(remaining)}
             </p>
@@ -87,11 +91,11 @@ export function ContributeModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Valor a guardar
+              {t("amountToSave")}
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">
-                R$
+                {currencySymbol}
               </span>
               <CurrencyInput
                 value={value}
@@ -116,13 +120,13 @@ export function ContributeModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Observação (opcional)
+              {t("observationOptional")}
             </label>
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ex: 13º salário"
+              placeholder={t("observationPlaceholder")}
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
             />
           </div>
@@ -134,14 +138,14 @@ export function ContributeModal({
               onClick={onClose}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all"
             >
-              Cancelar
+              {tc("cancel")}
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !value}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-400 hover:to-green-400 transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-50"
             >
-              {isSubmitting ? "Salvando..." : "Guardar"}
+              {isSubmitting ? tc("saving") : t("saveButton")}
             </button>
           </div>
         </form>

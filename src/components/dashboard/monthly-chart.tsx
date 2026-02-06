@@ -10,7 +10,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { ChevronDown } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import { useTheme, usePreferences } from "@/contexts";
 
 const HIDDEN = "•••••";
@@ -22,12 +23,12 @@ interface MonthlyChartProps {
   onPeriodChange: (period: EvolutionPeriod) => void;
 }
 
-const PERIOD_OPTIONS: { value: EvolutionPeriod; label: string }[] = [
-  { value: "1w", label: "1 Semana" },
-  { value: "1m", label: "30 Dias" },
-  { value: "3m", label: "3 Meses" },
-  { value: "6m", label: "6 Meses" },
-  { value: "1y", label: "1 Ano" },
+const PERIOD_KEYS: { value: EvolutionPeriod; key: string }[] = [
+  { value: "1w", key: "1w" },
+  { value: "1m", key: "1m" },
+  { value: "3m", key: "3m" },
+  { value: "6m", key: "6m" },
+  { value: "1y", key: "1y" },
 ];
 
 interface TooltipPayload {
@@ -41,11 +42,17 @@ function ChartTooltip({
   payload,
   label,
   hideValues,
+  formatCurrency,
+  incomeLabel,
+  expensesLabel,
 }: {
   active?: boolean;
   payload?: TooltipPayload[];
   label?: string;
   hideValues?: boolean;
+  formatCurrency: (value: number) => string;
+  incomeLabel: string;
+  expensesLabel: string;
 }) {
   if (active && payload && payload.length) {
     return (
@@ -65,7 +72,7 @@ function ChartTooltip({
             style={{ color: entry.color }}
             className="text-sm font-medium"
           >
-            {entry.name === "income" ? "Receitas" : "Despesas"}:{" "}
+            {entry.name === "income" ? incomeLabel : expensesLabel}:{" "}
             {hideValues ? HIDDEN : formatCurrency(entry.value)}
           </p>
         ))}
@@ -76,10 +83,14 @@ function ChartTooltip({
 }
 
 export function MonthlyChart({ data, period, onPeriodChange }: MonthlyChartProps) {
+  const t = useTranslations("dashboard");
+  const tp = useTranslations("periods");
+  const { formatCurrency } = useCurrency();
   const { theme } = useTheme();
   const { privacy } = usePreferences();
   const descriptionId = useId();
-  const currentPeriodLabel = PERIOD_OPTIONS.find(p => p.value === period)?.label || "6 Meses";
+  const PERIOD_OPTIONS = PERIOD_KEYS.map(p => ({ value: p.value, label: tp(p.key) }));
+  const currentPeriodLabel = PERIOD_OPTIONS.find(p => p.value === period)?.label || tp("6m");
 
   const axisTickColor = theme === "dark" ? "#9CA3AF" : "#4B5563";
 
@@ -114,7 +125,7 @@ export function MonthlyChart({ data, period, onPeriodChange }: MonthlyChartProps
       `}</style>
       <div className="flex items-center justify-between mb-1 gap-2">
         <h3 className="text-base sm:text-lg font-semibold truncate" style={{ color: "var(--text-primary)" }}>
-          Evolução Financeira
+          {t("financialEvolution")}
         </h3>
         <div className="relative flex-shrink-0">
           <select
@@ -142,11 +153,11 @@ export function MonthlyChart({ data, period, onPeriodChange }: MonthlyChartProps
         </div>
       </div>
       <p className="text-xs sm:text-sm mb-4 sm:mb-6" style={{ color: "var(--text-dimmed)" }}>
-        Receitas vs Despesas
+        {t("incomeVsExpenses")}
       </p>
       <p id={descriptionId} className="sr-only">
-        Gráfico de evolução financeira mostrando receitas e despesas no período de {currentPeriodLabel.toLowerCase()}.
-        {privacy.hideValues ? " Valores ocultos." : ` Total de receitas: ${formatCurrency(totalIncome)}. Total de despesas: ${formatCurrency(totalExpense)}.`}
+        {t("chartDescription")} {currentPeriodLabel.toLowerCase()}.
+        {privacy.hideValues ? ` ${t("valuesHidden")}.` : ` ${t("totalIncome")} ${formatCurrency(totalIncome)}. ${t("totalExpenses")} ${formatCurrency(totalExpense)}.`}
       </p>
       <div className="h-48 sm:h-64" role="img" aria-describedby={descriptionId}>
         <ResponsiveContainer width="100%" height="100%">
@@ -175,7 +186,7 @@ export function MonthlyChart({ data, period, onPeriodChange }: MonthlyChartProps
                 privacy.hideValues ? "•••" : `${(value / 1000).toFixed(0)}k`
               }
             />
-            <Tooltip content={<ChartTooltip hideValues={privacy.hideValues} />} />
+            <Tooltip content={<ChartTooltip hideValues={privacy.hideValues} formatCurrency={formatCurrency} incomeLabel={t("income")} expensesLabel={t("expenses")} />} />
             <Area
               type="monotone"
               dataKey="income"
@@ -200,11 +211,11 @@ export function MonthlyChart({ data, period, onPeriodChange }: MonthlyChartProps
       <div className="flex items-center justify-center gap-4 sm:gap-6 mt-3 sm:mt-4">
         <div className="flex items-center gap-1.5 sm:gap-2">
           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500" />
-          <span className="text-xs sm:text-sm" style={{ color: "var(--text-muted)" }}>Receitas</span>
+          <span className="text-xs sm:text-sm" style={{ color: "var(--text-muted)" }}>{t("income")}</span>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2">
           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-indigo-500" />
-          <span className="text-xs sm:text-sm" style={{ color: "var(--text-muted)" }}>Despesas</span>
+          <span className="text-xs sm:text-sm" style={{ color: "var(--text-muted)" }}>{t("expenses")}</span>
         </div>
       </div>
     </div>

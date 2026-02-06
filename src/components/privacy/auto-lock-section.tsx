@@ -1,6 +1,7 @@
 "use client";
 
 import { Timer } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface AutoLockProps {
   enabled: boolean;
@@ -12,6 +13,8 @@ interface AutoLockProps {
 const LOCK_TIME_OPTIONS = [1, 5, 15, 30];
 
 export function AutoLockSection({ enabled, lockTime, onToggle, onTimeChange }: AutoLockProps) {
+  const t = useTranslations("privacy");
+
   return (
     <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
       <div className="flex items-center justify-between mb-4">
@@ -20,8 +23,8 @@ export function AutoLockSection({ enabled, lockTime, onToggle, onTimeChange }: A
             <Timer className="w-5 h-5 text-amber-400" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Bloqueio Automático</h2>
-            <p className="text-sm text-[var(--text-dimmed)]">Bloquear após inatividade</p>
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("autoLock")}</h2>
+            <p className="text-sm text-[var(--text-dimmed)]">{t("autoLockDesc")}</p>
           </div>
         </div>
         <button
@@ -46,7 +49,7 @@ export function AutoLockSection({ enabled, lockTime, onToggle, onTimeChange }: A
 
       {enabled && (
         <div className="pt-4 border-t border-[var(--border-color)]">
-          <p className="text-sm text-[var(--text-muted)] mb-3">Tempo de inatividade</p>
+          <p className="text-sm text-[var(--text-muted)] mb-3">{t("inactivityTime")}</p>
           <div className="grid grid-cols-4 gap-2">
             {LOCK_TIME_OPTIONS.map((minutes) => (
               <button

@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Target, RefreshCw, Trophy, TrendingUp } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import { useFeedback } from "@/hooks/use-feedback";
 import { getGoalCategoryLabel, getGoalCategoryColor, getGoalCategoryIcon, type GoalCategoryType } from "@/lib/constants";
 import { GoalModal } from "./goal-modal";
@@ -36,8 +37,11 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
   const [deleteGoalId, setDeleteGoalId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { formatCurrency } = useCurrency();
   const { privacy, general } = usePreferences();
   const feedback = useFeedback();
+  const t = useTranslations("goals");
+  const tc = useTranslations("common");
 
   const fetchGoals = useCallback(async () => {
     try {
@@ -181,7 +185,7 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
 
   return (
     <>
-      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden max-h-[440px] flex flex-col">
+      <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden max-h-[540px] flex flex-col">
         {}
         <div className="p-4 sm:p-6 border-b border-[var(--border-color)] flex-shrink-0">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
@@ -191,12 +195,12 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
               </div>
               <div>
                 <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-                  Metas Financeiras
+                  {t("title")}
                 </h3>
                 <p className="text-xs sm:text-sm text-[var(--text-dimmed)]">
                   {summary.totalGoals > 0
-                    ? `${summary.completedGoals}/${summary.totalGoals} concluídas`
-                    : "Defina seus objetivos"}
+                    ? t("completedOf", { completed: summary.completedGoals, total: summary.totalGoals })
+                    : t("defineObjectives")}
                 </p>
               </div>
             </div>
@@ -207,7 +211,7 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
                 className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary text-xs sm:text-sm"
               >
                 <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Nova</span>
+                <span className="hidden sm:inline">{t("newGoal")}</span>
               </button>
             </div>
           </div>
@@ -216,13 +220,13 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
           {data && data.goals.length > 0 && (
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <div className="bg-[var(--bg-hover)] rounded-lg sm:rounded-xl p-2.5 sm:p-3 text-center">
-                <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)] mb-0.5 sm:mb-1">Guardado</p>
+                <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)] mb-0.5 sm:mb-1">{t("savedLabel")}</p>
                 <p className="text-sm sm:text-lg font-bold text-emerald-400">
                   {privacy.hideValues ? "•••••" : formatCurrency(summary.totalCurrentValue)}
                 </p>
               </div>
               <div className="bg-[var(--bg-hover)] rounded-lg sm:rounded-xl p-2.5 sm:p-3 text-center">
-                <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)] mb-0.5 sm:mb-1">Objetivo</p>
+                <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)] mb-0.5 sm:mb-1">{t("objectiveLabel")}</p>
                 <p className="text-sm sm:text-lg font-bold text-[var(--text-primary)]">
                   {privacy.hideValues ? "•••••" : formatCurrency(summary.totalTargetValue)}
                 </p>
@@ -234,7 +238,7 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
           {data && data.goals.length > 0 && (
             <div className="mt-2 sm:mt-3">
               <div className="flex items-center justify-between text-[10px] sm:text-xs mb-1">
-                <span className="text-[var(--text-dimmed)]">Progresso geral</span>
+                <span className="text-[var(--text-dimmed)]">{t("overallProgress")}</span>
                 <span className="text-primary-color font-medium">
                   {summary.overallProgress.toFixed(1)}%
                 </span>
@@ -254,9 +258,9 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
           {data?.goals.length === 0 ? (
             <div className="text-center py-4 sm:py-6">
               <Target className="w-8 h-8 sm:w-10 sm:h-10 text-[var(--text-dimmed)] mx-auto mb-2" />
-              <p className="text-sm sm:text-base text-[var(--text-muted)]">Nenhuma meta criada</p>
+              <p className="text-sm sm:text-base text-[var(--text-muted)]">{t("noGoals")}</p>
               <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)]">
-                Defina seus objetivos financeiros
+                {t("defineFinancialGoals")}
               </p>
             </div>
           ) : (
@@ -266,7 +270,7 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
                 <div className="space-y-2">
                   <span className="text-xs font-medium text-primary-color uppercase tracking-wide flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
-                    Em progresso ({activeGoals.length})
+                    {t("inProgress")} ({activeGoals.length})
                   </span>
                   {activeGoals.map((goal) => (
                     <GoalCard
@@ -284,7 +288,7 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
                 <div className="space-y-2 mt-4">
                   <span className="text-xs font-medium text-emerald-400 uppercase tracking-wide flex items-center gap-1">
                     <Trophy className="w-3 h-3" />
-                    Concluídas ({completedGoals.length})
+                    {t("completed")} ({completedGoals.length})
                   </span>
                   {completedGoals.map((goal) => (
                     <GoalCard
@@ -320,9 +324,9 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
         isOpen={!!deleteGoalId}
         onClose={() => setDeleteGoalId(null)}
         onConfirm={handleDelete}
-        title="Remover Meta"
-        message="Tem certeza que deseja remover esta meta? Todo o histórico de contribuições será perdido."
-        confirmText="Remover"
+        title={t("removeGoal")}
+        message={t("removeGoalConfirm")}
+        confirmText={tc("remove")}
         isLoading={isDeleting}
       />
     </>

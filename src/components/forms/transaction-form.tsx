@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/modal";
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/constants";
 import { formatDateForInput } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import type { TransactionType, CreateTransactionInput } from "@/types";
 
 const transactionSchema = z.object({
@@ -50,6 +52,7 @@ export function TransactionForm({
   onSubmit,
   isSubmitting,
 }: TransactionFormProps) {
+  const { currencySymbol } = useCurrency();
   const {
     register,
     handleSubmit,
@@ -137,7 +140,7 @@ export function TransactionForm({
               step="0.01"
               label="Valor"
               placeholder="0,00"
-              leftIcon={<span className="text-gray-500 text-sm">R$</span>}
+              leftIcon={<span className="text-gray-500 text-sm">{currencySymbol}</span>}
               error={errors.value?.message}
               {...register("value", { valueAsNumber: true })}
             />

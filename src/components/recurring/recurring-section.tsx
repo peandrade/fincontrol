@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Repeat, RefreshCw, Trash2, Pencil, Check, AlertCircle, Zap } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import { useFeedback } from "@/hooks/use-feedback";
 import { CATEGORY_COLORS } from "@/lib/constants";
 import { RecurringExpenseModal } from "./recurring-expense-modal";
@@ -29,6 +30,8 @@ interface RecurringSectionProps {
 }
 
 export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
+  const t = useTranslations("recurring");
+  const tc = useTranslations("common");
   const [data, setData] = useState<RecurringData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,6 +40,7 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
   const [isLaunching, setIsLaunching] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { formatCurrency } = useCurrency();
   const { privacy, general } = usePreferences();
   const feedback = useFeedback();
 
@@ -224,12 +228,12 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] truncate">
-                  Despesas Fixas
+                  {t("title")}
                 </h3>
                 <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)] truncate">
                   {summary.pendingCount > 0
-                    ? `${summary.pendingCount} pendente(s) este mês`
-                    : "Todas lançadas este mês"}
+                    ? t("pendingThisMonth", { count: summary.pendingCount })
+                    : t("allLaunched")}
                 </p>
               </div>
             </div>
@@ -238,7 +242,7 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
               className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl font-medium bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/25 text-[10px] sm:text-xs flex-shrink-0"
             >
               <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Nova
+              {t("newShort")}
             </button>
           </div>
 
@@ -246,13 +250,13 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
           {data && data.expenses.length > 0 && (
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-[var(--bg-hover)] rounded-lg sm:rounded-xl p-2 sm:p-2.5 text-center">
-                <p className="text-[10px] sm:text-[11px] text-[var(--text-dimmed)] mb-0.5">Total Mensal</p>
+                <p className="text-[10px] sm:text-[11px] text-[var(--text-dimmed)] mb-0.5">{t("totalMonthly")}</p>
                 <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
                   {privacy.hideValues ? "•••••" : formatCurrency(summary.totalMonthly)}
                 </p>
               </div>
               <div className="bg-[var(--bg-hover)] rounded-lg sm:rounded-xl p-2 sm:p-2.5 text-center">
-                <p className="text-[10px] sm:text-[11px] text-[var(--text-dimmed)] mb-0.5">Pendente</p>
+                <p className="text-[10px] sm:text-[11px] text-[var(--text-dimmed)] mb-0.5">{t("pendingLabel")}</p>
                 <p className={`text-xs sm:text-sm font-bold truncate ${summary.totalPending > 0 ? "text-amber-400" : "text-emerald-400"}`}>
                   {privacy.hideValues ? "•••••" : formatCurrency(summary.totalPending)}
                 </p>
@@ -266,9 +270,9 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
           {data?.expenses.length === 0 ? (
             <div className="text-center py-6">
               <Repeat className="w-10 h-10 text-[var(--text-dimmed)] mx-auto mb-2" />
-              <p className="text-[var(--text-muted)]">Nenhuma despesa fixa</p>
+              <p className="text-[var(--text-muted)]">{t("noExpenses")}</p>
               <p className="text-xs text-[var(--text-dimmed)]">
-                Adicione suas contas mensais
+                {t("addMonthlyBills")}
               </p>
             </div>
           ) : (
@@ -278,7 +282,7 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-amber-400 uppercase tracking-wide">
-                      Pendentes ({pendingExpenses.length})
+                      {t("pendingSection")} ({pendingExpenses.length})
                     </span>
                     {pendingExpenses.length > 1 && (
                       <button
@@ -287,7 +291,7 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
                         className="flex items-center gap-1 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-50"
                       >
                         <Zap className="w-3 h-3" />
-                        Lançar todas
+                        {t("launchAll")}
                       </button>
                     )}
                   </div>
@@ -309,7 +313,7 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
               {launchedExpenses.length > 0 && (
                 <div className="space-y-2">
                   <span className="text-xs font-medium text-emerald-400 uppercase tracking-wide">
-                    Lançadas ({launchedExpenses.length})
+                    {t("launchedSection")} ({launchedExpenses.length})
                   </span>
                   {launchedExpenses.map((expense) => (
                     <ExpenseItem
@@ -353,9 +357,9 @@ export function RecurringSection({ onExpenseLaunched }: RecurringSectionProps) {
         isOpen={!!deleteId}
         onClose={() => setDeleteId(null)}
         onConfirm={handleDelete}
-        title="Remover Despesa Fixa"
-        message="Tem certeza que deseja remover esta despesa fixa? As transações já lançadas não serão afetadas."
-        confirmText="Remover"
+        title={t("removeExpense")}
+        message={t("removeExpenseConfirm")}
+        confirmText={tc("remove")}
         isLoading={isDeleting}
       />
     </>
@@ -377,6 +381,9 @@ function ExpenseItem({
   isLaunching: boolean;
   hideValues: boolean;
 }) {
+  const t = useTranslations("recurring");
+  const tc = useTranslations("common");
+  const { formatCurrency } = useCurrency();
   const categoryColor = CATEGORY_COLORS[expense.category] || "#8B5CF6";
   const isLaunched = expense.isLaunchedThisMonth;
 
@@ -403,7 +410,7 @@ function ExpenseItem({
             <div className="flex items-center gap-2 text-xs text-[var(--text-dimmed)]">
               <span>{expense.category}</span>
               <span>•</span>
-              <span>Dia {expense.dueDay}</span>
+              <span>{t("dayPrefix")} {expense.dueDay}</span>
             </div>
           </div>
         </div>
@@ -421,8 +428,8 @@ function ExpenseItem({
               }}
               disabled={isLaunching}
               className="p-1.5 bg-amber-500/10 hover:bg-amber-500/20 rounded-lg transition-all disabled:opacity-50"
-              title="Lançar agora"
-              aria-label="Lançar despesa"
+              title={t("launchNow")}
+              aria-label={t("launchExpense")}
             >
               <Zap className="w-4 h-4 text-amber-400" aria-hidden="true" />
             </button>
@@ -435,8 +442,8 @@ function ExpenseItem({
                 onEdit();
               }}
               className="p-1.5 hover:bg-amber-500/20 active:bg-amber-500/30 rounded-lg transition-all"
-              title="Editar"
-              aria-label="Editar despesa"
+              title={tc("edit")}
+              aria-label={t("editExpense")}
             >
               <Pencil className="w-4 h-4 text-amber-400" aria-hidden="true" />
             </button>
@@ -447,8 +454,8 @@ function ExpenseItem({
               onDelete();
             }}
             className="p-1.5 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all"
-            title="Remover"
-            aria-label="Remover despesa"
+            title={tc("remove")}
+            aria-label={t("removeExpenseButton")}
           >
             <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
           </button>

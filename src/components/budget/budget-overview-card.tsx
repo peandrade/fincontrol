@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Wallet, RefreshCw } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { useFeedback } from "@/hooks/use-feedback";
+import { useCurrency } from "@/contexts/currency-context";
 import { usePreferences } from "@/contexts";
 
 const HIDDEN = "•••••";
@@ -27,7 +28,15 @@ interface BudgetOverviewCardProps {
   refreshTrigger?: number;
 }
 
+const MONTH_KEYS = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december"
+] as const;
+
 export function BudgetOverviewCard({ refreshTrigger = 0 }: BudgetOverviewCardProps) {
+  const t = useTranslations("budget");
+  const tc = useTranslations("common");
+  const tm = useTranslations("months");
   const [data, setData] = useState<BudgetData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,6 +44,7 @@ export function BudgetOverviewCard({ refreshTrigger = 0 }: BudgetOverviewCardPro
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const feedback = useFeedback();
+  const { formatCurrency } = useCurrency();
   const { privacy } = usePreferences();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
@@ -165,13 +175,10 @@ export function BudgetOverviewCard({ refreshTrigger = 0 }: BudgetOverviewCardPro
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] truncate">
-                  Orçamento Mensal
+                  {t("title")}
                 </h3>
                 <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)] truncate">
-                  {new Date(data?.year || 0, (data?.month || 1) - 1).toLocaleDateString("pt-BR", {
-                    month: "long",
-                    year: "numeric",
-                  })}
+                  {data?.month ? `${tm(MONTH_KEYS[(data.month || 1) - 1])} ${data?.year}` : ""}
                 </p>
               </div>
             </div>
@@ -180,7 +187,7 @@ export function BudgetOverviewCard({ refreshTrigger = 0 }: BudgetOverviewCardPro
               className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary text-[10px] sm:text-xs flex-shrink-0"
             >
               <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Novo
+              {t("newShort")}
             </button>
           </div>
 
@@ -188,7 +195,7 @@ export function BudgetOverviewCard({ refreshTrigger = 0 }: BudgetOverviewCardPro
           {hasBudgets && (
             <div className="bg-[var(--bg-hover)] rounded-lg sm:rounded-xl p-2.5 sm:p-3">
               <div className="flex items-center justify-between mb-1.5 gap-2">
-                <span className="text-[10px] sm:text-xs text-[var(--text-muted)]">Total do mês</span>
+                <span className="text-[10px] sm:text-xs text-[var(--text-muted)]">{t("totalMonth")}</span>
                 <div className="text-right min-w-0">
                   <span className="text-xs sm:text-sm font-bold text-[var(--text-primary)]">
                     {fmt(summary.totalSpent)}
@@ -218,12 +225,12 @@ export function BudgetOverviewCard({ refreshTrigger = 0 }: BudgetOverviewCardPro
                       : "text-emerald-400"
                   }`}
                 >
-                  {summary.totalPercentage.toFixed(0)}% utilizado
+                  {summary.totalPercentage.toFixed(0)}% {t("percentUsed")}
                 </span>
                 <span className={summary.totalRemaining < 0 ? "text-red-400 font-medium" : "text-[var(--text-dimmed)]"}>
                   {summary.totalRemaining < 0
-                    ? `Excedeu em ${fmt(Math.abs(summary.totalRemaining))}`
-                    : `Restam ${fmt(summary.totalRemaining)}`}
+                    ? `${t("exceededBy")} ${fmt(Math.abs(summary.totalRemaining))}`
+                    : `${t("remaining")} ${fmt(summary.totalRemaining)}`}
                 </span>
               </div>
             </div>
@@ -245,9 +252,9 @@ export function BudgetOverviewCard({ refreshTrigger = 0 }: BudgetOverviewCardPro
         {/* Empty state */}
         {!hasBudgets && (
           <div className="text-center py-4 px-4">
-            <p className="text-sm text-[var(--text-dimmed)]">Nenhum orçamento definido</p>
+            <p className="text-sm text-[var(--text-dimmed)]">{t("noBudgetsShort")}</p>
             <p className="text-xs text-[var(--text-dimmed)] mt-1">
-              Defina limites de gastos por categoria
+              {t("defineLimits")}
             </p>
           </div>
         )}

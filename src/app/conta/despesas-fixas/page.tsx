@@ -1,11 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ArrowLeft } from "lucide-react";
 import { RecurringSection } from "@/components/recurring";
 
 export default function DespesasFixasPage() {
   const router = useRouter();
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
 
   return (
     <div
@@ -35,10 +38,10 @@ export default function DespesasFixasPage() {
           </button>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
-              Despesas Fixas
+              {t("recurringExpenses")}
             </h1>
             <p className="text-[var(--text-dimmed)] mt-1">
-              Gerencie suas despesas recorrentes mensais
+              {t("recurringExpensesDesc")}
             </p>
           </div>
         </div>

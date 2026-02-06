@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Lock, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   Modal,
   ModalContent,
@@ -19,6 +20,8 @@ interface VerifyPasswordModalProps {
 }
 
 export function VerifyPasswordModal({ open, onClose, onVerified }: VerifyPasswordModalProps) {
+  const t = useTranslations("privacy");
+  const tc = useTranslations("common");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
@@ -26,7 +29,7 @@ export function VerifyPasswordModal({ open, onClose, onVerified }: VerifyPasswor
 
   const handleVerify = async () => {
     if (!password) {
-      setError("Digite sua senha");
+      setError(t("enterYourPassword"));
       return;
     }
 
@@ -43,7 +46,7 @@ export function VerifyPasswordModal({ open, onClose, onVerified }: VerifyPasswor
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Erro ao verificar senha");
+        setError(data.error || t("passwordVerifyError"));
         return;
       }
 
@@ -51,10 +54,10 @@ export function VerifyPasswordModal({ open, onClose, onVerified }: VerifyPasswor
         onVerified();
         handleClose();
       } else {
-        setError("Senha incorreta");
+        setError(t("wrongPassword"));
       }
     } catch {
-      setError("Erro ao verificar senha. Tente novamente.");
+      setError(t("passwordVerifyGenericError"));
     } finally {
       setIsVerifying(false);
     }
@@ -76,9 +79,9 @@ export function VerifyPasswordModal({ open, onClose, onVerified }: VerifyPasswor
               <Lock className="w-5 h-5 text-violet-400" />
             </div>
             <div>
-              <ModalTitle>Confirmar senha</ModalTitle>
+              <ModalTitle>{t("confirmPasswordTitle")}</ModalTitle>
               <ModalDescription>
-                Digite sua senha para desativar o modo discreto
+                {t("confirmPasswordDesc")}
               </ModalDescription>
             </div>
           </div>
@@ -93,7 +96,7 @@ export function VerifyPasswordModal({ open, onClose, onVerified }: VerifyPasswor
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
-              placeholder="Digite sua senha"
+              placeholder={t("enterYourPassword")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleVerify()}
@@ -115,7 +118,7 @@ export function VerifyPasswordModal({ open, onClose, onVerified }: VerifyPasswor
             disabled={isVerifying}
             className="px-4 py-2.5 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all disabled:opacity-50"
           >
-            Cancelar
+            {tc("cancel")}
           </button>
           <button
             onClick={handleVerify}
@@ -125,10 +128,10 @@ export function VerifyPasswordModal({ open, onClose, onVerified }: VerifyPasswor
             {isVerifying ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Verificando...
+                {t("verifying")}
               </>
             ) : (
-              "Confirmar"
+              tc("confirm")
             )}
           </button>
         </ModalFooter>

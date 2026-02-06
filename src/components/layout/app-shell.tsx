@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Sun, Moon } from "lucide-react";
 import { useTheme, useUser, useSidebar } from "@/contexts";
+import { useTranslations } from "next-intl";
 import { Sidebar } from "./sidebar";
 import { BottomTabs } from "./bottom-tabs";
 import { FeedbackButton } from "@/components/feedback";
@@ -18,6 +19,8 @@ function MobileHeader() {
   const { theme, toggleTheme, mounted } = useTheme();
   const { data: session } = useSession();
   const { profile } = useUser();
+  const t = useTranslations("nav");
+  const tc = useTranslations("common");
 
   if (authRoutes.includes(pathname)) {
     return null;
@@ -57,7 +60,7 @@ function MobileHeader() {
             onClick={toggleTheme}
             className="p-2 rounded-lg transition-all"
             style={{ color: "var(--text-muted)" }}
-            title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+            title={theme === "dark" ? t("lightTheme") : t("darkTheme")}
           >
             {mounted ? (
               theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />
@@ -74,7 +77,7 @@ function MobileHeader() {
               {userImage ? (
                 <img
                   src={userImage}
-                  alt="Avatar"
+                  alt={tc("avatar")}
                   className="w-8 h-8 rounded-full object-cover border-2"
                   style={{ borderColor: "var(--color-primary)" }}
                 />

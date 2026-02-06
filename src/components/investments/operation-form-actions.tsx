@@ -1,7 +1,8 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import type { OperationType } from "@/types";
 
 type SellMode = "quantity" | "value";
@@ -45,6 +46,9 @@ export function OperationFormActions({
   sellTargetValue,
   calculatedQuantity,
 }: OperationFormActionsProps) {
+  const t = useTranslations("investments");
+  const tc = useTranslations("common");
+  const { formatCurrency } = useCurrency();
   const hasInsufficientBalance = type === "buy" && availableBalance !== null && total > availableBalance && !skipBalanceCheck;
 
   const isFormInvalid = type === "dividend"
@@ -63,12 +67,12 @@ export function OperationFormActions({
         <div className="bg-[var(--bg-hover)] rounded-xl p-4">
           <div className="flex items-center justify-between">
             <span className="text-[var(--text-muted)]">
-              {type === "dividend" ? "Valor do Provento" : "Total da Operação"}
+              {type === "dividend" ? t("dividendValue") : t("operationTotal")}
             </span>
             <span className={`text-xl font-bold ${
               type === "buy" || type === "dividend" ? "text-emerald-400" : "text-red-400"
             }`}>
-              R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              {formatCurrency(total)}
             </span>
           </div>
         </div>
@@ -79,9 +83,9 @@ export function OperationFormActions({
         <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl p-3">
           <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
           <div className="text-sm">
-            <p className="text-red-400 font-medium">Saldo insuficiente</p>
+            <p className="text-red-400 font-medium">{t("insufficientBalance")}</p>
             <p className="text-[var(--text-muted)] text-xs mt-0.5">
-              Você precisa de {formatCurrency(total)} mas tem apenas {formatCurrency(availableBalance || 0)} disponível.
+              {t("insufficientBalanceDesc", { needed: formatCurrency(total), available: formatCurrency(availableBalance || 0) })}
             </p>
           </div>
         </div>
@@ -98,9 +102,9 @@ export function OperationFormActions({
               className="w-4 h-4 mt-0.5 rounded border-[var(--border-color-strong)] bg-[var(--bg-hover)] text-primary-color focus:ring-[var(--color-primary)] focus:ring-offset-0 cursor-pointer"
             />
             <div>
-              <span className="text-sm text-[var(--text-primary)]">Não descontar do saldo</span>
+              <span className="text-sm text-[var(--text-primary)]">{t("noBalanceDiscount")}</span>
               <p className="text-xs text-[var(--text-dimmed)] mt-0.5">
-                Marque se a operação já foi feita fora do sistema ou se não quer afetar seu saldo em conta.
+                {t("noBalanceDiscountDesc")}
               </p>
             </div>
           </label>
@@ -110,13 +114,13 @@ export function OperationFormActions({
       {/* Notes Field */}
       <div>
         <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-          Observações (opcional)
+          {tc("notesOptional")}
         </label>
         <input
           type="text"
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}
-          placeholder="Ex: Compra mensal"
+          placeholder={t("notePlaceholder")}
           className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
         />
       </div>
@@ -128,7 +132,7 @@ export function OperationFormActions({
           onClick={onClose}
           className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all"
         >
-          Cancelar
+          {tc("cancel")}
         </button>
         <button
           type="submit"
@@ -142,16 +146,16 @@ export function OperationFormActions({
           }`}
         >
           {isSubmitting
-            ? "Salvando..."
+            ? tc("saving")
             : type === "dividend"
-              ? "Registrar Provento"
+              ? t("registerDividend")
               : isFixed
                 ? type === "buy"
-                  ? skipBalanceCheck ? "Registrar (Sem Desconto)" : "Registrar Depósito"
-                  : "Registrar Resgate"
+                  ? skipBalanceCheck ? t("registerNoDiscount") : t("registerDeposit")
+                  : t("registerWithdraw")
                 : type === "buy"
-                  ? skipBalanceCheck ? "Registrar (Sem Desconto)" : "Registrar Compra"
-                  : "Registrar Venda"
+                  ? skipBalanceCheck ? t("registerNoDiscount") : t("registerPurchase")
+                  : t("registerSale")
           }
         </button>
       </div>

@@ -10,8 +10,9 @@ import {
   ArrowDown,
   Minus,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { getCategoryColor } from "@/lib/constants";
+import { useCurrency } from "@/contexts/currency-context";
 import { usePreferences } from "@/contexts";
 import { useAnalytics } from "@/hooks";
 import type { SpendingVelocity, TopInsight, AnalyticsData } from "@/hooks";
@@ -22,7 +23,10 @@ const HIDDEN = "•••••";
 export type { SpendingVelocity, TopInsight, AnalyticsData };
 
 export function AdvancedAnalytics() {
+  const t = useTranslations("reports");
+  const td = useTranslations("days");
   const { data, isLoading } = useAnalytics();
+  const { formatCurrency } = useCurrency();
   const { privacy } = usePreferences();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
@@ -51,7 +55,7 @@ export function AdvancedAnalytics() {
               <Calendar className="w-5 h-5 text-blue-400" />
             </div>
             <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-              Padrão por Dia da Semana
+              {t("dayOfWeekPattern")}
             </h2>
           </div>
 
@@ -71,7 +75,7 @@ export function AdvancedAnalytics() {
                   </div>
                 </div>
                 <span className="text-xs text-[var(--text-muted)]">
-                  {day.dayName.slice(0, 3)}
+                  {td(day.dayKey.slice(0, 3))}
                 </span>
                 <span className="text-xs text-[var(--text-dimmed)]">
                   {day.percentage.toFixed(0)}%
@@ -88,7 +92,7 @@ export function AdvancedAnalytics() {
               <BarChart3 className="w-5 h-5 text-emerald-400" />
             </div>
             <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-              Tendências por Categoria
+              {t("categoryTrends")}
             </h2>
           </div>
 
@@ -132,7 +136,7 @@ export function AdvancedAnalytics() {
                     </div>
                   </div>
                   <span className="text-xs text-[var(--text-dimmed)]">
-                    Média: {fmt(category.average)}/mês
+                    {t("averagePerMonth", { value: fmt(category.average) })}
                   </span>
                 </div>
               </div>
@@ -146,83 +150,100 @@ export function AdvancedAnalytics() {
 
 // Component to render insights (for use in popups)
 export function InsightsContent({ insights }: { insights: TopInsight[] }) {
+  const t = useTranslations("reports");
+  const td = useTranslations("days");
+
+  // Helper to translate dayKey in params if present
+  const getTranslatedParams = (params?: Record<string, string | number>) => {
+    if (!params) return params;
+    if (typeof params.dayKey === "string") {
+      return { ...params, dayKey: td(params.dayKey) };
+    }
+    return params;
+  };
+
   if (insights.length === 0) {
     return (
       <div className="text-center py-4">
-        <p className="text-sm text-[var(--text-muted)]">Nenhum insight no momento</p>
+        <p className="text-sm text-[var(--text-muted)]">{t("noInsightsAtMoment")}</p>
       </div>
     );
   }
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {insights.map((insight, index) => (
-        <div
-          key={index}
-          className={`p-4 rounded-xl border ${
-            insight.type === "positive"
-              ? "bg-emerald-500/10 border-emerald-500/30"
-              : insight.type === "negative"
-              ? "bg-red-500/10 border-red-500/30"
-              : "bg-blue-500/10 border-blue-500/30"
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <div
-              className={`p-2 rounded-lg ${
-                insight.type === "positive"
-                  ? "bg-emerald-500/20"
-                  : insight.type === "negative"
-                  ? "bg-red-500/20"
-                  : "bg-blue-500/20"
-              }`}
-            >
-              {insight.type === "positive" ? (
-                <TrendingDown className="w-4 h-4 text-emerald-400" />
-              ) : insight.type === "negative" ? (
-                <TrendingUp className="w-4 h-4 text-red-400" />
-              ) : (
-                <BarChart3 className="w-4 h-4 text-blue-400" />
-              )}
-            </div>
-            <div>
-              <p
-                className={`text-sm font-medium ${
+      {insights.map((insight, index) => {
+        const translatedParams = getTranslatedParams(insight.params);
+        return (
+          <div
+            key={index}
+            className={`p-4 rounded-xl border ${
+              insight.type === "positive"
+                ? "bg-emerald-500/10 border-emerald-500/30"
+                : insight.type === "negative"
+                ? "bg-red-500/10 border-red-500/30"
+                : "bg-blue-500/10 border-blue-500/30"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div
+                className={`p-2 rounded-lg ${
                   insight.type === "positive"
-                    ? "text-emerald-400"
+                    ? "bg-emerald-500/20"
                     : insight.type === "negative"
-                    ? "text-red-400"
-                    : "text-blue-400"
+                    ? "bg-red-500/20"
+                    : "bg-blue-500/20"
                 }`}
               >
-                {insight.title}
-              </p>
-              <p className="text-xs text-[var(--text-muted)] mt-1">
-                {insight.description}
-              </p>
+                {insight.type === "positive" ? (
+                  <TrendingDown className="w-4 h-4 text-emerald-400" />
+                ) : insight.type === "negative" ? (
+                  <TrendingUp className="w-4 h-4 text-red-400" />
+                ) : (
+                  <BarChart3 className="w-4 h-4 text-blue-400" />
+                )}
+              </div>
+              <div>
+                <p
+                  className={`text-sm font-medium ${
+                    insight.type === "positive"
+                      ? "text-emerald-400"
+                      : insight.type === "negative"
+                      ? "text-red-400"
+                      : "text-blue-400"
+                  }`}
+                >
+                  {t(insight.titleKey, translatedParams)}
+                </p>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  {t(insight.descriptionKey, translatedParams)}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
 // Component to render spending velocity (for use in popups)
 export function SpendingVelocityContent({ velocity }: { velocity: SpendingVelocity }) {
+  const t = useTranslations("reports");
+  const { formatCurrency } = useCurrency();
   const { privacy } = usePreferences();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
   return (
     <div className="grid grid-cols-2 gap-2">
       <div className="bg-[var(--bg-hover)] rounded-lg p-3 text-center">
-        <p className="text-[10px] text-[var(--text-dimmed)] mb-0.5">Média diária</p>
+        <p className="text-[10px] text-[var(--text-dimmed)] mb-0.5">{t("dailyAverage")}</p>
         <p className="text-sm font-bold text-primary-color">
           {fmt(velocity.currentMonth.dailyAverage)}
         </p>
       </div>
       <div className="bg-[var(--bg-hover)] rounded-lg p-3 text-center">
-        <p className="text-[10px] text-[var(--text-dimmed)] mb-0.5">Projeção mensal</p>
+        <p className="text-[10px] text-[var(--text-dimmed)] mb-0.5">{t("monthlyProjection")}</p>
         <p className="text-sm font-bold text-amber-400">
           {fmt(velocity.currentMonth.projectedTotal)}
         </p>

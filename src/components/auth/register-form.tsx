@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { UserPlus, Mail, Lock, User, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export function RegisterForm() {
   const router = useRouter();
+  const t = useTranslations("auth");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -29,7 +31,13 @@ export function RegisterForm() {
   };
 
   const passwordStrength = getPasswordStrength(password);
-  const strengthLabels = ["Muito fraca", "Fraca", "Média", "Forte", "Muito forte"];
+  const strengthLabels = [
+    t("passwordStrength.veryWeak"),
+    t("passwordStrength.weak"),
+    t("passwordStrength.medium"),
+    t("passwordStrength.strong"),
+    t("passwordStrength.veryStrong"),
+  ];
   const strengthColors = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#10b981"];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,12 +45,12 @@ export function RegisterForm() {
     setError("");
 
     if (password !== confirmPassword) {
-      setError("As senhas não coincidem");
+      setError(t("passwordsDontMatch"));
       return;
     }
 
     if (password.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres");
+      setError(t("passwordMinLength"));
       return;
     }
 
@@ -59,7 +67,7 @@ export function RegisterForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Erro ao criar conta");
+        setError(data.error || t("registerError"));
         return;
       }
 
@@ -70,7 +78,7 @@ export function RegisterForm() {
       });
 
       if (result?.error) {
-        setError("Conta criada, mas houve erro ao fazer login. Tente fazer login manualmente.");
+        setError(t("registerLoginError"));
       } else {
         router.push("/");
         router.refresh();

@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus, RefreshCw, ShoppingCart, CreditCard, Layers, AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useCardStore } from "@/store/card-store";
 import { useFeedback } from "@/hooks";
 import {
@@ -23,6 +24,8 @@ import type {
 } from "@/types/credit-card";
 
 function CartoesContent() {
+  const t = useTranslations("cards");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const cardIdFromUrl = searchParams.get("card");
 
@@ -168,7 +171,7 @@ function CartoesContent() {
       >
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-primary-color border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p style={{ color: "var(--text-muted)" }}>Carregando cartões...</p>
+          <p style={{ color: "var(--text-muted)" }}>{tc("loading")}</p>
         </div>
       </div>
     );
@@ -197,9 +200,9 @@ function CartoesContent() {
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>
-              Cartões de Crédito
+              {t("title")}
             </h1>
-            <p className="mt-1" style={{ color: "var(--text-dimmed)" }}>Gerencie suas faturas</p>
+            <p className="mt-1" style={{ color: "var(--text-dimmed)" }}>{t("subtitle")}</p>
           </div>
           <div className="flex items-center gap-3">
             {/* Alerts Button */}
@@ -212,7 +215,7 @@ function CartoesContent() {
                       ? "border-red-500/50 bg-red-500/10"
                       : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
                   }`}
-                  title="Alertas de Cartões"
+                  title={t("cardAlerts")}
                 >
                   <AlertTriangle className="w-5 h-5 text-red-400" />
                   <span className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-[10px] font-bold bg-red-500 text-white rounded-full">
@@ -226,7 +229,7 @@ function CartoesContent() {
                         <AlertTriangle className="w-5 h-5 text-red-400" />
                       </div>
                       <h3 className="text-base font-semibold text-[var(--text-primary)]">
-                        Alertas de Cartões
+                        {t("cardAlerts")}
                       </h3>
                     </div>
                     <CardAlertsContent alerts={analyticsData.alerts} />
@@ -238,7 +241,7 @@ function CartoesContent() {
             <button
               onClick={() => fetchCards()}
               className="p-3 hover:bg-[var(--bg-hover)] rounded-xl transition-colors"
-              title="Atualizar"
+              title={tc("refresh")}
             >
               <RefreshCw className={`w-5 h-5 text-[var(--text-muted)] ${isLoading ? "animate-spin" : ""}`} />
             </button>
@@ -248,7 +251,7 @@ function CartoesContent() {
                 className="flex items-center gap-2 px-5 py-3 bg-[var(--bg-hover)] hover:bg-[var(--bg-hover-strong)] rounded-xl font-medium transition-all text-[var(--text-primary)] border border-[var(--border-color-strong)]"
               >
                 <ShoppingCart className="w-5 h-5" />
-                Nova Compra
+                {t("newPurchase")}
               </button>
             )}
             <button
@@ -256,7 +259,7 @@ function CartoesContent() {
               className="flex items-center gap-2 px-6 py-3 bg-primary-gradient rounded-xl font-medium transition-all shadow-lg shadow-primary text-white"
             >
               <Plus className="w-5 h-5" />
-              Novo Cartão
+              {t("newCard")}
             </button>
           </div>
         </header>
@@ -275,7 +278,7 @@ function CartoesContent() {
             }`}
           >
             <Layers className="w-4 h-4" />
-            Todos os Cartões
+            {t("allCards")}
           </button>
           <button
             onClick={() => setViewMode("single")}
@@ -286,7 +289,7 @@ function CartoesContent() {
             }`}
           >
             <CreditCard className="w-4 h-4" />
-            Por Cartão
+            {t("byCard")}
           </button>
           {viewMode === "single" && selectedCard && (
             <span className="ml-2 px-3 py-1 bg-[var(--bg-hover)] rounded-lg text-sm text-[var(--text-primary)] border border-[var(--border-color-strong)]">
@@ -310,7 +313,7 @@ function CartoesContent() {
             <InvoicePreviewChart
               data={invoicePreview}
               cardColor={viewMode === "single" ? selectedCard?.color : "#8B5CF6"}
-              title={viewMode === "all" ? "Previsão Total (Todos os Cartões)" : "Previsão de Faturas"}
+              title={viewMode === "all" ? t("totalForecast") : t("invoiceForecast")}
             />
           </ErrorBoundary>
         </div>
@@ -356,21 +359,24 @@ function CartoesContent() {
   );
 }
 
+function LoadingFallback() {
+  const tc = useTranslations("common");
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center transition-colors duration-300"
+      style={{ backgroundColor: "var(--bg-primary)" }}
+    >
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-primary-color border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p style={{ color: "var(--text-muted)" }}>{tc("loading")}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function CartoesPage() {
   return (
-    <Suspense
-      fallback={
-        <div
-          className="min-h-screen flex items-center justify-center transition-colors duration-300"
-          style={{ backgroundColor: "var(--bg-primary)" }}
-        >
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-primary-color border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p style={{ color: "var(--text-muted)" }}>Carregando cartões...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<LoadingFallback />}>
       <CartoesContent />
     </Suspense>
   );

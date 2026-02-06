@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useId } from "react";
 import { X, TrendingUp, Target, History } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { getInvestmentTypeLabel, getInvestmentTypeIcon } from "@/lib/constants";
+import { getInvestmentTypeIcon } from "@/lib/constants";
 import { isVariableIncome, isFixedIncome } from "@/types";
+import { useCurrency } from "@/contexts/currency-context";
 import { TransactionHistoryModal } from "./transaction-history-modal";
 import {
   InvestmentInfoDisplay,
@@ -48,6 +49,10 @@ function EditInvestmentForm({
   onSave: (id: string, data: UpdateInvestmentInput) => Promise<void>;
   isSubmitting: boolean;
 }) {
+  const { currencySymbol } = useCurrency();
+  const t = useTranslations("investments");
+  const tc = useTranslations("common");
+  const tcat = useTranslations("categories");
   const titleId = useId();
   const [form, setForm] = useState<FormState>({
     currentPrice: investment.currentPrice?.toString() || "",
@@ -165,7 +170,7 @@ function EditInvestmentForm({
                 {investment.ticker || investment.name}
               </h2>
               <p className="text-[var(--text-dimmed)] text-sm">
-                {getInvestmentTypeLabel(investment.type)}
+                {tcat(`investmentTypes.${investment.type}`)}
               </p>
             </div>
           </div>
@@ -174,15 +179,15 @@ function EditInvestmentForm({
               type="button"
               onClick={() => setShowHistory(true)}
               className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="Histórico de transações"
-              aria-label="Ver histórico de transações"
+              title={t("transactionHistory")}
+              aria-label={t("viewHistory")}
             >
               <History className="w-5 h-5 text-gray-400" aria-hidden="true" />
             </button>
             <button
               onClick={onClose}
               className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              aria-label="Fechar"
+              aria-label={tc("close")}
             >
               <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
             </button>
@@ -227,10 +232,10 @@ function EditInvestmentForm({
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
                 <TrendingUp className="w-4 h-4 inline mr-1" />
-                Preço Atual por Cota
+                {t("currentPricePerShare")}
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">R$</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">{currencySymbol}</span>
                 <CurrencyInput
                   value={form.currentPrice}
                   onChange={(value) => handleChange("currentPrice", value)}
@@ -239,17 +244,17 @@ function EditInvestmentForm({
                 />
               </div>
               <p className="mt-1 text-xs text-[var(--text-dimmed)]">
-                Atualize com a cotação atual do ativo
+                {t("updateCurrentPrice")}
               </p>
             </div>
           ) : !isFixed && (
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
                 <TrendingUp className="w-4 h-4 inline mr-1" />
-                Saldo Atual
+                {t("currentBalanceLabel")}
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">R$</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">{currencySymbol}</span>
                 <CurrencyInput
                   value={form.currentValue}
                   onChange={(value) => handleChange("currentValue", value)}
@@ -258,7 +263,7 @@ function EditInvestmentForm({
                 />
               </div>
               <p className="mt-1 text-xs text-[var(--text-dimmed)]">
-                Atualize com o saldo atual incluindo rendimentos
+                {t("updateCurrentBalance")}
               </p>
             </div>
           )}
@@ -276,14 +281,14 @@ function EditInvestmentForm({
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
               <Target className="w-4 h-4 inline mr-1" />
-              Meta (opcional)
+              {t("goalOptional")}
             </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">R$</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">{currencySymbol}</span>
               <CurrencyInput
                 value={form.goalValue}
                 onChange={(value) => handleChange("goalValue", value)}
-                placeholder="10.000,00"
+                placeholder={t("goalPlaceholder")}
                 className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 pl-12 pr-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
               />
             </div>
@@ -297,12 +302,12 @@ function EditInvestmentForm({
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Observações (opcional)
+              {tc("notesOptional")}
             </label>
             <textarea
               value={form.notes}
               onChange={(e) => handleChange("notes", e.target.value)}
-              placeholder="Anotações..."
+              placeholder={tc("notesPlaceholder")}
               rows={2}
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all resize-none"
             />
@@ -315,14 +320,14 @@ function EditInvestmentForm({
               onClick={onClose}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all"
             >
-              Cancelar
+              {tc("cancel")}
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white hover:opacity-90 transition-all shadow-lg shadow-primary disabled:opacity-50"
             >
-              {isSubmitting ? "Salvando..." : "Salvar"}
+              {isSubmitting ? tc("saving") : tc("save")}
             </button>
           </div>
         </form>

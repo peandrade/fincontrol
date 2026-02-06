@@ -50,6 +50,30 @@ export const PURCHASE_CATEGORIES = [
   "Outros",
 ] as const;
 
+// Keys for translation (used for i18n)
+export const PURCHASE_CATEGORY_KEYS = [
+  "food",
+  "supermarket",
+  "restaurant",
+  "delivery",
+  "transport",
+  "fuel",
+  "rideshare",
+  "streaming",
+  "subscriptions",
+  "onlineShopping",
+  "clothing",
+  "electronics",
+  "health",
+  "pharmacy",
+  "education",
+  "leisure",
+  "travel",
+  "home",
+  "pets",
+  "other",
+] as const;
+
 export const CATEGORY_COLORS: Record<string, string> = {
   Alimentação: "#F59E0B",
   Supermercado: "#10B981",

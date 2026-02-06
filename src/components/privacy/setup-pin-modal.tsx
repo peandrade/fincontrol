@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { KeyRound, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   Modal,
   ModalContent,
@@ -19,6 +20,8 @@ interface SetupPinModalProps {
 }
 
 export function SetupPinModal({ open, onClose, onSuccess }: SetupPinModalProps) {
+  const t = useTranslations("privacy");
+  const tc = useTranslations("common");
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [accountPassword, setAccountPassword] = useState("");
@@ -39,7 +42,7 @@ export function SetupPinModal({ open, onClose, onSuccess }: SetupPinModalProps) 
       setConfirmPin(digits);
       if (digits.length === 6) {
         if (digits !== pin) {
-          setError("Os PINs não coincidem");
+          setError(t("pinsDontMatch"));
           setConfirmPin("");
         } else {
           setError("");
@@ -51,7 +54,7 @@ export function SetupPinModal({ open, onClose, onSuccess }: SetupPinModalProps) 
 
   const handleSubmit = async () => {
     if (!accountPassword) {
-      setError("Digite sua senha da conta");
+      setError(t("confirmAccountPassword"));
       return;
     }
 
@@ -68,14 +71,14 @@ export function SetupPinModal({ open, onClose, onSuccess }: SetupPinModalProps) 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Erro ao criar PIN");
+        setError(data.error || t("pinCreateError"));
         return;
       }
 
       onSuccess();
       handleClose();
     } catch {
-      setError("Erro ao criar PIN. Tente novamente.");
+      setError(t("pinCreateGenericError"));
     } finally {
       setIsSubmitting(false);
     }
@@ -111,11 +114,11 @@ export function SetupPinModal({ open, onClose, onSuccess }: SetupPinModalProps) 
               <KeyRound className="w-5 h-5 text-violet-400" />
             </div>
             <div>
-              <ModalTitle>Criar PIN do Modo Discreto</ModalTitle>
+              <ModalTitle>{t("createPinTitle")}</ModalTitle>
               <ModalDescription>
-                {step === "pin" && "Digite um PIN de 6 dígitos"}
-                {step === "confirm" && "Confirme seu PIN"}
-                {step === "password" && "Confirme com sua senha da conta"}
+                {step === "pin" && t("enterPin")}
+                {step === "confirm" && t("confirmPin")}
+                {step === "password" && t("confirmWithPassword")}
               </ModalDescription>
             </div>
           </div>
@@ -209,7 +212,7 @@ export function SetupPinModal({ open, onClose, onSuccess }: SetupPinModalProps) 
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="Digite sua senha da conta"
+                placeholder={t("accountPassword")}
                 value={accountPassword}
                 onChange={(e) => setAccountPassword(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
@@ -233,7 +236,7 @@ export function SetupPinModal({ open, onClose, onSuccess }: SetupPinModalProps) 
               disabled={isSubmitting}
               className="px-4 py-2.5 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all disabled:opacity-50"
             >
-              Voltar
+              {tc("back")}
             </button>
           )}
           <button
@@ -241,7 +244,7 @@ export function SetupPinModal({ open, onClose, onSuccess }: SetupPinModalProps) 
             disabled={isSubmitting}
             className="px-4 py-2.5 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all disabled:opacity-50"
           >
-            Cancelar
+            {tc("cancel")}
           </button>
           {step === "password" && (
             <button
@@ -252,10 +255,10 @@ export function SetupPinModal({ open, onClose, onSuccess }: SetupPinModalProps) 
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Criando...
+                  {t("creating")}
                 </>
               ) : (
-                "Criar PIN"
+                t("createPinButton")
               )}
             </button>
           )}

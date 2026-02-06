@@ -2,15 +2,15 @@
 
 import { useState, useEffect, useCallback, useId } from "react";
 import { X, Target, Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import {
   GOAL_CATEGORIES,
-  GOAL_CATEGORY_LABELS,
   GOAL_CATEGORY_COLORS,
   GOAL_CATEGORY_ICONS,
   type GoalCategoryType,
 } from "@/lib/constants";
-import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/contexts/currency-context";
 
 interface EmergencySuggestion {
   suggestedTarget: number;
@@ -34,6 +34,10 @@ interface GoalModalProps {
 }
 
 export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalProps) {
+  const t = useTranslations("goals");
+  const tc = useTranslations("common");
+  const tcat = useTranslations("categories");
+  const { formatCurrency, currencySymbol, convertToBRL } = useCurrency();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<GoalCategoryType | "">("");
@@ -76,9 +80,9 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
 
   useEffect(() => {
     if (category && !name) {
-      setName(GOAL_CATEGORY_LABELS[category as GoalCategoryType]);
+      setName(tcat(`goalTypes.${category}`));
     }
-  }, [category, name]);
+  }, [category, name, tcat]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,8 +92,8 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
       name,
       description: description || undefined,
       category: category as GoalCategoryType,
-      targetValue: parseFloat(targetValue),
-      currentValue: currentValue ? parseFloat(currentValue) : undefined,
+      targetValue: convertToBRL(parseFloat(targetValue)),
+      currentValue: currentValue ? convertToBRL(parseFloat(currentValue)) : undefined,
       targetDate: targetDate || undefined,
       color: GOAL_CATEGORY_COLORS[category as GoalCategoryType],
     });
@@ -136,10 +140,10 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
             </div>
             <div>
               <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">
-                Nova Meta
+                {t("newGoalTitle")}
               </h2>
               <p className="text-[var(--text-dimmed)] text-sm">
-                Defina seu objetivo financeiro
+                {t("defineGoal")}
               </p>
             </div>
           </div>
@@ -147,7 +151,7 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
             onClick={onClose}
             disabled={isSubmitting}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-            aria-label="Fechar modal"
+            aria-label={tc("close")}
           >
             <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
@@ -158,7 +162,7 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Tipo de Meta
+              {t("goalType")}
             </label>
             <div className="grid grid-cols-4 gap-2">
               {GOAL_CATEGORIES.map((cat) => (
@@ -179,7 +183,7 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
                 >
                   <span className="text-xl">{GOAL_CATEGORY_ICONS[cat]}</span>
                   <span className="text-xs text-[var(--text-muted)] text-center leading-tight">
-                    {GOAL_CATEGORY_LABELS[cat].split(" ")[0]}
+                    {tcat(`goalTypes.${cat}`)}
                   </span>
                 </button>
               ))}
@@ -192,17 +196,15 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-4 h-4 text-red-400" />
                 <span className="text-sm font-medium text-red-400">
-                  Sugestão Automática
+                  {t("autoSuggestion")}
                 </span>
               </div>
               {loadingSuggestion ? (
-                <p className="text-sm text-[var(--text-dimmed)]">Calculando...</p>
+                <p className="text-sm text-[var(--text-dimmed)]">{t("calculatingGoal")}</p>
               ) : emergencySuggestion ? (
                 <>
                   <p className="text-sm text-[var(--text-muted)] mb-2">
-                    Baseado nas suas despesas de{" "}
-                    <strong>{formatCurrency(emergencySuggestion.estimatedMonthlyExpenses)}/mês</strong>,
-                    recomendamos uma reserva de:
+                    {t("basedOnExpenses", { amount: formatCurrency(emergencySuggestion.estimatedMonthlyExpenses) })}
                   </p>
                   <div className="flex items-center justify-between">
                     <span className="text-xl font-bold text-red-400">
@@ -213,16 +215,16 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
                       onClick={applySuggestion}
                       className="text-xs px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
                     >
-                      Usar valor
+                      {t("useValue")}
                     </button>
                   </div>
                   <p className="text-xs text-[var(--text-dimmed)] mt-1">
-                    = 6 meses de despesas
+                    {t("sixMonthsExpenses")}
                   </p>
                 </>
               ) : (
                 <p className="text-sm text-[var(--text-dimmed)]">
-                  Adicione transações para calcular automaticamente
+                  {t("addTransactionsForCalc")}
                 </p>
               )}
             </div>
@@ -231,13 +233,13 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Nome da Meta
+              {t("goalName")}
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Viagem para Europa"
+              placeholder={t("goalNamePlaceholder")}
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
               required
             />
@@ -246,11 +248,11 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Valor Objetivo
+              {t("targetValue")}
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">
-                R$
+                {currencySymbol}
               </span>
               <CurrencyInput
                 value={targetValue}
@@ -265,11 +267,11 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Já tenho guardado (opcional)
+              {t("alreadySaved")}
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">
-                R$
+                {currencySymbol}
               </span>
               <CurrencyInput
                 value={currentValue}
@@ -283,7 +285,7 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Data Prevista (opcional)
+              {t("targetDateOptional")}
             </label>
             <input
               type="date"
@@ -293,20 +295,20 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
             />
             <p className="mt-1 text-xs text-[var(--text-dimmed)]">
-              Usada para calcular quanto guardar por mês
+              {t("targetDateHint")}
             </p>
           </div>
 
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Descrição (opcional)
+              {t("descriptionOptional")}
             </label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Anotações sobre a meta..."
+              placeholder={t("goalNotesPlaceholder")}
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
             />
           </div>
@@ -318,14 +320,14 @@ export function GoalModal({ isOpen, onClose, onSave, isSubmitting }: GoalModalPr
               onClick={onClose}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all"
             >
-              Cancelar
+              {tc("cancel")}
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name || !category || !targetValue}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary disabled:opacity-50"
             >
-              {isSubmitting ? "Salvando..." : "Criar Meta"}
+              {isSubmitting ? tc("saving") : t("createGoal")}
             </button>
           </div>
         </form>

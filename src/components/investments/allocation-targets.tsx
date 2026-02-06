@@ -1,8 +1,9 @@
 "use client";
 
 import { Target, ArrowUp, ArrowDown, Minus } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import type { AllocationTarget, InvestmentAnalyticsData } from "./analytics-types";
 import { typeColors } from "./analytics-types";
 
@@ -14,7 +15,9 @@ interface AllocationTargetsProps {
 }
 
 export function AllocationTargets({ data, summary }: AllocationTargetsProps) {
+  const t = useTranslations("investments");
   const { privacy } = usePreferences();
+  const { formatCurrency } = useCurrency();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
   const filtered = data.filter((a) => a.currentPercent > 0 || a.targetPercent > 0);
@@ -30,10 +33,10 @@ export function AllocationTargets({ data, summary }: AllocationTargetsProps) {
         </div>
         <div>
           <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-            Alocação vs Meta
+            {t("allocationVsTarget")}
           </h3>
           <p className="text-xs text-[var(--text-dimmed)]">
-            Diversificação: {summary.diversificationScore.toFixed(0)}%
+            {t("diversificationScore", { score: summary.diversificationScore.toFixed(0) })}
           </p>
         </div>
       </div>
@@ -48,19 +51,19 @@ export function AllocationTargets({ data, summary }: AllocationTargetsProps) {
       {/* Summary */}
       <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-[var(--border-color)]">
         <div className="text-center">
-          <p className="text-xs text-[var(--text-dimmed)]">Investido</p>
+          <p className="text-xs text-[var(--text-dimmed)]">{t("investedLabel")}</p>
           <p className="text-sm font-bold text-[var(--text-primary)]">
             {fmt(summary.totalInvested)}
           </p>
         </div>
         <div className="text-center">
-          <p className="text-xs text-[var(--text-dimmed)]">Valor Atual</p>
+          <p className="text-xs text-[var(--text-dimmed)]">{t("currentValue")}</p>
           <p className="text-sm font-bold text-[var(--text-primary)]">
             {fmt(summary.currentValue)}
           </p>
         </div>
         <div className="text-center">
-          <p className="text-xs text-[var(--text-dimmed)]">Retorno</p>
+          <p className="text-xs text-[var(--text-dimmed)]">{t("returnLabel")}</p>
           <p
             className={`text-sm font-bold ${
               summary.totalProfitLossPercent >= 0 ? "text-emerald-400" : "text-red-400"
@@ -113,11 +116,13 @@ function AllocationBar({ item }: { item: AllocationTarget }) {
 }
 
 function ActionBadge({ action }: { action: "buy" | "sell" | "hold" }) {
+  const t = useTranslations("investments");
+
   if (action === "buy") {
     return (
       <span className="flex items-center gap-0.5 text-xs text-emerald-400">
         <ArrowUp className="w-3 h-3" />
-        Comprar
+        {t("buy")}
       </span>
     );
   }
@@ -126,7 +131,7 @@ function ActionBadge({ action }: { action: "buy" | "sell" | "hold" }) {
     return (
       <span className="flex items-center gap-0.5 text-xs text-red-400">
         <ArrowDown className="w-3 h-3" />
-        Vender
+        {t("sell")}
       </span>
     );
   }
@@ -134,7 +139,7 @@ function ActionBadge({ action }: { action: "buy" | "sell" | "hold" }) {
   return (
     <span className="flex items-center gap-0.5 text-xs text-[var(--text-dimmed)]">
       <Minus className="w-3 h-3" />
-      OK
+      {t("ok")}
     </span>
   );
 }

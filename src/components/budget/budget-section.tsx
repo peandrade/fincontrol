@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Wallet, RefreshCw } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { useFeedback } from "@/hooks/use-feedback";
+import { useCurrency } from "@/contexts/currency-context";
 import { usePreferences } from "@/contexts";
 
 const HIDDEN = "•••••";
@@ -28,6 +29,7 @@ interface BudgetSectionProps {
 }
 
 export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
+  const t = useTranslations("budget");
   const [data, setData] = useState<BudgetData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,7 +37,8 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const feedback = useFeedback();
-  const { privacy } = usePreferences();
+  const { formatCurrency } = useCurrency();
+  const { privacy, general } = usePreferences();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
   const fetchBudgets = useCallback(async () => {
@@ -164,10 +167,10 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-[var(--text-primary)]">
-                  Orçamento Mensal
+                  {t("title")}
                 </h3>
                 <p className="text-sm text-[var(--text-dimmed)]">
-                  {new Date(data?.year || 0, (data?.month || 1) - 1).toLocaleDateString("pt-BR", {
+                  {new Date(data?.year || 0, (data?.month || 1) - 1).toLocaleDateString(general.language === "en" ? "en-US" : general.language === "es" ? "es-ES" : "pt-BR", {
                     month: "long",
                     year: "numeric",
                   })}
@@ -179,7 +182,7 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
               className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary text-sm"
             >
               <Plus className="w-4 h-4" />
-              Novo Orçamento
+              {t("newBudget")}
             </button>
           </div>
 
@@ -188,7 +191,7 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
             <div className="bg-[var(--bg-hover)] rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-[var(--text-muted)]">
-                  Total do mês
+                  {t("totalMonth")}
                 </span>
                 <div className="text-right">
                   <span className="text-lg font-bold text-[var(--text-primary)]">
@@ -220,12 +223,12 @@ export function BudgetSection({ refreshTrigger = 0 }: BudgetSectionProps) {
                         : "text-emerald-400"
                     }`}
                   >
-                    {summary.totalPercentage.toFixed(0)}% utilizado
+                    {summary.totalPercentage.toFixed(0)}% {t("percentUsed").replace("% ", "")}
                   </span>
                   <span className={summary.totalRemaining < 0 ? "text-red-400 font-medium" : "text-[var(--text-dimmed)]"}>
                     {summary.totalRemaining < 0
-                      ? `Excedeu em ${fmt(Math.abs(summary.totalRemaining))}`
-                      : `Restam ${fmt(summary.totalRemaining)}`
+                      ? `${t("exceededBy")} ${fmt(Math.abs(summary.totalRemaining))}`
+                      : `${t("remaining")} ${fmt(summary.totalRemaining)}`
                     }
                   </span>
                 </div>

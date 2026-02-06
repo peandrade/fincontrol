@@ -9,44 +9,46 @@ import {
   FileBarChart,
   Settings,
 } from "lucide-react";
-
-const tabItems = [
-  {
-    label: "Home",
-    href: "/",
-    icon: LayoutDashboard,
-    match: (p: string) => p === "/",
-  },
-  {
-    label: "Invest.",
-    href: "/investimentos",
-    icon: TrendingUp,
-    match: (p: string) => p === "/investimentos",
-  },
-  {
-    label: "Cartões",
-    href: "/cartoes",
-    icon: CreditCard,
-    match: (p: string) => p === "/cartoes",
-  },
-  {
-    label: "Relat.",
-    href: "/relatorios",
-    icon: FileBarChart,
-    match: (p: string) => p === "/relatorios",
-  },
-  {
-    label: "Mais",
-    href: "/conta",
-    icon: Settings,
-    match: (p: string) => p.startsWith("/conta"),
-  },
-];
+import { useTranslations } from "next-intl";
 
 const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
 
 export function BottomTabs() {
   const pathname = usePathname();
+  const t = useTranslations("nav");
+
+  const tabItems = [
+    {
+      label: t("home"),
+      href: "/",
+      icon: LayoutDashboard,
+      match: (p: string) => p === "/",
+    },
+    {
+      label: t("investmentsShort"),
+      href: "/investimentos",
+      icon: TrendingUp,
+      match: (p: string) => p === "/investimentos",
+    },
+    {
+      label: t("cards"),
+      href: "/cartoes",
+      icon: CreditCard,
+      match: (p: string) => p === "/cartoes",
+    },
+    {
+      label: t("reportsShort"),
+      href: "/relatorios",
+      icon: FileBarChart,
+      match: (p: string) => p === "/relatorios",
+    },
+    {
+      label: t("more"),
+      href: "/conta",
+      icon: Settings,
+      match: (p: string) => p.startsWith("/conta"),
+    },
+  ];
 
   if (authRoutes.includes(pathname)) {
     return null;

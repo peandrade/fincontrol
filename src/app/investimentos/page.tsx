@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Plus, RefreshCw, TrendingUp, Check, AlertCircle, Percent, Lightbulb } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   InvestmentSummaryCards,
   AllocationChart,
@@ -14,7 +15,7 @@ import {
   PortfolioInsights,
   PerformanceCards,
 } from "@/components/investments/investment-analytics";
-import { DividendsCard } from "@/components/investments";
+import { TaxCalculatorCard } from "@/components/investments";
 import type { InvestmentAnalyticsData } from "@/components/investments/investment-analytics";
 import { GoalSection } from "@/components/goals";
 import { GoalInsights } from "@/components/goals/goals-analytics";
@@ -24,6 +25,8 @@ import { useInvestmentStore } from "@/store/investments-store";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function InvestmentsPage() {
+  const t = useTranslations("investments");
+  const tc = useTranslations("common");
   const [isInvestmentModalOpen, setIsInvestmentModalOpen] = useState(false);
   const [isOperationModalOpen, setIsOperationModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -31,6 +34,7 @@ export default function InvestmentsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [quotesMessage, setQuotesMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [taxRefreshKey, setTaxRefreshKey] = useState(0);
 
   // Analytics data (fetched at page level)
   const [analyticsData, setAnalyticsData] = useState<InvestmentAnalyticsData | null>(null);
@@ -122,17 +126,17 @@ export default function InvestmentsPage() {
     if (result.updated > 0) {
       setQuotesMessage({
         type: "success",
-        text: `${result.updated} cotações atualizadas`,
+        text: t("quotesUpdated", { count: result.updated }),
       });
     } else if (result.errors.length > 0 && result.updated === 0) {
       setQuotesMessage({
         type: "error",
-        text: "Nenhuma cotação atualizada",
+        text: t("noQuotesUpdated"),
       });
     } else {
       setQuotesMessage({
         type: "success",
-        text: "Cotações já estão atualizadas",
+        text: t("quotesUpToDate"),
       });
     }
     setTimeout(() => setQuotesMessage(null), 4000);
@@ -143,17 +147,17 @@ export default function InvestmentsPage() {
     if (result.success && result.updated > 0) {
       setQuotesMessage({
         type: "success",
-        text: `${result.updated} rendimentos calculados`,
+        text: t("yieldsCalculated", { count: result.updated }),
       });
     } else if (!result.success) {
       setQuotesMessage({
         type: "error",
-        text: "Erro ao calcular rendimentos",
+        text: t("yieldsError"),
       });
     } else {
       setQuotesMessage({
         type: "success",
-        text: "Rendimentos atualizados",
+        text: t("yieldsUpdated"),
       });
     }
     setTimeout(() => setQuotesMessage(null), 4000);
@@ -184,6 +188,7 @@ export default function InvestmentsPage() {
     setIsSubmitting(true);
     try {
       await addOperation(data);
+      setTaxRefreshKey((k) => k + 1);
     } finally {
       setIsSubmitting(false);
     }
@@ -216,7 +221,7 @@ export default function InvestmentsPage() {
       >
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-primary-color border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p style={{ color: "var(--text-muted)" }}>Carregando investimentos...</p>
+          <p style={{ color: "var(--text-muted)" }}>{tc("loading")}</p>
         </div>
       </div>
     );
@@ -252,9 +257,9 @@ export default function InvestmentsPage() {
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>
-              Investimentos
+              {t("title")}
             </h1>
-            <p className="mt-1" style={{ color: "var(--text-dimmed)" }}>Acompanhe sua carteira</p>
+            <p className="mt-1" style={{ color: "var(--text-dimmed)" }}>{t("trackPortfolio")}</p>
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-3">
@@ -278,9 +283,9 @@ export default function InvestmentsPage() {
 
               {}
               <button
-                onClick={() => fetchInvestments()}
+                onClick={() => { fetchInvestments(); setTaxRefreshKey((k) => k + 1); }}
                 className="p-3 hover:bg-white/10 rounded-xl transition-colors"
-                title="Recarregar lista"
+                title={tc("refresh")}
               >
                 <RefreshCw className={`w-5 h-5 text-gray-400 ${isLoading ? "animate-spin" : ""}`} />
               </button>
@@ -290,7 +295,7 @@ export default function InvestmentsPage() {
                 className="flex items-center gap-2 px-6 py-3 bg-primary-gradient rounded-xl font-medium transition-all shadow-lg shadow-primary text-white"
               >
                 <Plus className="w-5 h-5" />
-                Novo Investimento
+                {t("newInvestment")}
               </button>
             </div>
 
@@ -300,11 +305,11 @@ export default function InvestmentsPage() {
                 onClick={handleRefreshYields}
                 disabled={isRefreshingYields}
                 className="flex items-center gap-2 px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-xl font-medium transition-all disabled:opacity-50 text-sm"
-                title={lastYieldsUpdate ? `Última atualização: ${lastYieldsUpdate.toLocaleTimeString("pt-BR")}` : "Calcular rendimentos de renda fixa"}
+                title={lastYieldsUpdate ? t("lastUpdate", { time: lastYieldsUpdate.toLocaleTimeString() }) : t("calculateYields")}
               >
                 <Percent className={`w-4 h-4 ${isRefreshingYields ? "animate-pulse" : ""}`} />
                 <span className="hidden sm:inline">
-                  {isRefreshingYields ? "Calculando..." : "Renda Fixa"}
+                  {isRefreshingYields ? tc("calculating") : t("fixedIncome")}
                 </span>
               </button>
 
@@ -313,11 +318,11 @@ export default function InvestmentsPage() {
                 onClick={handleRefreshQuotes}
                 disabled={isRefreshingQuotes}
                 className="flex items-center gap-2 px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-xl font-medium transition-all disabled:opacity-50 text-sm"
-                title={lastQuotesUpdate ? `Última atualização: ${lastQuotesUpdate.toLocaleTimeString("pt-BR")}` : "Atualizar cotações"}
+                title={lastQuotesUpdate ? t("lastUpdate", { time: lastQuotesUpdate.toLocaleTimeString() }) : t("updateQuotes")}
               >
                 <TrendingUp className={`w-4 h-4 ${isRefreshingQuotes ? "animate-pulse" : ""}`} />
                 <span className="hidden sm:inline">
-                  {isRefreshingQuotes ? "Atualizando..." : "Cotações"}
+                  {isRefreshingQuotes ? tc("updating") : t("quotes")}
                 </span>
               </button>
             </div>
@@ -356,7 +361,7 @@ export default function InvestmentsPage() {
                             ? "border-blue-500/50 bg-blue-500/10"
                             : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
                         }`}
-                        title="Insights da Carteira"
+                        title={t("portfolioInsights")}
                       >
                         <Lightbulb className="w-4 h-4 text-blue-400" />
                       </button>
@@ -367,7 +372,7 @@ export default function InvestmentsPage() {
                               <Lightbulb className="w-5 h-5 text-blue-400" />
                             </div>
                             <h3 className="text-base font-semibold text-[var(--text-primary)]">
-                              Insights da Carteira
+                              {t("portfolioInsights")}
                             </h3>
                           </div>
                           <PortfolioInsights insights={analyticsData.insights} />
@@ -381,7 +386,7 @@ export default function InvestmentsPage() {
           </div>
         </div>
 
-        {/* Row 2: Metas + Proventos */}
+        {/* Row 2: Metas + Calculadora IR */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <ErrorBoundary>
             <GoalSection
@@ -398,7 +403,7 @@ export default function InvestmentsPage() {
                           ? "border-blue-500/50 bg-blue-500/10"
                           : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
                       }`}
-                      title="Insights das Metas"
+                      title={t("goalInsights")}
                     >
                       <Lightbulb className="w-4 h-4 text-blue-400" />
                     </button>
@@ -409,7 +414,7 @@ export default function InvestmentsPage() {
                             <Lightbulb className="w-5 h-5 text-blue-400" />
                           </div>
                           <h3 className="text-base font-semibold text-[var(--text-primary)]">
-                            Insights das Metas
+                            {t("goalInsights")}
                           </h3>
                         </div>
                         <GoalInsights insights={goalAnalyticsData.insights} />
@@ -421,7 +426,7 @@ export default function InvestmentsPage() {
             />
           </ErrorBoundary>
           <ErrorBoundary>
-            <DividendsCard />
+            <TaxCalculatorCard refreshKey={taxRefreshKey} />
           </ErrorBoundary>
         </div>
 

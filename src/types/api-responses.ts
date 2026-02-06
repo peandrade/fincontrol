@@ -14,7 +14,7 @@ export interface CategoryTrend {
 
 export interface DayOfWeekPattern {
   dayOfWeek: number;
-  dayName: string;
+  dayKey: string;
   totalExpenses: number;
   transactionCount: number;
   averageTransaction: number;
@@ -36,7 +36,7 @@ export interface SpendingVelocity {
 
 export interface YearComparisonMonth {
   month: number;
-  monthName: string;
+  monthKey: string;
   currentYearExpenses: number;
   previousYearExpenses: number;
   currentYearIncome: number;
@@ -59,10 +59,9 @@ export interface YearComparison {
 
 export interface TopInsight {
   type: "positive" | "negative" | "neutral";
-  title: string;
-  description: string;
-  value?: number;
-  category?: string;
+  titleKey: string;
+  descriptionKey: string;
+  params?: Record<string, string | number>;
 }
 
 export interface AnalyticsData {

@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback, useId } from "react";
 import { X, Target } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import {
   GOAL_CATEGORIES,
-  GOAL_CATEGORY_LABELS,
   GOAL_CATEGORY_COLORS,
   GOAL_CATEGORY_ICONS,
   type GoalCategoryType,
 } from "@/lib/constants";
+import { useCurrency } from "@/contexts/currency-context";
 import type { GoalWithProgress } from "@/app/api/goals/route";
 
 interface EditGoalModalProps {
@@ -28,6 +29,10 @@ interface EditGoalModalProps {
 }
 
 export function EditGoalModal({ isOpen, onClose, onSave, isSubmitting, goal }: EditGoalModalProps) {
+  const t = useTranslations("goals");
+  const tc = useTranslations("common");
+  const tcat = useTranslations("categories");
+  const { currencySymbol, convertToBRL } = useCurrency();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<GoalCategoryType | "">("");
@@ -70,7 +75,7 @@ export function EditGoalModal({ isOpen, onClose, onSave, isSubmitting, goal }: E
       name,
       description: description || undefined,
       category: category as GoalCategoryType,
-      targetValue: parseFloat(targetValue),
+      targetValue: convertToBRL(parseFloat(targetValue)),
       targetDate: targetDate || undefined,
       color: GOAL_CATEGORY_COLORS[category as GoalCategoryType],
     });
@@ -103,10 +108,10 @@ export function EditGoalModal({ isOpen, onClose, onSave, isSubmitting, goal }: E
             </div>
             <div>
               <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">
-                Editar Meta
+                {t("editGoalTitle")}
               </h2>
               <p className="text-[var(--text-dimmed)] text-sm">
-                Atualize seu objetivo financeiro
+                {t("updateGoal")}
               </p>
             </div>
           </div>
@@ -114,7 +119,7 @@ export function EditGoalModal({ isOpen, onClose, onSave, isSubmitting, goal }: E
             onClick={onClose}
             disabled={isSubmitting}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-            aria-label="Fechar modal"
+            aria-label={tc("close")}
           >
             <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
@@ -125,7 +130,7 @@ export function EditGoalModal({ isOpen, onClose, onSave, isSubmitting, goal }: E
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Tipo de Meta
+              {t("goalType")}
             </label>
             <div className="grid grid-cols-4 gap-2">
               {GOAL_CATEGORIES.map((cat) => (
@@ -141,7 +146,7 @@ export function EditGoalModal({ isOpen, onClose, onSave, isSubmitting, goal }: E
                 >
                   <span className="text-xl">{GOAL_CATEGORY_ICONS[cat]}</span>
                   <span className="text-xs text-[var(--text-muted)] text-center leading-tight">
-                    {GOAL_CATEGORY_LABELS[cat].split(" ")[0]}
+                    {tcat(`goalTypes.${cat}`)}
                   </span>
                 </button>
               ))}
@@ -151,13 +156,13 @@ export function EditGoalModal({ isOpen, onClose, onSave, isSubmitting, goal }: E
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Nome da Meta
+              {t("goalName")}
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Viagem para Europa"
+              placeholder={t("goalNamePlaceholder")}
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
               required
             />
@@ -166,11 +171,11 @@ export function EditGoalModal({ isOpen, onClose, onSave, isSubmitting, goal }: E
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Valor Objetivo
+              {t("targetValue")}
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">
-                R$
+                {currencySymbol}
               </span>
               <CurrencyInput
                 value={targetValue}
@@ -185,7 +190,7 @@ export function EditGoalModal({ isOpen, onClose, onSave, isSubmitting, goal }: E
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Data Prevista (opcional)
+              {t("targetDateOptional")}
             </label>
             <input
               type="date"
@@ -194,20 +199,20 @@ export function EditGoalModal({ isOpen, onClose, onSave, isSubmitting, goal }: E
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
             />
             <p className="mt-1 text-xs text-[var(--text-dimmed)]">
-              Usada para calcular quanto guardar por mês
+              {t("targetDateHint")}
             </p>
           </div>
 
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Descrição (opcional)
+              {t("descriptionOptional")}
             </label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Anotações sobre a meta..."
+              placeholder={t("goalNotesPlaceholder")}
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
             />
           </div>
@@ -219,14 +224,14 @@ export function EditGoalModal({ isOpen, onClose, onSave, isSubmitting, goal }: E
               onClick={onClose}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all"
             >
-              Cancelar
+              {tc("cancel")}
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name || !category || !targetValue}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary disabled:opacity-50"
             >
-              {isSubmitting ? "Salvando..." : "Salvar"}
+              {isSubmitting ? tc("saving") : tc("save")}
             </button>
           </div>
         </form>

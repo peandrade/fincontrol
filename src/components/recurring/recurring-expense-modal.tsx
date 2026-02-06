@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useId } from "react";
 import { X, Repeat, Calendar } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import { useCategoryStore } from "@/store/category-store";
 
 interface RecurringExpenseModalProps {
@@ -32,6 +34,9 @@ export function RecurringExpenseModal({
   isSubmitting,
   initialData,
 }: RecurringExpenseModalProps) {
+  const t = useTranslations("recurring");
+  const tc = useTranslations("common");
+  const { currencySymbol, convertToBRL } = useCurrency();
   const [description, setDescription] = useState("");
   const [value, setValue] = useState("");
   const [category, setCategory] = useState("");
@@ -87,7 +92,7 @@ export function RecurringExpenseModal({
 
     await onSave({
       description,
-      value: parseFloat(value),
+      value: convertToBRL(parseFloat(value)),
       category,
       dueDay: parseInt(dueDay),
       notes: notes || undefined,
@@ -128,10 +133,10 @@ export function RecurringExpenseModal({
             </div>
             <div>
               <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">
-                {isEditing ? "Editar Despesa Recorrente" : "Nova Despesa Recorrente"}
+                {isEditing ? t("editExpenseTitle") : t("newExpenseTitle")}
               </h2>
               <p className="text-[var(--text-dimmed)] text-sm">
-                {isEditing ? "Altere os dados da despesa" : "Lançada automaticamente todo mês"}
+                {isEditing ? t("editExpenseSubtitle") : t("newExpenseSubtitle")}
               </p>
             </div>
           </div>
@@ -139,7 +144,7 @@ export function RecurringExpenseModal({
             onClick={onClose}
             disabled={isSubmitting}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-            aria-label="Fechar modal"
+            aria-label={tc("close")}
           >
             <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
@@ -150,13 +155,13 @@ export function RecurringExpenseModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Descrição
+              {t("descriptionLabel")}
             </label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ex: Aluguel, Netflix, Academia..."
+              placeholder={t("descriptionPlaceholder")}
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
               required
             />
@@ -165,11 +170,11 @@ export function RecurringExpenseModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Valor Mensal
+              {t("monthlyValue")}
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">
-                R$
+                {currencySymbol}
               </span>
               <CurrencyInput
                 value={value}
@@ -184,7 +189,7 @@ export function RecurringExpenseModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Categoria
+              {tc("category")}
             </label>
             <select
               value={category}
@@ -193,7 +198,7 @@ export function RecurringExpenseModal({
               required
             >
               <option value="" className="bg-[var(--bg-secondary)]">
-                Selecione uma categoria
+                {t("selectCategory")}
               </option>
               {expenseCategories.map((cat) => (
                 <option
@@ -211,7 +216,7 @@ export function RecurringExpenseModal({
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
               <Calendar className="w-4 h-4 inline mr-1" />
-              Dia de Vencimento
+              {t("dueDayLabel")}
             </label>
             <select
               value={dueDay}
@@ -224,25 +229,25 @@ export function RecurringExpenseModal({
                   value={day}
                   className="bg-[var(--bg-secondary)] text-[var(--text-primary)]"
                 >
-                  Dia {day}
+                  {t("dueDayOption", { day })}
                 </option>
               ))}
             </select>
             <p className="mt-1 text-xs text-[var(--text-dimmed)]">
-              A despesa será lançada neste dia todo mês
+              {t("dueDayHint")}
             </p>
           </div>
 
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Observações (opcional)
+              {tc("notesOptional")}
             </label>
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Anotações adicionais..."
+              placeholder={t("notesPlaceholder")}
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
             />
           </div>
@@ -254,14 +259,14 @@ export function RecurringExpenseModal({
               onClick={onClose}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all"
             >
-              Cancelar
+              {tc("cancel")}
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !description || !value || !category}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/25 disabled:opacity-50"
             >
-              {isSubmitting ? "Salvando..." : isEditing ? "Salvar" : "Criar Despesa"}
+              {isSubmitting ? tc("saving") : isEditing ? tc("save") : t("createExpense")}
             </button>
           </div>
         </form>

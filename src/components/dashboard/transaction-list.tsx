@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { ArrowUp, ArrowDown, Trash2, Pencil } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import { usePreferences } from "@/contexts";
 import { getCategoryColor } from "@/lib/constants";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -23,6 +25,9 @@ export function TransactionList({
   onEdit,
   deletingId,
 }: TransactionListProps) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
+  const { formatCurrency } = useCurrency();
   const [deleteConfirm, setDeleteConfirm] = useState<Transaction | null>(null);
   const { getFilteredTransactions, hasActiveFilters } = useTransactionStore();
   const { privacy, general } = usePreferences();
@@ -67,12 +72,12 @@ export function TransactionList({
       <div className="flex items-center justify-between mb-3 sm:mb-4">
         <div>
           <h3 className="text-base sm:text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-            Transações
+            {t("transactions")}
           </h3>
           <p className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>
             {hasActiveFilters()
-              ? `${filteredTransactions.length} de ${transactions.length}`
-              : `${transactions.length} transações`
+              ? `${filteredTransactions.length} ${tc("of")} ${transactions.length}`
+              : `${transactions.length} ${t("transactionsCount")}`
             }
           </p>
         </div>
@@ -85,16 +90,16 @@ export function TransactionList({
         <div className="text-center py-8 sm:py-12">
           {hasActiveFilters() ? (
             <>
-              <p className="text-sm sm:text-base" style={{ color: "var(--text-dimmed)" }}>Nenhuma transação encontrada</p>
+              <p className="text-sm sm:text-base" style={{ color: "var(--text-dimmed)" }}>{t("noTransactionFound")}</p>
               <p className="text-xs sm:text-sm mt-1" style={{ color: "var(--text-dimmed)" }}>
-                Tente ajustar os filtros
+                {t("tryAdjustFilters")}
               </p>
             </>
           ) : (
             <>
-              <p className="text-sm sm:text-base" style={{ color: "var(--text-dimmed)" }}>Nenhuma transação registrada</p>
+              <p className="text-sm sm:text-base" style={{ color: "var(--text-dimmed)" }}>{t("noTransactionRecorded")}</p>
               <p className="text-xs sm:text-sm mt-1" style={{ color: "var(--text-dimmed)" }}>
-                Clique em &quot;+&quot; para começar
+                {t("clickToStart")}
               </p>
             </>
           )}
@@ -148,8 +153,8 @@ export function TransactionList({
                     <button
                       onClick={() => onEdit(transaction)}
                       className="p-1.5 hover:bg-amber-500/20 active:bg-amber-500/30 rounded-lg transition-all"
-                      title="Editar"
-                      aria-label="Editar transação"
+                      title={tc("edit")}
+                      aria-label={t("editTransaction")}
                     >
                       <Pencil className="w-4 h-4 text-amber-400" aria-hidden="true" />
                     </button>
@@ -158,11 +163,11 @@ export function TransactionList({
                     onClick={() => handleDeleteClick(transaction)}
                     disabled={deletingId === transaction.id}
                     className="p-1.5 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all disabled:opacity-50"
-                    title="Excluir"
-                    aria-label="Excluir transação"
+                    title={tc("delete")}
+                    aria-label={t("deleteTransaction")}
                   >
                     {deletingId === transaction.id ? (
-                      <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" aria-label="Excluindo..." />
+                      <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" aria-label={tc("deleting")} />
                     ) : (
                       <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
                     )}
@@ -179,9 +184,9 @@ export function TransactionList({
         isOpen={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
         onConfirm={handleConfirmDelete}
-        title="Excluir transação"
-        message={`Tem certeza que deseja excluir a transação "${deleteConfirm?.description || deleteConfirm?.category}"? Esta ação não pode ser desfeita.`}
-        confirmText="Excluir"
+        title={t("deleteTransactionTitle")}
+        message={t("deleteTransactionConfirm", { name: deleteConfirm?.description || deleteConfirm?.category || "" })}
+        confirmText={tc("delete")}
         isLoading={!!deletingId}
       />
     </div>

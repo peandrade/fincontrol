@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { Trash2, Pencil, AlertTriangle, CheckCircle, TrendingUp } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import { CATEGORY_COLORS } from "@/lib/constants";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { BudgetWithSpent } from "@/app/api/budgets/route";
@@ -31,19 +32,25 @@ function getStatusIcon(percentage: number) {
   return <CheckCircle className="w-4 h-4 text-emerald-400" />;
 }
 
-function getStatusText(percentage: number, remaining: number, hideValues: boolean): string {
+function getStatusText(
+  percentage: number,
+  remaining: number,
+  hideValues: boolean,
+  formatCurrency: (v: number) => string,
+  t: (key: string) => string
+): string {
   const fmt = (v: number) => hideValues ? "•••••" : formatCurrency(v);
   if (percentage >= 100) {
-    return `Excedido em ${fmt(Math.abs(remaining))}`;
+    return `${t("exceeded")} ${fmt(Math.abs(remaining))}`;
   }
-  if (percentage >= 80) {
-    return `Restam ${fmt(remaining)}`;
-  }
-  return `Restam ${fmt(remaining)}`;
+  return `${t("remaining")} ${fmt(remaining)}`;
 }
 
 export function BudgetList({ budgets, onDelete, onEdit, isDeleting }: BudgetListProps) {
+  const t = useTranslations("budget");
+  const tc = useTranslations("common");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { formatCurrency } = useCurrency();
   const { privacy, general } = usePreferences();
 
   const handleDelete = async () => {
@@ -56,10 +63,10 @@ export function BudgetList({ budgets, onDelete, onEdit, isDeleting }: BudgetList
     return (
       <div className="text-center py-8">
         <p className="text-[var(--text-muted)]">
-          Nenhum orçamento definido ainda.
+          {t("noBudgets")}
         </p>
         <p className="text-sm text-[var(--text-dimmed)] mt-1">
-          Clique em &quot;Novo Orçamento&quot; para começar a controlar seus gastos.
+          {t("startBudgeting")}
         </p>
       </div>
     );
@@ -99,7 +106,7 @@ export function BudgetList({ budgets, onDelete, onEdit, isDeleting }: BudgetList
                             : "text-emerald-400"
                         }`}
                       >
-                        {getStatusText(budget.percentage, budget.remaining, privacy.hideValues)}
+                        {getStatusText(budget.percentage, budget.remaining, privacy.hideValues, formatCurrency, t)}
                       </span>
                     </div>
                   </div>
@@ -111,7 +118,7 @@ export function BudgetList({ budgets, onDelete, onEdit, isDeleting }: BudgetList
                       {privacy.hideValues ? "•••••" : formatCurrency(budget.spent)}
                     </p>
                     <p className="text-xs text-[var(--text-dimmed)]">
-                      de {privacy.hideValues ? "•••••" : formatCurrency(budget.limit)}
+                      {tc("of")} {privacy.hideValues ? "•••••" : formatCurrency(budget.limit)}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
@@ -119,8 +126,8 @@ export function BudgetList({ budgets, onDelete, onEdit, isDeleting }: BudgetList
                       <button
                         onClick={() => onEdit(budget)}
                         className="p-1.5 hover:bg-amber-500/20 active:bg-amber-500/30 rounded-lg transition-all"
-                        title="Editar orçamento"
-                        aria-label={`Editar orçamento de ${budget.category}`}
+                        title={t("editBudget")}
+                        aria-label={`${t("editBudgetOf")} ${budget.category}`}
                       >
                         <Pencil className="w-4 h-4 text-amber-400" aria-hidden="true" />
                       </button>
@@ -134,8 +141,8 @@ export function BudgetList({ budgets, onDelete, onEdit, isDeleting }: BudgetList
                         setDeleteId(budget.id);
                       }}
                       className="p-1.5 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all"
-                      title="Remover orçamento"
-                      aria-label={`Remover orçamento de ${budget.category}`}
+                      title={t("removeBudget")}
+                      aria-label={`${t("removeBudgetOf")} ${budget.category}`}
                     >
                       <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
                     </button>
@@ -158,7 +165,7 @@ export function BudgetList({ budgets, onDelete, onEdit, isDeleting }: BudgetList
 
               {budget.month === 0 && (
                 <p className="text-xs text-[var(--text-dimmed)] mt-2">
-                  Orçamento fixo (todo mês)
+                  {t("fixedBudget")}
                 </p>
               )}
             </div>
@@ -170,9 +177,9 @@ export function BudgetList({ budgets, onDelete, onEdit, isDeleting }: BudgetList
         isOpen={!!deleteId}
         onClose={() => setDeleteId(null)}
         onConfirm={handleDelete}
-        title="Remover Orçamento"
-        message="Tem certeza que deseja remover este orçamento? Esta ação não pode ser desfeita."
-        confirmText="Remover"
+        title={t("removeBudgetTitle")}
+        message={t("removeBudgetConfirm")}
+        confirmText={tc("remove")}
         isLoading={isDeleting}
       />
     </>

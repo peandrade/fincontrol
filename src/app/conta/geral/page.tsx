@@ -9,32 +9,52 @@ import {
   CreditCard,
   AlertTriangle,
   Check,
+  Coins,
+  Globe,
 } from "lucide-react";
 import { usePreferences } from "@/contexts";
+import type { DisplayCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { localeNames, localeFlags, type Locale } from "@/i18n/config";
 
 const pages = [
-  { id: "dashboard", name: "Dashboard", icon: Home },
-  { id: "cards", name: "Cartões", icon: CreditCard },
-  { id: "investments", name: "Investimentos", icon: Calendar },
+  { id: "dashboard", nameKey: "pageDashboard", icon: Home },
+  { id: "cards", nameKey: "pageCards", icon: CreditCard },
+  { id: "investments", nameKey: "pageInvestments", icon: Calendar },
 ];
 
 const periods = [
-  { id: "week", name: "Última semana" },
-  { id: "month", name: "30 dias" },
-  { id: "quarter", name: "3 meses" },
-  { id: "year", name: "Este ano" },
+  { id: "week", nameKey: "periodWeek" },
+  { id: "month", nameKey: "periodMonth" },
+  { id: "quarter", nameKey: "periodQuarter" },
+  { id: "year", nameKey: "periodYear" },
 ];
 
 const sortOptions = [
-  { id: "recent", name: "Mais recente" },
-  { id: "oldest", name: "Mais antigo" },
-  { id: "highest", name: "Maior valor" },
-  { id: "lowest", name: "Menor valor" },
+  { id: "recent", nameKey: "sortRecent" },
+  { id: "oldest", nameKey: "sortOldest" },
+  { id: "highest", nameKey: "sortHighest" },
+  { id: "lowest", nameKey: "sortLowest" },
+];
+
+const currencies: { id: DisplayCurrency; nameKey: string; symbol: string; flag: string }[] = [
+  { id: "BRL", nameKey: "currencyBRL", symbol: "R$", flag: "🇧🇷" },
+  { id: "USD", nameKey: "currencyUSD", symbol: "$", flag: "🇺🇸" },
+  { id: "EUR", nameKey: "currencyEUR", symbol: "€", flag: "🇪🇺" },
+  { id: "GBP", nameKey: "currencyGBP", symbol: "£", flag: "🇬🇧" },
+];
+
+const languages: { id: Locale; name: string; flag: string }[] = [
+  { id: "pt", name: localeNames.pt, flag: localeFlags.pt },
+  { id: "en", name: localeNames.en, flag: localeFlags.en },
+  { id: "es", name: localeNames.es, flag: localeFlags.es },
 ];
 
 export default function GeralPage() {
   const router = useRouter();
   const { general, updateGeneral, isLoading, isSaving } = usePreferences();
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
 
   if (isLoading) {
     return (
@@ -66,20 +86,20 @@ export default function GeralPage() {
           className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Voltar</span>
+          <span>{tc("back")}</span>
         </button>
 
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
-              Geral
+              {t("general")}
             </h1>
             <p className="text-[var(--text-dimmed)] mt-1">
-              Preferências gerais do sistema
+              {t("generalDesc")}
             </p>
           </div>
           {isSaving && (
-            <span className="text-sm text-[var(--text-muted)] animate-pulse">Salvando...</span>
+            <span className="text-sm text-[var(--text-muted)] animate-pulse">{tc("saving")}</span>
           )}
         </div>
 
@@ -91,8 +111,8 @@ export default function GeralPage() {
                 <Home className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Página Inicial</h2>
-                <p className="text-sm text-[var(--text-dimmed)]">Qual página abrir ao entrar no app</p>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("defaultPage")}</h2>
+                <p className="text-sm text-[var(--text-dimmed)]">{t("defaultPageDesc")}</p>
               </div>
             </div>
 
@@ -111,7 +131,7 @@ export default function GeralPage() {
                     }`}
                   >
                     <Icon className={`w-5 h-5 mx-auto ${isSelected ? "text-blue-400" : "text-[var(--text-muted)]"}`} />
-                    <p className="text-sm text-[var(--text-primary)] mt-2">{page.name}</p>
+                    <p className="text-sm text-[var(--text-primary)] mt-2">{t(page.nameKey)}</p>
                     {isSelected && (
                       <Check className="w-4 h-4 text-blue-400 mx-auto mt-2" />
                     )}
@@ -128,8 +148,8 @@ export default function GeralPage() {
                 <Calendar className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Período Padrão</h2>
-                <p className="text-sm text-[var(--text-dimmed)]">Período inicial dos relatórios e gráficos</p>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("defaultPeriod")}</h2>
+                <p className="text-sm text-[var(--text-dimmed)]">{t("defaultPeriodDesc")}</p>
               </div>
             </div>
 
@@ -146,7 +166,7 @@ export default function GeralPage() {
                         : "border-[var(--border-color)] hover:border-[var(--border-color-strong)]"
                     }`}
                   >
-                    <p className="text-sm text-[var(--text-primary)]">{period.name}</p>
+                    <p className="text-sm text-[var(--text-primary)]">{t(period.nameKey)}</p>
                     {isSelected && (
                       <Check className="w-4 h-4 text-emerald-400 mx-auto mt-2" />
                     )}
@@ -163,8 +183,8 @@ export default function GeralPage() {
                 <List className="w-5 h-5 text-violet-400" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Ordenação Padrão</h2>
-                <p className="text-sm text-[var(--text-dimmed)]">Como ordenar listas e transações</p>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("defaultSort")}</h2>
+                <p className="text-sm text-[var(--text-dimmed)]">{t("defaultSortDesc")}</p>
               </div>
             </div>
 
@@ -181,9 +201,91 @@ export default function GeralPage() {
                         : "border-[var(--border-color)] hover:border-[var(--border-color-strong)]"
                     }`}
                   >
-                    <p className="text-sm text-[var(--text-primary)]">{option.name}</p>
+                    <p className="text-sm text-[var(--text-primary)]">{t(option.nameKey)}</p>
                     {isSelected && (
                       <Check className="w-4 h-4 text-violet-400 mx-auto mt-2" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Moeda de Exibição */}
+          <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 rounded-xl bg-cyan-500/10">
+                <Coins className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("displayCurrency")}</h2>
+                <p className="text-sm text-[var(--text-dimmed)]">{t("displayCurrencyDesc")}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {currencies.map((currency) => {
+                const isSelected = (general.displayCurrency || "BRL") === currency.id;
+                return (
+                  <button
+                    key={currency.id}
+                    onClick={() => updateGeneral({ displayCurrency: currency.id })}
+                    className={`p-4 rounded-xl border-2 transition-all text-center ${
+                      isSelected
+                        ? "border-cyan-500 bg-cyan-500/10"
+                        : "border-[var(--border-color)] hover:border-[var(--border-color-strong)]"
+                    }`}
+                  >
+                    <span className="text-xl">{currency.flag}</span>
+                    <p className="text-sm text-[var(--text-primary)] mt-1 font-medium">
+                      {currency.symbol} — {t(currency.nameKey)}
+                    </p>
+                    {isSelected && (
+                      <Check className="w-4 h-4 text-cyan-400 mx-auto mt-2" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {(general.displayCurrency || "BRL") !== "BRL" && (
+              <p className="text-xs text-[var(--text-dimmed)] mt-3 text-center">
+                {t("displayCurrencyNote")}
+              </p>
+            )}
+          </div>
+
+          {/* Idioma */}
+          <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 rounded-xl bg-indigo-500/10">
+                <Globe className="w-5 h-5 text-indigo-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("language")}</h2>
+                <p className="text-sm text-[var(--text-dimmed)]">{t("languageDesc")}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {languages.map((lang) => {
+                const isSelected = (general.language || "pt") === lang.id;
+                return (
+                  <button
+                    key={lang.id}
+                    onClick={() => updateGeneral({ language: lang.id })}
+                    className={`p-4 rounded-xl border-2 transition-all text-center ${
+                      isSelected
+                        ? "border-indigo-500 bg-indigo-500/10"
+                        : "border-[var(--border-color)] hover:border-[var(--border-color-strong)]"
+                    }`}
+                  >
+                    <span className="text-xl">{lang.flag}</span>
+                    <p className="text-sm text-[var(--text-primary)] mt-1 font-medium">
+                      {lang.name}
+                    </p>
+                    {isSelected && (
+                      <Check className="w-4 h-4 text-indigo-400 mx-auto mt-2" />
                     )}
                   </button>
                 );
@@ -199,8 +301,8 @@ export default function GeralPage() {
                   <AlertTriangle className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-[var(--text-primary)]">Confirmar Exclusão</h2>
-                  <p className="text-sm text-[var(--text-dimmed)]">Pedir confirmação antes de excluir itens</p>
+                  <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("confirmDelete")}</h2>
+                  <p className="text-sm text-[var(--text-dimmed)]">{t("confirmDeleteDesc")}</p>
                 </div>
               </div>
               <button

@@ -9,6 +9,7 @@ export { OperationSellMode } from "./operation-sell-mode";
 export { OperationFormActions } from "./operation-form-actions";
 export { EditInvestmentModal } from "./edit-investment-modal";
 export { DividendsCard, DividendsCardWithData } from "./dividends-card";
+export { TaxCalculatorCard } from "./tax-calculator-card";
 
 // Analytics components (split from investment-analytics.tsx)
 export { InvestmentAnalytics } from "./investment-analytics";

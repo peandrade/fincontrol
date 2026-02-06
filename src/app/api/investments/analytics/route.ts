@@ -25,8 +25,9 @@ interface AllocationTarget {
 
 interface PortfolioInsight {
   type: "positive" | "negative" | "neutral" | "warning";
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
+  params?: Record<string, string | number>;
 }
 
 const typeNames: Record<string, string> = {
@@ -148,14 +149,16 @@ export async function GET() {
     if (totalProfitLossPercent > 10) {
       insights.push({
         type: "positive",
-        title: "Excelente retorno",
-        description: `Sua carteira está com ${totalProfitLossPercent.toFixed(1)}% de valorização`,
+        titleKey: "insightExcellentReturn",
+        descriptionKey: "insightPortfolioUp",
+        params: { percent: totalProfitLossPercent.toFixed(1) },
       });
     } else if (totalProfitLossPercent < -10) {
       insights.push({
         type: "negative",
-        title: "Carteira em baixa",
-        description: `Sua carteira está com ${totalProfitLossPercent.toFixed(1)}% de desvalorização`,
+        titleKey: "insightPortfolioDown",
+        descriptionKey: "insightPortfolioDownDesc",
+        params: { percent: totalProfitLossPercent.toFixed(1) },
       });
     }
 
@@ -168,8 +171,9 @@ export async function GET() {
       )?.[0];
       insights.push({
         type: "warning",
-        title: "Concentração elevada",
-        description: `${typeNames[concentratedType || ""] || "Uma classe"} representa ${maxAllocationPercent.toFixed(0)}% da carteira`,
+        titleKey: "insightHighConcentration",
+        descriptionKey: "insightHighConcentrationDesc",
+        params: { type: concentratedType || "other", percent: maxAllocationPercent.toFixed(0) },
       });
     }
 
@@ -177,14 +181,14 @@ export async function GET() {
     if (diversificationScore < 40) {
       insights.push({
         type: "neutral",
-        title: "Baixa diversificação",
-        description: "Considere investir em mais classes de ativos para reduzir risco",
+        titleKey: "insightLowDiversification",
+        descriptionKey: "insightLowDiversificationDesc",
       });
     } else if (diversificationScore >= 80) {
       insights.push({
         type: "positive",
-        title: "Boa diversificação",
-        description: "Sua carteira está bem distribuída entre diferentes classes",
+        titleKey: "insightGoodDiversification",
+        descriptionKey: "insightGoodDiversificationDesc",
       });
     }
 
@@ -192,8 +196,9 @@ export async function GET() {
     if (topPerformers.length > 0 && topPerformers[0].profitLossPercent > 20) {
       insights.push({
         type: "positive",
-        title: "Destaque positivo",
-        description: `${topPerformers[0].name} valorizou ${topPerformers[0].profitLossPercent.toFixed(1)}%`,
+        titleKey: "insightTopPerformer",
+        descriptionKey: "insightTopPerformerDesc",
+        params: { name: topPerformers[0].name, percent: topPerformers[0].profitLossPercent.toFixed(1) },
       });
     }
 
@@ -201,8 +206,9 @@ export async function GET() {
     if (worstPerformers.length > 0 && worstPerformers[0].profitLossPercent < -20) {
       insights.push({
         type: "negative",
-        title: "Atenção necessária",
-        description: `${worstPerformers[0].name} desvalorizou ${Math.abs(worstPerformers[0].profitLossPercent).toFixed(1)}%`,
+        titleKey: "insightNeedsAttention",
+        descriptionKey: "insightNeedsAttentionDesc",
+        params: { name: worstPerformers[0].name, percent: Math.abs(worstPerformers[0].profitLossPercent).toFixed(1) },
       });
     }
 
@@ -211,8 +217,8 @@ export async function GET() {
     if (needsRebalancing) {
       insights.push({
         type: "neutral",
-        title: "Rebalanceamento sugerido",
-        description: "Alguns ativos estão fora da alocação alvo",
+        titleKey: "insightRebalancing",
+        descriptionKey: "insightRebalancingDesc",
       });
     }
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/contexts/currency-context";
+import { useTranslations } from "next-intl";
 
 interface GoalProgressCardProps {
   currentValue: number;
@@ -8,12 +9,14 @@ interface GoalProgressCardProps {
 }
 
 export function GoalProgressCard({ currentValue, goalValue }: GoalProgressCardProps) {
+  const { formatCurrency } = useCurrency();
+  const t = useTranslations("investments");
   const progress = goalValue > 0 ? (currentValue / goalValue) * 100 : 0;
 
   return (
     <div className="bg-[var(--bg-hover)] rounded-xl p-4">
       <div className="flex justify-between items-center mb-2">
-        <span className="text-[var(--text-muted)] text-sm">Progresso da meta</span>
+        <span className="text-[var(--text-muted)] text-sm">{t("goalProgress")}</span>
         <span className="text-[var(--text-primary)] font-semibold">
           {Math.min(progress, 100).toFixed(1)}%
         </span>
@@ -33,7 +36,7 @@ export function GoalProgressCard({ currentValue, goalValue }: GoalProgressCardPr
         <span className="text-[var(--text-dimmed)]">{formatCurrency(goalValue)}</span>
       </div>
       {progress >= 100 && (
-        <p className="text-emerald-400 text-sm mt-2 text-center">🎉 Meta alcançada!</p>
+        <p className="text-emerald-400 text-sm mt-2 text-center">{t("goalReached")}</p>
       )}
     </div>
   );

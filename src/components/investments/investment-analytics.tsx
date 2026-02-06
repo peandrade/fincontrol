@@ -1,6 +1,7 @@
 "use client";
 
 import { RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useFetch } from "@/hooks/use-fetch";
 import { PortfolioInsights } from "./portfolio-insights";
 import { PerformanceCards } from "./performance-cards";
@@ -20,9 +21,10 @@ export { PerformanceCards } from "./performance-cards";
 export { AllocationTargets } from "./allocation-targets";
 
 export function InvestmentAnalytics() {
+  const t = useTranslations("investments");
   const { data, isLoading } = useFetch<import("./analytics-types").InvestmentAnalyticsData>(
     "/api/investments/analytics",
-    { errorMessage: "Erro ao buscar analytics" }
+    { errorMessage: t("analyticsError") }
   );
 
   if (isLoading) {

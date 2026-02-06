@@ -1,8 +1,9 @@
 "use client";
 
 import { Trash2, Trophy, Calendar, TrendingUp, Pencil } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import { getGoalCategoryColor, getGoalCategoryIcon, type GoalCategoryType } from "@/lib/constants";
 import type { GoalWithProgress } from "@/app/api/goals/route";
 
@@ -13,6 +14,9 @@ interface GoalCardProps {
 }
 
 export function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
+  const t = useTranslations("goals");
+  const tc = useTranslations("common");
+  const { formatCurrency } = useCurrency();
   const { privacy } = usePreferences();
   const categoryColor = getGoalCategoryColor(goal.category as GoalCategoryType);
   const categoryIcon = getGoalCategoryIcon(goal.category as GoalCategoryType);
@@ -65,8 +69,8 @@ export function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
                 onEdit();
               }}
               className="p-1.5 hover:bg-amber-500/20 active:bg-amber-500/30 rounded-lg transition-all"
-              title="Editar"
-              aria-label="Editar meta"
+              title={tc("edit")}
+              aria-label={t("editGoal")}
             >
               <Pencil className="w-4 h-4 text-amber-400" aria-hidden="true" />
             </button>
@@ -77,8 +81,8 @@ export function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
               onDelete();
             }}
             className="p-1.5 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all"
-            title="Remover"
-            aria-label="Remover meta"
+            title={tc("remove")}
+            aria-label={t("removeLabel")}
           >
             <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
           </button>
@@ -116,16 +120,16 @@ export function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
         </span>
         <div className="flex-1 flex items-center justify-center flex-wrap gap-x-3 gap-y-0.5">
           {!isCompleted && goal.remaining > 0 && (
-            <span className="hidden sm:inline">Faltam {privacy.hideValues ? "•••••" : formatCurrency(goal.remaining)}</span>
+            <span className="hidden sm:inline">{t("remaining")} {privacy.hideValues ? "•••••" : formatCurrency(goal.remaining)}</span>
           )}
           {goal.monthlyNeeded && !isCompleted && (
-            <span className="hidden sm:flex items-center gap-0.5" title="Guardar por mês">
+            <span className="hidden sm:flex items-center gap-0.5" title={t("savePerMonth")}>
               <TrendingUp className="w-3 h-3" />
-              {privacy.hideValues ? "•••••" : formatCurrency(goal.monthlyNeeded)}/mês
+              {privacy.hideValues ? "•••••" : formatCurrency(goal.monthlyNeeded)}{t("perMonth")}
             </span>
           )}
           {goal.targetDate && (
-            <span className="flex items-center gap-0.5" title="Data alvo">
+            <span className="flex items-center gap-0.5" title={t("targetDate")}>
               <Calendar className="w-3 h-3" />
               {formatDate(goal.targetDate)}
             </span>

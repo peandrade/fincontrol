@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useId } from "react";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { useCurrency } from "@/contexts/currency-context";
 import { useCategoryStore } from "@/store/category-store";
 import type { TransactionTemplate, TransactionType } from "@/types";
 
@@ -27,7 +29,11 @@ export function TemplateModal({
   template,
   isSubmitting,
 }: TemplateModalProps) {
+  const t = useTranslations("shortcuts");
+  const tt = useTranslations("transactions");
+  const tc = useTranslations("common");
   const titleId = useId();
+  const { currencySymbol, convertToBRL } = useCurrency();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<TransactionType>("expense");
@@ -76,7 +82,7 @@ export function TemplateModal({
       description: description || undefined,
       category,
       type,
-      value: includeValue && value ? parseFloat(value) : undefined,
+      value: includeValue && value ? convertToBRL(parseFloat(value)) : undefined,
     });
 
     setName("");
@@ -106,12 +112,12 @@ export function TemplateModal({
         {}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)]">
           <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">
-            {template ? "Editar Atalho" : "Novo Atalho"}
+            {template ? t("editShortcut") : t("newShortcut")}
           </h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            aria-label="Fechar"
+            aria-label={tc("close")}
           >
             <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
@@ -122,13 +128,13 @@ export function TemplateModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Nome do atalho
+              {t("shortcutName")}
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Almoço"
+              placeholder={t("shortcutNamePlaceholder")}
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
               required
             />
@@ -145,7 +151,7 @@ export function TemplateModal({
                   : "bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)]"
               }`}
             >
-              Despesa
+              {tt("expense")}
             </button>
             <button
               type="button"
@@ -156,14 +162,14 @@ export function TemplateModal({
                   : "bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)]"
               }`}
             >
-              Receita
+              {tt("income")}
             </button>
           </div>
 
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Categoria
+              {tc("category")}
             </label>
             <select
               value={category}
@@ -172,7 +178,7 @@ export function TemplateModal({
               required
             >
               <option value="" className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">
-                Selecione uma categoria
+                {tt("selectCategory")}
               </option>
               {categoryList.map((cat) => (
                 <option
@@ -189,13 +195,13 @@ export function TemplateModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Descrição (opcional)
+              {tt("descriptionOptional")}
             </label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ex: Almoço na empresa"
+              placeholder={t("descriptionPlaceholder")}
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
             />
           </div>
@@ -210,14 +216,14 @@ export function TemplateModal({
                 className="w-4 h-4 rounded border-[var(--border-color-strong)] bg-[var(--bg-hover)] text-primary-color focus:ring-[var(--color-primary)] focus:ring-offset-0"
               />
               <span className="text-sm font-medium text-[var(--text-muted)]">
-                Incluir valor fixo
+                {t("includeFixedValue")}
               </span>
             </label>
 
             {includeValue && (
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">
-                  R$
+                  {currencySymbol}
                 </span>
                 <CurrencyInput
                   value={value}
@@ -236,14 +242,14 @@ export function TemplateModal({
               onClick={onClose}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all"
             >
-              Cancelar
+              {tc("cancel")}
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary disabled:opacity-50"
             >
-              {isSubmitting ? "Salvando..." : template ? "Salvar" : "Criar"}
+              {isSubmitting ? tc("saving") : template ? tc("save") : tc("create")}
             </button>
           </div>
         </form>

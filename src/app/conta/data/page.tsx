@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ArrowLeft, Cloud, Trash2, CheckCircle, AlertCircle } from "lucide-react";
 import { DataExportSection, DataImportSection } from "@/components/data";
 
 export default function DataPage() {
   const router = useRouter();
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   return (
@@ -34,15 +37,15 @@ export default function DataPage() {
           className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Voltar</span>
+          <span>{tc("back")}</span>
         </button>
 
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
-            Data
+            {t("data")}
           </h1>
           <p className="text-[var(--text-dimmed)] mt-1">
-            Exporte e gerencie seus dados
+            {t("dataDesc")}
           </p>
         </div>
 
@@ -62,16 +65,16 @@ export default function DataPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-                    Backup na Nuvem
+                    {t("cloudBackup")}
                   </h2>
                   <p className="text-sm text-[var(--text-dimmed)]">
-                    Seus dados já estão seguros no servidor
+                    {t("cloudBackupDesc")}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-emerald-400">
                 <CheckCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">Ativo</span>
+                <span className="text-sm font-medium">{tc("active")}</span>
               </div>
             </div>
           </div>
@@ -84,10 +87,10 @@ export default function DataPage() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-                  Limpar Dados Antigos
+                  {t("clearOldData")}
                 </h2>
                 <p className="text-sm text-[var(--text-dimmed)]">
-                  Remover transações de períodos anteriores
+                  {t("clearOldDataDesc")}
                 </p>
               </div>
             </div>
@@ -97,7 +100,7 @@ export default function DataPage() {
                 onClick={() => setShowDeleteConfirm(true)}
                 className="w-full p-4 rounded-xl border-2 border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all font-medium"
               >
-                Limpar dados antigos
+                {t("clearOldDataButton")}
               </button>
             ) : (
               <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
@@ -105,11 +108,10 @@ export default function DataPage() {
                   <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm text-[var(--text-primary)] font-medium">
-                      Tem certeza?
+                      {t("areYouSure")}
                     </p>
                     <p className="text-xs text-[var(--text-dimmed)] mt-1">
-                      Esta ação não pode ser desfeita. Recomendamos exportar
-                      seus dados antes.
+                      {t("clearOldDataWarning")}
                     </p>
                   </div>
                 </div>
@@ -118,7 +120,7 @@ export default function DataPage() {
                     onClick={() => setShowDeleteConfirm(false)}
                     className="p-3 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all"
                   >
-                    Cancelar
+                    {tc("cancel")}
                   </button>
                   <button
                     onClick={() => {
@@ -126,7 +128,7 @@ export default function DataPage() {
                     }}
                     className="p-3 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-all"
                   >
-                    Confirmar
+                    {tc("confirm")}
                   </button>
                 </div>
               </div>

@@ -5,11 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { LogIn, Mail, Lock, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const t = useTranslations("auth");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,7 +32,7 @@ export function LoginForm() {
       });
 
       if (result?.error) {
-        setError("Email ou senha incorretos");
+        setError(t("loginError"));
       } else {
         const hasExplicitCallback = searchParams.has("callbackUrl");
         if (hasExplicitCallback) {
@@ -57,7 +59,7 @@ export function LoginForm() {
         router.refresh();
       }
     } catch {
-      setError("Erro ao fazer login. Tente novamente.");
+      setError(t("loginGenericError"));
     } finally {
       setIsLoading(false);
     }
@@ -84,7 +86,7 @@ export function LoginForm() {
           FinControl
         </h1>
         <p style={{ color: "var(--text-muted)" }} className="mt-2">
-          Entre na sua conta
+          {t("loginTitle")}
         </p>
       </div>
 
@@ -104,7 +106,7 @@ export function LoginForm() {
             className="block text-sm font-medium mb-2"
             style={{ color: "var(--text-primary)" }}
           >
-            Email
+            {t("email")}
           </label>
           <div className="relative">
             <Mail
@@ -116,7 +118,7 @@ export function LoginForm() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
+              placeholder={t("emailPlaceholder")}
               required
               className="w-full pl-12 pr-4 py-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50"
               style={{
@@ -135,13 +137,13 @@ export function LoginForm() {
               className="block text-sm font-medium"
               style={{ color: "var(--text-primary)" }}
             >
-              Senha
+              {t("password")}
             </label>
             <Link
               href="/forgot-password"
               className="text-sm text-primary-color hover:opacity-80 transition-colors"
             >
-              Esqueceu a senha?
+              {t("forgotPassword")}
             </Link>
           </div>
           <div className="relative">
@@ -186,12 +188,12 @@ export function LoginForm() {
           {isLoading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Entrando...
+              {t("loggingIn")}
             </>
           ) : (
             <>
               <LogIn className="w-5 h-5" />
-              Entrar
+              {t("login")}
             </>
           )}
         </button>
@@ -202,12 +204,12 @@ export function LoginForm() {
         className="mt-6 text-center text-sm"
         style={{ color: "var(--text-muted)" }}
       >
-        Não tem uma conta?{" "}
+        {t("noAccount")}{" "}
         <Link
           href="/register"
           className="text-primary-color hover:opacity-80 font-medium"
         >
-          Criar conta
+          {t("register")}
         </Link>
       </p>
     </div>

@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { Calendar, Check, Trash2, ShoppingBag, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import {
   formatMonthYear,
   getInvoiceStatusLabel,
@@ -44,7 +45,11 @@ export function InvoiceDetail({
   isLoading,
 }: InvoiceDetailProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<Purchase | null>(null);
+  const { formatCurrency } = useCurrency();
   const { privacy, general } = usePreferences();
+  const t = useTranslations("cards");
+  const tc = useTranslations("common");
+  const td = useTranslations("dashboard");
 
   const handleDeleteClick = (purchase: Purchase) => {
     if (!general.confirmBeforeDelete) {
@@ -64,10 +69,10 @@ export function InvoiceDetail({
   if (!cardName) {
     return (
       <div className="backdrop-blur rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-colors duration-300" style={cardStyle}>
-        <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: "var(--text-primary)" }}>Detalhes da Fatura</h3>
+        <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: "var(--text-primary)" }}>{t("invoiceDetails")}</h3>
         <div className="text-center py-8 sm:py-12">
           <Calendar className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3" style={{ color: "var(--text-dimmed)" }} />
-          <p className="text-sm sm:text-base" style={{ color: "var(--text-dimmed)" }}>Selecione um cartão para ver a fatura</p>
+          <p className="text-sm sm:text-base" style={{ color: "var(--text-dimmed)" }}>{t("selectCardToView")}</p>
         </div>
       </div>
     );
@@ -98,19 +103,19 @@ export function InvoiceDetail({
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>{getMonthName(now.getMonth() + 1)} {now.getFullYear()}</p>
           </div>
           <span className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-blue-500/20 text-blue-400">
-            Aberta
+            {tc("open")}
           </span>
         </div>
 
         <div className="rounded-xl p-3 sm:p-4 mb-4 sm:mb-6" style={{ backgroundColor: "var(--bg-hover)" }}>
-          <p className="text-xs sm:text-sm" style={{ color: "var(--text-muted)" }}>Total da Fatura</p>
+          <p className="text-xs sm:text-sm" style={{ color: "var(--text-muted)" }}>{t("invoiceTotal")}</p>
           <p className="text-2xl sm:text-3xl font-bold" style={{ color: "var(--text-primary)" }}>{privacy.hideValues ? "•••••" : formatCurrency(0)}</p>
         </div>
 
         <div className="text-center py-6 sm:py-8">
           <ShoppingBag className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-2" style={{ color: "var(--text-dimmed)" }} />
-          <p className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>Nenhum lançamento neste cartão</p>
-          <p className="text-[10px] sm:text-xs mt-1" style={{ color: "var(--text-dimmed)" }}>Clique em &quot;Nova Compra&quot; para adicionar</p>
+          <p className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>{t("noEntriesCard")}</p>
+          <p className="text-[10px] sm:text-xs mt-1" style={{ color: "var(--text-dimmed)" }}>{t("clickNewPurchase")}</p>
         </div>
       </div>
     );
@@ -134,7 +139,7 @@ export function InvoiceDetail({
             className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium"
             style={{ backgroundColor: `${statusColor}20`, color: statusColor }}
           >
-            {isOverdue ? "Vencida" : getInvoiceStatusLabel(selectedInvoice.status)}
+            {isOverdue ? t("overdueInvoice") : getInvoiceStatusLabel(selectedInvoice.status)}
           </span>
         </div>
 
@@ -199,7 +204,7 @@ export function InvoiceDetail({
       <div className="rounded-xl p-3 sm:p-4 mb-4 sm:mb-6" style={{ backgroundColor: "var(--bg-hover)" }}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
           <div>
-            <p className="text-xs sm:text-sm" style={{ color: "var(--text-muted)" }}>Total da Fatura</p>
+            <p className="text-xs sm:text-sm" style={{ color: "var(--text-muted)" }}>{t("invoiceTotal")}</p>
             <p className="text-2xl sm:text-3xl font-bold" style={{ color: "var(--text-primary)" }}>{privacy.hideValues ? "•••••" : formatCurrency(selectedInvoice.total)}</p>
           </div>
           {selectedInvoice.status !== "paid" && selectedInvoice.total > 0 && (
@@ -209,7 +214,7 @@ export function InvoiceDetail({
               className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-xl text-white text-sm sm:text-base font-medium transition-all disabled:opacity-50 w-full sm:w-auto"
             >
               <Check className="w-4 h-4" />
-              Pagar Fatura
+              {t("payInvoice")}
             </button>
           )}
         </div>
@@ -218,13 +223,13 @@ export function InvoiceDetail({
           <div className="flex items-center gap-1 sm:gap-2">
             <Calendar className="w-3 h-3 sm:w-4 sm:h-4" style={{ color: "var(--text-dimmed)" }} />
             <span style={{ color: "var(--text-muted)" }}>
-              Vence: {dueDate.toLocaleDateString("pt-BR")}
+              {t("duesOn")} {dueDate.toLocaleDateString("pt-BR")}
             </span>
           </div>
           {isOverdue && (
             <div className="flex items-center gap-1 text-red-400">
               <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span>Fatura vencida!</span>
+              <span>{t("invoiceOverdue")}</span>
             </div>
           )}
         </div>
@@ -233,13 +238,13 @@ export function InvoiceDetail({
       {}
       <div>
         <h4 className="font-medium mb-3 sm:mb-4 text-sm sm:text-base" style={{ color: "var(--text-primary)" }}>
-          Lançamentos ({selectedInvoice.purchases?.length || 0})
+          {t("entries")} ({selectedInvoice.purchases?.length || 0})
         </h4>
 
         {!selectedInvoice.purchases || selectedInvoice.purchases.length === 0 ? (
           <div className="text-center py-6 sm:py-8">
             <ShoppingBag className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-2" style={{ color: "var(--text-dimmed)" }} />
-            <p className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>Nenhum lançamento nesta fatura</p>
+            <p className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>{t("noEntriesInvoice")}</p>
           </div>
         ) : (
           <div className="space-y-2 max-h-72 sm:max-h-80 overflow-y-auto pr-1 sm:pr-2">
@@ -273,7 +278,7 @@ export function InvoiceDetail({
                       {purchase.isRecurring && (
                         <>
                           <span className="hidden sm:inline">•</span>
-                          <span className="hidden sm:inline text-blue-400">Recorrente</span>
+                          <span className="hidden sm:inline text-blue-400">{td("recurring")}</span>
                         </>
                       )}
                     </div>
@@ -300,9 +305,9 @@ export function InvoiceDetail({
         isOpen={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
         onConfirm={handleConfirmDelete}
-        title="Excluir compra"
-        message={`Tem certeza que deseja excluir "${deleteConfirm?.description}"? Esta ação não pode ser desfeita.`}
-        confirmText="Excluir"
+        title={t("deletePurchase")}
+        message={t("deletePurchaseConfirm", { description: deleteConfirm?.description || "" })}
+        confirmText={tc("delete")}
       />
     </div>
   );

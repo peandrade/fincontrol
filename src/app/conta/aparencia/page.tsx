@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
   Palette,
@@ -23,6 +24,8 @@ import {
 
 export default function AparenciaPage() {
   const router = useRouter();
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const { settings, updateSettings, resetSettings } = useAppearance();
   const { theme, toggleTheme } = useTheme();
 
@@ -55,26 +58,26 @@ export default function AparenciaPage() {
           className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Voltar</span>
+          <span>{tc("back")}</span>
         </button>
 
         {}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
-              Aparência
+              {t("appearance")}
             </h1>
             <p className="text-[var(--text-dimmed)] mt-1">
-              Personalize o visual do aplicativo
+              {t("appearanceDesc")}
             </p>
           </div>
           <button
             onClick={resetSettings}
             className="flex items-center gap-2 px-4 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-xl transition-all"
-            title="Restaurar padrões"
+            title={t("restore")}
           >
             <RotateCcw className="w-4 h-4" />
-            <span className="hidden sm:inline">Restaurar</span>
+            <span className="hidden sm:inline">{t("restore")}</span>
           </button>
         </div>
 
@@ -93,8 +96,8 @@ export default function AparenciaPage() {
                 )}
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Tema</h2>
-                <p className="text-sm text-[var(--text-dimmed)]">Claro ou escuro</p>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("theme")}</h2>
+                <p className="text-sm text-[var(--text-dimmed)]">{t("themeDesc")}</p>
               </div>
             </div>
 
@@ -109,7 +112,7 @@ export default function AparenciaPage() {
                 style={theme === "light" ? { borderColor: colorPalettes[settings.colorPalette].primary } : undefined}
               >
                 <Sun className="w-5 h-5" />
-                <span className="font-medium">Claro</span>
+                <span className="font-medium">{t("light")}</span>
                 {theme === "light" && (
                   <Check className="w-4 h-4" style={{ color: colorPalettes[settings.colorPalette].primary }} />
                 )}
@@ -124,7 +127,7 @@ export default function AparenciaPage() {
                 style={theme === "dark" ? { borderColor: colorPalettes[settings.colorPalette].primary } : undefined}
               >
                 <Moon className="w-5 h-5" />
-                <span className="font-medium">Escuro</span>
+                <span className="font-medium">{t("dark")}</span>
                 {theme === "dark" && (
                   <Check className="w-4 h-4" style={{ color: colorPalettes[settings.colorPalette].primary }} />
                 )}
@@ -142,8 +145,8 @@ export default function AparenciaPage() {
                 <Palette className="w-5 h-5" style={{ color: colorPalettes[settings.colorPalette].primary }} />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Paleta de Cores</h2>
-                <p className="text-sm text-[var(--text-dimmed)]">Escolha a cor principal</p>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("colorPalette")}</h2>
+                <p className="text-sm text-[var(--text-dimmed)]">{t("colorPaletteDesc")}</p>
               </div>
             </div>
 
@@ -193,14 +196,14 @@ export default function AparenciaPage() {
                 <Type className="w-5 h-5" style={{ color: colorPalettes[settings.colorPalette].primary }} />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Tipografia</h2>
-                <p className="text-sm text-[var(--text-dimmed)]">Peso e tamanho da fonte</p>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("typography")}</h2>
+                <p className="text-sm text-[var(--text-dimmed)]">{t("typographyDesc")}</p>
               </div>
             </div>
 
             {}
             <div className="mb-6">
-              <p className="text-sm text-[var(--text-muted)] mb-3">Peso da Fonte</p>
+              <p className="text-sm text-[var(--text-muted)] mb-3">{t("fontWeight")}</p>
               <div className="grid grid-cols-5 gap-2">
                 {weightEntries.map(([key, weight]) => (
                   <button
@@ -232,44 +235,51 @@ export default function AparenciaPage() {
               </div>
             </div>
 
-            {}
+            {/* Tamanho */}
             <div>
-              <p className="text-sm text-[var(--text-muted)] mb-3">Tamanho da Fonte</p>
+              <p className="text-sm text-[var(--text-muted)] mb-3">{t("fontSize")}</p>
               <div className="grid grid-cols-3 gap-3">
-                {sizeEntries.map(([key, size]) => (
-                  <button
-                    key={key}
-                    onClick={() => updateSettings({ fontSize: key })}
-                    className={`p-4 rounded-xl border-2 transition-all text-center ${
-                      settings.fontSize === key
-                        ? "border-[var(--border-color-strong)]"
-                        : "border-[var(--border-color)] hover:border-[var(--border-color-strong)]"
-                    }`}
-                    style={
-                      settings.fontSize === key
-                        ? {
-                            borderColor: colorPalettes[settings.colorPalette].primary,
-                            backgroundColor: `${colorPalettes[settings.colorPalette].primary}10`,
-                          }
-                        : undefined
-                    }
-                  >
-                    <span
-                      className="text-[var(--text-primary)] font-medium"
-                      style={{ fontSize: `${14 * size.multiplier}px` }}
+                {sizeEntries.map(([key, size]) => {
+                  const sizeLabels: Record<string, string> = {
+                    small: t("fontSizeSmall"),
+                    normal: t("fontSizeNormal"),
+                    large: t("fontSizeLarge"),
+                  };
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => updateSettings({ fontSize: key })}
+                      className={`p-4 rounded-xl border-2 transition-all text-center ${
+                        settings.fontSize === key
+                          ? "border-[var(--border-color-strong)]"
+                          : "border-[var(--border-color)] hover:border-[var(--border-color-strong)]"
+                      }`}
+                      style={
+                        settings.fontSize === key
+                          ? {
+                              borderColor: colorPalettes[settings.colorPalette].primary,
+                              backgroundColor: `${colorPalettes[settings.colorPalette].primary}10`,
+                            }
+                          : undefined
+                      }
                     >
-                      Texto
-                    </span>
-                    <p className="text-[10px] text-[var(--text-dimmed)] mt-1">{size.name}</p>
-                  </button>
-                ))}
+                      <span
+                        className="text-[var(--text-primary)] font-medium"
+                        style={{ fontSize: `${14 * size.multiplier}px` }}
+                      >
+                        {t("textSample")}
+                      </span>
+                      <p className="text-[10px] text-[var(--text-dimmed)] mt-1">{sizeLabels[key]}</p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
 
           {}
           <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
-            <h3 className="text-sm font-medium text-[var(--text-muted)] mb-4">Pré-visualização</h3>
+            <h3 className="text-sm font-medium text-[var(--text-muted)] mb-4">{t("preview")}</h3>
             <div
               className="p-4 rounded-xl"
               style={{ backgroundColor: `${colorPalettes[settings.colorPalette].primary}10` }}
@@ -299,7 +309,7 @@ export default function AparenciaPage() {
                       fontSize: `${12 * fontSizes[settings.fontSize].multiplier}px`,
                     }}
                   >
-                    Seu controle financeiro
+                    {t("previewSubtitle")}
                   </p>
                 </div>
               </div>
@@ -311,7 +321,7 @@ export default function AparenciaPage() {
                   fontSize: `${14 * fontSizes[settings.fontSize].multiplier}px`,
                 }}
               >
-                Botão de Exemplo
+                {t("exampleButton")}
               </button>
             </div>
           </div>

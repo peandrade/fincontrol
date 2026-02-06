@@ -23,8 +23,9 @@ export interface AllocationTarget {
 
 export interface PortfolioInsight {
   type: "positive" | "negative" | "neutral" | "warning";
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
+  params?: Record<string, string | number>;
 }
 
 export interface InvestmentAnalyticsData {

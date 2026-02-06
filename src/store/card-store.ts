@@ -44,7 +44,8 @@ export interface CardAlert {
   cardId: string;
   cardName: string;
   cardColor: string;
-  message: string;
+  messageKey: string;
+  messageParams?: Record<string, string | number>;
   value?: number;
   daysUntil?: number;
 }
@@ -611,7 +612,8 @@ export const useCardStore = create<CardStore>((set, get) => ({
             cardId: card.id,
             cardName: card.name,
             cardColor: card.color,
-            message: daysUntilDue === 0 ? "Fatura vence HOJE!" : `Fatura vence em ${daysUntilDue} dia${daysUntilDue !== 1 ? "s" : ""}`,
+            messageKey: daysUntilDue === 0 ? "alertInvoiceDueToday" : "alertInvoiceDueIn",
+            messageParams: { days: daysUntilDue },
             value: currentInvoice.total - (currentInvoice.paidAmount || 0),
             daysUntil: daysUntilDue,
           });
@@ -629,7 +631,8 @@ export const useCardStore = create<CardStore>((set, get) => ({
           cardId: card.id,
           cardName: card.name,
           cardColor: card.color,
-          message: daysUntilClosing === 0 ? "Fatura fecha HOJE!" : `Fatura fecha em ${daysUntilClosing} dia${daysUntilClosing !== 1 ? "s" : ""}`,
+          messageKey: daysUntilClosing === 0 ? "alertInvoiceClosesToday" : "alertInvoiceClosesIn",
+          messageParams: { days: daysUntilClosing },
           daysUntil: daysUntilClosing,
         });
       }
@@ -644,7 +647,8 @@ export const useCardStore = create<CardStore>((set, get) => ({
           cardId: card.id,
           cardName: card.name,
           cardColor: card.color,
-          message: `Uso do limite em ${usagePercent.toFixed(0)}%`,
+          messageKey: "alertHighUsage",
+          messageParams: { percent: Math.round(usagePercent) },
           value: usedLimit,
         });
       }

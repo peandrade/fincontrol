@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AppShell } from "@/components/layout";
-import { ThemeProvider, UserProvider, AppearanceProvider, PreferencesProvider, SidebarProvider, FabProvider } from "@/contexts";
+import { ThemeProvider, UserProvider, AppearanceProvider, PreferencesProvider, CurrencyProvider, SidebarProvider, FabProvider } from "@/contexts";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { AutoLockGuard } from "@/components/providers/auto-lock-guard";
 import { ToastProvider } from "@/components/ui/toast";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 
 export const metadata: Metadata = {
   title: "FinControl - Controle Financeiro Pessoal",
@@ -14,28 +16,35 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body className="antialiased min-h-screen overflow-x-hidden">
         <SessionProvider>
           <UserProvider>
             <AppearanceProvider>
               <ThemeProvider>
                 <ToastProvider>
-                  <PreferencesProvider>
-                    <SidebarProvider>
-                      <FabProvider>
-                        <AutoLockGuard>
-                          <AppShell>{children}</AppShell>
-                        </AutoLockGuard>
-                      </FabProvider>
-                    </SidebarProvider>
-                  </PreferencesProvider>
+                  <NextIntlClientProvider messages={messages} locale={locale}>
+                    <PreferencesProvider>
+                    <CurrencyProvider>
+                      <SidebarProvider>
+                        <FabProvider>
+                          <AutoLockGuard>
+                            <AppShell>{children}</AppShell>
+                          </AutoLockGuard>
+                        </FabProvider>
+                      </SidebarProvider>
+                    </CurrencyProvider>
+                    </PreferencesProvider>
+                  </NextIntlClientProvider>
                 </ToastProvider>
               </ThemeProvider>
             </AppearanceProvider>

@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ImportPreview } from "@/lib/excel-parser";
 
 export type PreviewTab =
@@ -10,13 +11,7 @@ export type PreviewTab =
   | "goals"
   | "recurringExpenses";
 
-export const TAB_LABELS: Record<PreviewTab, string> = {
-  transactions: "Transações",
-  investments: "Investimentos",
-  budgets: "Orçamentos",
-  goals: "Metas",
-  recurringExpenses: "Despesas Recorrentes",
-};
+// Tab labels are now retrieved via translations in components
 
 interface ImportPreviewTableProps {
   tab: PreviewTab;
@@ -24,6 +19,7 @@ interface ImportPreviewTableProps {
 }
 
 export function ImportPreviewTable({ tab, preview }: ImportPreviewTableProps) {
+  const t = useTranslations("data");
   const section = preview[tab];
 
   const allRows = [
@@ -34,12 +30,12 @@ export function ImportPreviewTable({ tab, preview }: ImportPreviewTableProps) {
   if (allRows.length === 0) {
     return (
       <div className="p-6 text-center text-sm text-[var(--text-dimmed)]">
-        Nenhum dado encontrado nesta aba
+        {t("noDataInTab")}
       </div>
     );
   }
 
-  const columns = getColumnsForTab(tab);
+  const columns = getColumnsForTab(tab, t);
 
   return (
     <table className="w-full text-xs">
@@ -100,51 +96,51 @@ export function ImportPreviewTable({ tab, preview }: ImportPreviewTableProps) {
   );
 }
 
-function getColumnsForTab(tab: PreviewTab) {
+function getColumnsForTab(tab: PreviewTab, t: (key: string) => string) {
   switch (tab) {
     case "transactions":
       return [
-        { key: "tipo", label: "Tipo" },
-        { key: "valor", label: "Valor" },
-        { key: "categoria", label: "Categoria" },
-        { key: "descricao", label: "Descrição" },
-        { key: "data", label: "Data" },
+        { key: "tipo", label: t("colType") },
+        { key: "valor", label: t("colValue") },
+        { key: "categoria", label: t("colCategory") },
+        { key: "descricao", label: t("colDescription") },
+        { key: "data", label: t("colDate") },
       ];
     case "investments":
       return [
-        { key: "tipo", label: "Tipo" },
-        { key: "nome", label: "Nome" },
+        { key: "tipo", label: t("colType") },
+        { key: "nome", label: t("colName") },
         { key: "ticker", label: "Ticker" },
-        { key: "totalInvestido", label: "Total" },
-        { key: "valorAtual", label: "Atual" },
+        { key: "totalInvestido", label: t("colTotal") },
+        { key: "valorAtual", label: t("colCurrent") },
       ];
     case "budgets":
       return [
-        { key: "categoria", label: "Categoria" },
-        { key: "limite", label: "Limite" },
-        { key: "mes", label: "Mês" },
-        { key: "ano", label: "Ano" },
+        { key: "categoria", label: t("colCategory") },
+        { key: "limite", label: t("colLimit") },
+        { key: "mes", label: t("colMonth") },
+        { key: "ano", label: t("colYear") },
       ];
     case "goals":
       return [
-        { key: "nome", label: "Nome" },
-        { key: "categoria", label: "Categoria" },
-        { key: "valorAlvo", label: "Alvo" },
-        { key: "valorAtual", label: "Atual" },
+        { key: "nome", label: t("colName") },
+        { key: "categoria", label: t("colCategory") },
+        { key: "valorAlvo", label: t("colTarget") },
+        { key: "valorAtual", label: t("colCurrent") },
       ];
     case "recurringExpenses":
       return [
-        { key: "descricao", label: "Descrição" },
-        { key: "valor", label: "Valor" },
-        { key: "categoria", label: "Categoria" },
-        { key: "diaVencimento", label: "Dia" },
+        { key: "descricao", label: t("colDescription") },
+        { key: "valor", label: t("colValue") },
+        { key: "categoria", label: t("colCategory") },
+        { key: "diaVencimento", label: t("colDay") },
       ];
   }
 }
 
-function formatCellValue(val: unknown): string {
+function formatCellValue(val: unknown, locale: string = "pt-BR"): string {
   if (val === null || val === undefined) return "—";
-  if (val instanceof Date) return val.toLocaleDateString("pt-BR");
-  if (typeof val === "number") return val.toLocaleString("pt-BR");
+  if (val instanceof Date) return val.toLocaleDateString(locale);
+  if (typeof val === "number") return val.toLocaleString(locale);
   return String(val);
 }

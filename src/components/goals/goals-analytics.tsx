@@ -8,12 +8,13 @@ import {
   CheckCircle,
   AlertTriangle,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export interface GoalInsight {
   type: "positive" | "negative" | "neutral" | "achievement";
-  title: string;
-  description: string;
-  goalName?: string;
+  titleKey: string;
+  descriptionKey: string;
+  params?: Record<string, string | number>;
 }
 
 export interface GoalsAnalyticsData {
@@ -26,6 +27,7 @@ export interface GoalsAnalyticsData {
 export function GoalsAnalytics() {
   const [data, setData] = useState<GoalsAnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const t = useTranslations("goals");
 
   useEffect(() => {
     fetchData();
@@ -67,7 +69,7 @@ export function GoalsAnalytics() {
               <Lightbulb className="w-5 h-5 text-amber-400" />
             </div>
             <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-              Insights das Metas
+              {t("goalsInsights")}
             </h3>
           </div>
 
@@ -119,10 +121,10 @@ export function GoalsAnalytics() {
                           : "text-blue-400"
                       }`}
                     >
-                      {insight.title}
+                      {t(insight.titleKey)}
                     </p>
                     <p className="text-xs text-[var(--text-muted)] mt-1">
-                      {insight.description}
+                      {t(insight.descriptionKey, insight.params)}
                     </p>
                   </div>
                 </div>
@@ -139,6 +141,8 @@ export function GoalsAnalytics() {
 // --- Pure render component (accepts data as props, no fetching) ---
 
 export function GoalInsights({ insights }: { insights: GoalInsight[] }) {
+  const t = useTranslations("goals");
+
   if (insights.length === 0) return null;
 
   return (
@@ -190,10 +194,10 @@ export function GoalInsights({ insights }: { insights: GoalInsight[] }) {
                     : "text-blue-400"
                 }`}
               >
-                {insight.title}
+                {t(insight.titleKey)}
               </p>
               <p className="text-xs text-[var(--text-muted)] mt-1">
-                {insight.description}
+                {t(insight.descriptionKey, insight.params)}
               </p>
             </div>
           </div>

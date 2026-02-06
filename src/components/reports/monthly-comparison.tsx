@@ -3,8 +3,9 @@
 import { useMemo, useId } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import type { Transaction } from "@/types";
 
 const HIDDEN = "•••••";
@@ -22,12 +23,16 @@ interface MonthData {
   saldo: number;
 }
 
-const MONTH_NAMES = [
-  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-  "Jul", "Ago", "Set", "Out", "Nov", "Dez"
-];
+const MONTH_SHORT_KEYS = [
+  "jan", "feb", "mar", "apr", "mayShort", "jun",
+  "jul", "aug", "sep", "oct", "nov", "dec"
+] as const;
 
 export function MonthlyComparison({ transactions, currentMonth, currentYear }: MonthlyComparisonProps) {
+  const t = useTranslations("reports");
+  const tt = useTranslations("transactions");
+  const tm = useTranslations("months");
+  const { formatCurrency } = useCurrency();
   const { privacy } = usePreferences();
   const descriptionId = useId();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
@@ -44,7 +49,7 @@ export function MonthlyComparison({ transactions, currentMonth, currentYear }: M
       months.push({
         month: m,
         year: y,
-        label: `${MONTH_NAMES[m - 1]}/${y.toString().slice(-2)}`,
+        label: `${tm(MONTH_SHORT_KEYS[m - 1])}/${y.toString().slice(-2)}`,
       });
     }
 
@@ -122,7 +127,7 @@ export function MonthlyComparison({ transactions, currentMonth, currentYear }: M
           <p className="font-medium text-[var(--text-primary)] mb-2">{label}</p>
           {payload.map((entry, index) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.name === "receitas" ? "Receitas" : "Despesas"}: {fmt(entry.value)}
+              {entry.name === "receitas" ? tt("incomes") : tt("expenses")}: {fmt(entry.value)}
             </p>
           ))}
         </div>
@@ -167,28 +172,28 @@ export function MonthlyComparison({ transactions, currentMonth, currentYear }: M
         {}
         <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-emerald-400">Receitas</span>
+            <span className="text-sm text-emerald-400">{tt("incomes")}</span>
             <ChangeIndicator value={comparison.receitas.change} />
           </div>
           <p className="text-2xl font-bold text-emerald-400">
             {fmt(comparison.receitas.current)}
           </p>
           <p className="text-xs text-[var(--text-dimmed)] mt-1">
-            Mês anterior: {fmt(comparison.receitas.previous)}
+            {t("previousMonth")}: {fmt(comparison.receitas.previous)}
           </p>
         </div>
 
         {}
         <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-red-400">Despesas</span>
+            <span className="text-sm text-red-400">{tt("expenses")}</span>
             <ChangeIndicator value={comparison.despesas.change} inverted />
           </div>
           <p className="text-2xl font-bold text-red-400">
             {fmt(comparison.despesas.current)}
           </p>
           <p className="text-xs text-[var(--text-dimmed)] mt-1">
-            Mês anterior: {fmt(comparison.despesas.previous)}
+            {t("previousMonth")}: {fmt(comparison.despesas.previous)}
           </p>
         </div>
 
@@ -206,7 +211,7 @@ export function MonthlyComparison({ transactions, currentMonth, currentYear }: M
                 comparison.saldo.current >= 0 ? "text-blue-400" : "text-orange-400"
               }`}
             >
-              Saldo
+              {t("balance")}
             </span>
             <ChangeIndicator value={comparison.saldo.change} />
           </div>
@@ -218,17 +223,17 @@ export function MonthlyComparison({ transactions, currentMonth, currentYear }: M
             {fmt(comparison.saldo.current)}
           </p>
           <p className="text-xs text-[var(--text-dimmed)] mt-1">
-            Mês anterior: {fmt(comparison.saldo.previous)}
+            {t("previousMonth")}: {fmt(comparison.saldo.previous)}
           </p>
         </div>
       </div>
 
       {/* Chart */}
       <p id={descriptionId} className="sr-only">
-        Gráfico de barras comparando receitas e despesas dos últimos 3 meses.
+        {t("barChartDescription")}
         {privacy.hideValues
-          ? " Valores ocultos."
-          : ` Mês atual: receitas ${formatCurrency(comparison.receitas.current)}, despesas ${formatCurrency(comparison.despesas.current)}.`
+          ? ` ${t("valuesHidden")}`
+          : ` ${t("currentMonthValues", { income: formatCurrency(comparison.receitas.current), expenses: formatCurrency(comparison.despesas.current) })}`
         }
       </p>
       <div className="h-64" role="img" aria-describedby={descriptionId}>
@@ -251,7 +256,7 @@ export function MonthlyComparison({ transactions, currentMonth, currentYear }: M
               wrapperStyle={{ paddingTop: "20px" }}
               formatter={(value) => (
                 <span style={{ color: "var(--text-muted)" }}>
-                  {value === "receitas" ? "Receitas" : "Despesas"}
+                  {value === "receitas" ? tt("incomes") : tt("expenses")}
                 </span>
               )}
             />

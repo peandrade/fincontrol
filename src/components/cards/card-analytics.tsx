@@ -7,8 +7,9 @@ import {
   AlertCircle,
   CreditCard,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { getCategoryColor } from "@/lib/constants";
+import { useCurrency } from "@/contexts/currency-context";
 import { usePreferences } from "@/contexts";
 import { useCardStore } from "@/store/card-store";
 import type {
@@ -24,10 +25,12 @@ const HIDDEN = "•••••";
 export type { CardSpendingByCategory, CardMonthlySpending, CardAlert, CardAnalyticsData };
 
 export function CardAnalytics() {
+  const t = useTranslations("cards");
   // Get analytics directly from store (updates automatically like InvoicePreviewChart)
   const getAnalytics = useCardStore((state) => state.getAnalytics);
   const data = getAnalytics();
 
+  const { formatCurrency } = useCurrency();
   const { privacy } = usePreferences();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
@@ -47,11 +50,11 @@ export function CardAnalytics() {
                 <TrendingUp className="w-5 h-5 text-blue-400" />
               </div>
               <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-                Evolução Mensal
+                {t("monthlyEvolution")}
               </h3>
             </div>
             <div className="text-right">
-              <p className="text-xs text-[var(--text-dimmed)]">Média mensal</p>
+              <p className="text-xs text-[var(--text-dimmed)]">{t("monthlyAverage")}</p>
               <p className="text-sm font-bold text-primary-color">
                 {fmt(data.summary.averageMonthlySpending)}
               </p>
@@ -89,7 +92,7 @@ export function CardAnalytics() {
                 <PieChart className="w-5 h-5 text-emerald-400" />
               </div>
               <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-                Gastos por Categoria
+                {t("spendingByCategory")}
               </h3>
             </div>
 
@@ -136,13 +139,15 @@ export function CardAnalytics() {
 
 // Component to render card alerts (for use in popups)
 export function CardAlertsContent({ alerts }: { alerts: CardAlert[] }) {
+  const t = useTranslations("cards");
+  const { formatCurrency } = useCurrency();
   const { privacy } = usePreferences();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
   if (alerts.length === 0) {
     return (
       <div className="text-center py-4">
-        <p className="text-sm text-[var(--text-muted)]">Nenhum alerta no momento</p>
+        <p className="text-sm text-[var(--text-muted)]">{t("noAlertsAtMoment")}</p>
       </div>
     );
   }
@@ -179,7 +184,7 @@ export function CardAlertsContent({ alerts }: { alerts: CardAlert[] }) {
                   : "text-orange-400"
               }`}
             >
-              {alert.message}
+              {t(alert.messageKey, alert.messageParams)}
             </p>
           </div>
           {alert.value && (

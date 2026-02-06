@@ -15,7 +15,8 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import { usePreferences } from "@/contexts";
 import { useFinancialHealth } from "@/hooks";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,6 +35,9 @@ interface FinancialHealthScoreProps {
 }
 
 export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScoreProps) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
+  const { formatCurrency } = useCurrency();
   const { data, isLoading, refresh } = useFinancialHealth([refreshTrigger]);
   const [isExpanded, setIsExpanded] = useState(false);
   const { privacy } = usePreferences();
@@ -79,6 +83,15 @@ export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScor
   const colors = scoreColors[data.scoreLevel];
   const scorePercentage = (data.score / 1000) * 100;
 
+  // Translate score message based on scoreLevel
+  const scoreMessages: Record<string, string> = {
+    excellent: t("scoreExcellent"),
+    good: t("scoreGood"),
+    fair: t("scoreFair"),
+    poor: t("scorePoor"),
+  };
+  const translatedScoreMessage = scoreMessages[data.scoreLevel] || data.scoreMessage;
+
   return (
     <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] overflow-hidden">
       {/* Header with Score */}
@@ -89,15 +102,15 @@ export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScor
               <Shield className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-semibold text-white">Score Financeiro</h3>
-              <p className="text-xs sm:text-sm text-white/80">{data.scoreMessage}</p>
+              <h3 className="text-base sm:text-lg font-semibold text-white">{t("financialScore")}</h3>
+              <p className="text-xs sm:text-sm text-white/80">{translatedScoreMessage}</p>
             </div>
           </div>
           <button
             onClick={() => refresh()}
             className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-            title="Atualizar"
-            aria-label="Atualizar score financeiro"
+            title={tc("refresh")}
+            aria-label={t("refreshScore")}
           >
             <RefreshCw className="w-4 h-4 text-white/80" aria-hidden="true" />
           </button>
@@ -129,7 +142,7 @@ export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScor
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-2xl sm:text-3xl font-bold text-white">{data.score}</span>
-              <span className="text-[10px] sm:text-xs text-white/80">de 1000</span>
+              <span className="text-[10px] sm:text-xs text-white/80">{t("outOf1000")}</span>
             </div>
           </div>
         </div>
@@ -140,7 +153,7 @@ export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScor
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Wallet className="w-4 h-4 text-primary-color" />
-            <span className="text-sm font-medium text-[var(--text-primary)]">Taxa de Poupança</span>
+            <span className="text-sm font-medium text-[var(--text-primary)]">{t("savingsRate")}</span>
           </div>
           <span className={`text-lg font-bold ${data.details.savingsRate.monthly.rate >= 20 ? "text-emerald-400" : data.details.savingsRate.monthly.rate >= 10 ? "text-amber-400" : "text-red-400"}`}>
             {data.details.savingsRate.monthly.rate.toFixed(1)}%
@@ -149,19 +162,19 @@ export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScor
 
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="bg-[var(--bg-hover)] rounded-lg p-2">
-            <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)]">Receitas</p>
+            <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)]">{t("income")}</p>
             <p className="text-xs sm:text-sm font-semibold text-emerald-400">
               {fmt(data.details.savingsRate.monthly.income)}
             </p>
           </div>
           <div className="bg-[var(--bg-hover)] rounded-lg p-2">
-            <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)]">Despesas</p>
+            <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)]">{t("expenses")}</p>
             <p className="text-xs sm:text-sm font-semibold text-red-400">
               {fmt(data.details.savingsRate.monthly.expenses)}
             </p>
           </div>
           <div className="bg-[var(--bg-hover)] rounded-lg p-2">
-            <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)]">Poupado</p>
+            <p className="text-[10px] sm:text-xs text-[var(--text-dimmed)]">{t("saved")}</p>
             <p className={`text-xs sm:text-sm font-semibold ${data.details.savingsRate.monthly.savings >= 0 ? "text-emerald-400" : "text-red-400"}`}>
               {fmt(data.details.savingsRate.monthly.savings)}
             </p>
@@ -175,7 +188,7 @@ export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScor
           onClick={() => setIsExpanded(!isExpanded)}
           className="flex items-center justify-between w-full mb-3"
         >
-          <span className="text-sm font-medium text-[var(--text-primary)]">Detalhamento</span>
+          <span className="text-sm font-medium text-[var(--text-primary)]">{t("breakdown")}</span>
           {isExpanded ? (
             <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" />
           ) : (
@@ -189,7 +202,7 @@ export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScor
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-blue-400" />
-                <span className="text-xs sm:text-sm text-[var(--text-muted)]">Uso do Crédito</span>
+                <span className="text-xs sm:text-sm text-[var(--text-muted)]">{t("creditUsage")}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-16 sm:w-24 h-2 bg-[var(--bg-hover)] rounded-full overflow-hidden">
@@ -208,11 +221,11 @@ export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScor
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-amber-400" />
-                <span className="text-xs sm:text-sm text-[var(--text-muted)]">Reserva Emergência</span>
+                <span className="text-xs sm:text-sm text-[var(--text-muted)]">{t("emergencyReserve")}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-[var(--text-primary)]">
-                  {data.details.emergencyFund.monthsCovered.toFixed(1)} meses
+                  {data.details.emergencyFund.monthsCovered.toFixed(1)} {tc("months")}
                 </span>
                 {data.details.emergencyFund.monthsCovered >= 6 ? (
                   <CheckCircle className="w-4 h-4 text-emerald-400" />
@@ -228,7 +241,7 @@ export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScor
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-primary-color" />
-                <span className="text-xs sm:text-sm text-[var(--text-muted)]">Metas</span>
+                <span className="text-xs sm:text-sm text-[var(--text-muted)]">{t("goals")}</span>
               </div>
               <span className="text-xs font-medium text-[var(--text-primary)]">
                 {data.details.goals.completed}/{data.details.goals.total} ({data.details.goals.progress.toFixed(0)}%)
@@ -239,10 +252,10 @@ export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScor
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <PieChart className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs sm:text-sm text-[var(--text-muted)]">Diversificação</span>
+                <span className="text-xs sm:text-sm text-[var(--text-muted)]">{t("diversification")}</span>
               </div>
               <span className="text-xs font-medium text-[var(--text-primary)]">
-                {data.details.investments.types} classes
+                {data.details.investments.types} {t("classes")}
               </span>
             </div>
 
@@ -256,7 +269,7 @@ export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScor
                 ) : (
                   <TrendingUp className="w-4 h-4 text-blue-400" />
                 )}
-                <span className="text-xs sm:text-sm text-[var(--text-muted)]">Tendência de Gastos</span>
+                <span className="text-xs sm:text-sm text-[var(--text-muted)]">{t("spendingTrend")}</span>
               </div>
               <span className={`text-xs font-medium ${data.details.spendingTrend > 5 ? "text-red-400" : data.details.spendingTrend < -5 ? "text-emerald-400" : "text-blue-400"}`}>
                 {data.details.spendingTrend > 0 ? "+" : ""}{data.details.spendingTrend.toFixed(1)}%
@@ -269,12 +282,12 @@ export function FinancialHealthScore({ refreshTrigger = 0 }: FinancialHealthScor
       {/* Tips */}
       {data.tips.length > 0 && (
         <div className="p-4 sm:p-6 border-t border-[var(--border-color)] bg-[var(--bg-hover)]">
-          <p className="text-xs font-medium text-[var(--text-muted)] mb-2">Dicas para melhorar</p>
+          <p className="text-xs font-medium text-[var(--text-muted)] mb-2">{t("improvementTips")}</p>
           <ul className="space-y-1">
-            {data.tips.slice(0, 3).map((tip, index) => (
+            {data.tips.slice(0, 3).map((tipKey, index) => (
               <li key={index} className="flex items-start gap-2 text-xs text-[var(--text-dimmed)]">
                 <span className="text-primary-color">•</span>
-                {tip}
+                {t(tipKey)}
               </li>
             ))}
           </ul>

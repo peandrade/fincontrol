@@ -2,8 +2,9 @@
 
 import { useMemo, useId } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import { DynamicIcon } from "@/components/categories/icon-picker";
 
 const HIDDEN = "•••••";
@@ -26,6 +27,10 @@ interface CategoryData {
 }
 
 export function CategoryReport({ transactions, categories, type }: CategoryReportProps) {
+  const t = useTranslations("reports");
+  const tc = useTranslations("common");
+  const tt = useTranslations("transactions");
+  const { formatCurrency } = useCurrency();
   const { privacy } = usePreferences();
   const descriptionId = useId();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
@@ -89,7 +94,7 @@ export function CategoryReport({ transactions, categories, type }: CategoryRepor
             {fmt(data.value)} ({data.percentage.toFixed(1)}%)
           </p>
           <p className="text-xs text-[var(--text-dimmed)]">
-            {data.count} {data.count === 1 ? "transação" : "transações"}
+            {t("transactionCount", { count: data.count })}
           </p>
         </div>
       );
@@ -100,7 +105,7 @@ export function CategoryReport({ transactions, categories, type }: CategoryRepor
   if (categoryData.data.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-[var(--text-dimmed)]">Nenhuma transação encontrada</p>
+        <p className="text-[var(--text-dimmed)]">{t("noTransactionsFound")}</p>
       </div>
     );
   }
@@ -110,10 +115,10 @@ export function CategoryReport({ transactions, categories, type }: CategoryRepor
       {/* Chart */}
       <div className="flex flex-col items-center">
         <p id={descriptionId} className="sr-only">
-          Gráfico de pizza mostrando distribuição de {type === "expense" ? "despesas" : type === "income" ? "receitas" : "transações"} por categoria.
+          {t("chartDescription", { type: type === "expense" ? tt("expenses") : type === "income" ? tt("incomes") : tt("transactions") })}
           {privacy.hideValues
-            ? " Valores ocultos."
-            : ` Total: ${formatCurrency(categoryData.total)}. ${categoryData.data.slice(0, 3).map(d => `${d.name}: ${d.percentage.toFixed(0)}%`).join(", ")}.`
+            ? ` ${t("valuesHidden")}`
+            : ` ${tc("total")}: ${formatCurrency(categoryData.total)}. ${categoryData.data.slice(0, 3).map(d => `${d.name}: ${d.percentage.toFixed(0)}%`).join(", ")}.`
           }
         </p>
         <div className="h-64 w-full" role="img" aria-describedby={descriptionId}>
@@ -137,7 +142,7 @@ export function CategoryReport({ transactions, categories, type }: CategoryRepor
           </ResponsiveContainer>
         </div>
         <div className="text-center mt-4">
-          <p className="text-sm text-[var(--text-dimmed)]">Total</p>
+          <p className="text-sm text-[var(--text-dimmed)]">{tc("total")}</p>
           <p className="text-2xl font-bold text-[var(--text-primary)]">
             {fmt(categoryData.total)}
           </p>
@@ -162,7 +167,7 @@ export function CategoryReport({ transactions, categories, type }: CategoryRepor
               <div>
                 <p className="font-medium text-[var(--text-primary)]">{item.name}</p>
                 <p className="text-xs text-[var(--text-dimmed)]">
-                  {item.count} {item.count === 1 ? "transação" : "transações"}
+                  {t("transactionCount", { count: item.count })}
                 </p>
               </div>
             </div>

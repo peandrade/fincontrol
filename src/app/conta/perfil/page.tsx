@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
   User,
@@ -25,6 +26,8 @@ interface UserProfile {
 
 export default function PerfilPage() {
   const router = useRouter();
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { refreshProfile: refreshUserContext } = useUser();
 
@@ -70,13 +73,13 @@ export default function PerfilPage() {
         setProfile(data);
         setIsEditingName(false);
         await refreshUserContext();
-        showMessage("success", "Nome atualizado com sucesso!");
+        showMessage("success", t("nameUpdated"));
       } else {
-        showMessage("error", "Erro ao atualizar nome");
+        showMessage("error", t("nameUpdateError"));
       }
     } catch (error) {
       console.error("Erro ao salvar nome:", error);
-      showMessage("error", "Erro ao atualizar nome");
+      showMessage("error", t("nameUpdateError"));
     } finally {
       setIsSaving(false);
     }
@@ -88,7 +91,7 @@ export default function PerfilPage() {
 
     // Validar tamanho (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      showMessage("error", "Imagem muito grande. Máximo 2MB.");
+      showMessage("error", t("imageTooLarge"));
       return;
     }
 
@@ -109,13 +112,13 @@ export default function PerfilPage() {
           const data = await response.json();
           setProfile(data);
           await refreshUserContext();
-          showMessage("success", "Foto atualizada com sucesso!");
+          showMessage("success", t("photoUpdated"));
         } else {
-          showMessage("error", "Erro ao atualizar foto");
+          showMessage("error", t("photoUpdateError"));
         }
       } catch (error) {
         console.error("Erro ao salvar foto:", error);
-        showMessage("error", "Erro ao atualizar foto");
+        showMessage("error", t("photoUpdateError"));
       } finally {
         setIsSaving(false);
       }
@@ -174,16 +177,16 @@ export default function PerfilPage() {
           className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Voltar</span>
+          <span>{tc("back")}</span>
         </button>
 
         {}
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
-            Perfil
+            {t("profile")}
           </h1>
           <p className="text-[var(--text-dimmed)] mt-1">
-            Gerencie suas informações pessoais
+            {t("profileDesc")}
           </p>
         </div>
 
@@ -253,7 +256,7 @@ export default function PerfilPage() {
               {}
               <div className="text-center sm:text-left">
                 <p className="text-lg font-semibold text-[var(--text-primary)]">
-                  {profile?.name || "Sem nome"}
+                  {profile?.name || t("noName")}
                 </p>
                 <p className="text-[var(--text-dimmed)]">{profile?.email}</p>
               </div>
@@ -270,7 +273,7 @@ export default function PerfilPage() {
                     <User className="w-5 h-5" style={{ color: "var(--color-primary)" }} />
                   </div>
                   <div>
-                    <p className="text-sm text-[var(--text-dimmed)]">Nome</p>
+                    <p className="text-sm text-[var(--text-dimmed)]">{tc("name")}</p>
                     {isEditingName ? (
                       <input
                         type="text"
@@ -282,7 +285,7 @@ export default function PerfilPage() {
                       />
                     ) : (
                       <p className="text-[var(--text-primary)] font-medium">
-                        {profile?.name || "Não definido"}
+                        {profile?.name || t("notDefined")}
                       </p>
                     )}
                   </div>
@@ -330,7 +333,7 @@ export default function PerfilPage() {
                   <Mail className="w-5 h-5 text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-[var(--text-dimmed)]">Email</p>
+                  <p className="text-sm text-[var(--text-dimmed)]">{t("email")}</p>
                   <p className="text-[var(--text-primary)] font-medium">
                     {profile?.email}
                   </p>
@@ -345,7 +348,7 @@ export default function PerfilPage() {
                   <Calendar className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-[var(--text-dimmed)]">Membro desde</p>
+                  <p className="text-sm text-[var(--text-dimmed)]">{t("memberSince")}</p>
                   <p className="text-[var(--text-primary)] font-medium">
                     {profile?.createdAt ? formatDate(profile.createdAt) : "—"}
                   </p>

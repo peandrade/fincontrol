@@ -2,7 +2,8 @@
 
 import { useMemo, useId } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import { useTheme, usePreferences } from "@/contexts";
 
 const HIDDEN = "•••••";
@@ -13,6 +14,8 @@ interface CategoryChartProps {
 }
 
 export function CategoryChart({ data }: CategoryChartProps) {
+  const t = useTranslations("dashboard");
+  const { formatCurrency } = useCurrency();
   const { theme } = useTheme();
   const { privacy } = usePreferences();
   const descriptionId = useId();
@@ -44,10 +47,10 @@ export function CategoryChart({ data }: CategoryChartProps) {
         borderColor: "var(--border-color)"
       }}
     >
-      <h3 className="text-base sm:text-lg font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Analytics</h3>
-      <p className="text-xs sm:text-sm mb-3 sm:mb-4" style={{ color: "var(--text-dimmed)" }}>Despesas por categoria</p>
+      <h3 className="text-base sm:text-lg font-semibold mb-1" style={{ color: "var(--text-primary)" }}>{t("analytics")}</h3>
+      <p className="text-xs sm:text-sm mb-3 sm:mb-4" style={{ color: "var(--text-dimmed)" }}>{t("expensesByCategory")}</p>
       <p id={descriptionId} className="sr-only">
-        Gráfico de pizza mostrando distribuição de despesas por categoria.
+        {t("categoryChartDesc")}
         {privacy.hideValues
           ? " Valores ocultos."
           : ` Total: ${formatCurrency(totalExpenses)}. ${data.slice(0, 3).map(d => `${d.name}: ${((d.value / totalExpenses) * 100).toFixed(0)}%`).join(", ")}.`
@@ -80,7 +83,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
             </PieChart>
           </ResponsiveContainer>
         ) : (
-          <p style={{ color: "var(--text-dimmed)" }}>Nenhuma despesa registrada</p>
+          <p style={{ color: "var(--text-dimmed)" }}>{t("noExpensesRecorded")}</p>
         )}
       </div>
 

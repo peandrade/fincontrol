@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 import { isAdmin } from "@/lib/admin";
 import {
   User,
@@ -17,56 +18,56 @@ import {
 const settingsCards = [
   {
     id: "perfil",
-    title: "Perfil",
-    description: "Gerencie suas informações pessoais",
+    titleKey: "profile",
+    descKey: "profileDesc",
     icon: User,
     color: "violet",
     href: "/conta/perfil",
   },
   {
     id: "aparencia",
-    title: "Aparência",
-    description: "Personalize o visual do aplicativo",
+    titleKey: "appearance",
+    descKey: "appearanceDesc",
     icon: Palette,
     color: "pink",
     href: "/conta/aparencia",
   },
   {
     id: "geral",
-    title: "Geral",
-    description: "Preferências gerais do sistema",
+    titleKey: "general",
+    descKey: "generalDesc",
     icon: Sliders,
     color: "blue",
     href: "/conta/geral",
   },
   {
     id: "configuracoes",
-    title: "Configurações",
-    description: "Ajustes avançados e notificações",
+    titleKey: "config",
+    descKey: "configDesc",
     icon: Settings,
     color: "amber",
     href: "/conta/configuracoes",
   },
   {
     id: "data",
-    title: "Data",
-    description: "Exporte e gerencie seus dados",
+    titleKey: "data",
+    descKey: "dataDesc",
     icon: Database,
     color: "emerald",
     href: "/conta/data",
   },
   {
     id: "privacidade",
-    title: "Privacidade",
-    description: "Controle sua privacidade e segurança",
+    titleKey: "privacy",
+    descKey: "privacyDesc",
     icon: Shield,
     color: "red",
     href: "/conta/privacidade",
   },
   {
     id: "admin",
-    title: "Admin",
-    description: "Painel administrativo e feedbacks",
+    titleKey: "admin",
+    descKey: "adminDesc",
     icon: ShieldCheck,
     color: "cyan",
     href: "/conta/admin",
@@ -114,6 +115,7 @@ const colorClasses: Record<string, { bg: string; icon: string; border: string }>
 export default function ContaPage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const t = useTranslations("settings");
 
   const visibleCards = settingsCards.filter(
     (card) => card.id !== "admin" || (session?.user?.id && isAdmin(session.user.id))
@@ -141,10 +143,10 @@ export default function ContaPage() {
         {}
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
-            Minha Conta
+            {t("myAccount")}
           </h1>
           <p className="text-[var(--text-dimmed)] mt-1">
-            Gerencie suas preferências e configurações
+            {t("myAccountDesc")}
           </p>
         </div>
 
@@ -167,10 +169,10 @@ export default function ContaPage() {
                   <ChevronRight className="w-5 h-5 text-[var(--text-dimmed)] group-hover:text-[var(--text-muted)] group-hover:translate-x-1 transition-all" />
                 </div>
                 <h3 className="text-lg font-semibold text-[var(--text-primary)] mt-4">
-                  {card.title}
+                  {t(card.titleKey)}
                 </h3>
                 <p className="text-sm text-[var(--text-dimmed)] mt-1">
-                  {card.description}
+                  {t(card.descKey)}
                 </p>
               </button>
             );

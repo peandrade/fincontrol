@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { KeyRound, AlertCircle, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   Modal,
   ModalContent,
@@ -19,6 +20,8 @@ interface VerifyPinModalProps {
 }
 
 export function VerifyPinModal({ open, onClose, onVerified }: VerifyPinModalProps) {
+  const t = useTranslations("privacy");
+  const tc = useTranslations("common");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
@@ -38,7 +41,7 @@ export function VerifyPinModal({ open, onClose, onVerified }: VerifyPinModalProp
   const handleVerify = async (pinToVerify?: string) => {
     const pinValue = pinToVerify || pin;
     if (pinValue.length !== 6) {
-      setError("Digite os 6 dígitos do PIN");
+      setError(t("enterPinDigits"));
       return;
     }
 
@@ -55,7 +58,7 @@ export function VerifyPinModal({ open, onClose, onVerified }: VerifyPinModalProp
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Erro ao verificar PIN");
+        setError(data.error || t("pinVerifyError"));
         setPin("");
         return;
       }
@@ -64,11 +67,11 @@ export function VerifyPinModal({ open, onClose, onVerified }: VerifyPinModalProp
         onVerified();
         handleClose();
       } else {
-        setError("PIN incorreto");
+        setError(t("wrongPin"));
         setPin("");
       }
     } catch {
-      setError("Erro ao verificar PIN. Tente novamente.");
+      setError(t("pinVerifyGenericError"));
       setPin("");
     } finally {
       setIsVerifying(false);
@@ -90,9 +93,9 @@ export function VerifyPinModal({ open, onClose, onVerified }: VerifyPinModalProp
               <KeyRound className="w-5 h-5 text-violet-400" />
             </div>
             <div>
-              <ModalTitle>Digite seu PIN</ModalTitle>
+              <ModalTitle>{t("enterYourPin")}</ModalTitle>
               <ModalDescription>
-                Informe o PIN para desativar o modo discreto
+                {t("pinToDisableDiscrete")}
               </ModalDescription>
             </div>
           </div>
@@ -165,7 +168,7 @@ export function VerifyPinModal({ open, onClose, onVerified }: VerifyPinModalProp
             {isVerifying && (
               <div className="flex items-center justify-center gap-2 text-[var(--text-muted)]">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Verificando...</span>
+                <span className="text-sm">{t("verifying")}</span>
               </div>
             )}
           </div>
@@ -176,7 +179,7 @@ export function VerifyPinModal({ open, onClose, onVerified }: VerifyPinModalProp
             disabled={isVerifying}
             className="px-4 py-2.5 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all disabled:opacity-50"
           >
-            Cancelar
+            {tc("cancel")}
           </button>
         </ModalFooter>
       </ModalContent>

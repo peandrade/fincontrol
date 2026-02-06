@@ -3,11 +3,15 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { useSession } from "next-auth/react";
 
+import type { DisplayCurrency } from "@/lib/utils";
+
 export interface GeneralPreferences {
   defaultPage: string;
   defaultPeriod: string;
   defaultSort: string;
   confirmBeforeDelete: boolean;
+  displayCurrency: DisplayCurrency;
+  language: "pt" | "en" | "es";
 }
 
 export interface NotificationPreferences {
@@ -48,6 +52,8 @@ const defaultGeneral: GeneralPreferences = {
   defaultPeriod: "month",
   defaultSort: "recent",
   confirmBeforeDelete: true,
+  displayCurrency: "BRL",
+  language: "pt",
 };
 
 const defaultNotifications: NotificationPreferences = {
@@ -113,6 +119,20 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         setGeneral(data.general);
         setNotifications(data.notifications);
         setPrivacy(data.privacy);
+
+        // Sync locale cookie with DB preference
+        if (data.general.language) {
+          const currentCookie = document.cookie
+            .split("; ")
+            .find((row) => row.startsWith("locale="))
+            ?.split("=")[1];
+
+          if (currentCookie !== data.general.language) {
+            document.cookie = `locale=${data.general.language};path=/;max-age=${365 * 24 * 60 * 60}`;
+            window.location.reload();
+            return;
+          }
+        }
       }
     } catch (error) {
       console.error("Erro ao buscar preferências:", error);
@@ -135,6 +155,13 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ general: newGeneral }),
       });
+
+      // If language changed, update cookie and reload to get new translations
+      if (updated.language && updated.language !== general.language) {
+        document.cookie = `locale=${updated.language};path=/;max-age=${365 * 24 * 60 * 60}`;
+        window.location.reload();
+        return;
+      }
     } catch (error) {
       console.error("Erro ao salvar preferências gerais:", error);
       setGeneral(general);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   Upload,
   Download,
@@ -10,7 +11,16 @@ import {
   AlertCircle,
 } from "lucide-react";
 import type { ImportPreview } from "@/lib/excel-parser";
-import { ImportPreviewTable, TAB_LABELS, type PreviewTab } from "./import-preview-table";
+import { ImportPreviewTable, type PreviewTab } from "./import-preview-table";
+
+const TAB_KEYS: PreviewTab[] = ["transactions", "investments", "budgets", "goals", "recurringExpenses"];
+const TAB_TRANSLATION_KEYS: Record<PreviewTab, string> = {
+  transactions: "tabTransactions",
+  investments: "tabInvestments",
+  budgets: "tabBudgets",
+  goals: "tabGoals",
+  recurringExpenses: "tabRecurringExpenses",
+};
 
 type ImportStep =
   | "idle"
@@ -29,6 +39,9 @@ interface ImportResult {
 }
 
 export function DataImportSection() {
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
+  const td = useTranslations("data");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importStep, setImportStep] = useState<ImportStep>("idle");
   const [preview, setPreview] = useState<ImportPreview | null>(null);
@@ -39,30 +52,30 @@ export function DataImportSection() {
   const handleDownloadTemplate = async () => {
     try {
       const res = await fetch("/api/data/template");
-      if (!res.ok) throw new Error("Erro ao baixar template");
+      if (!res.ok) throw new Error("Error downloading template");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "fincontrol-modelo-importacao.xlsx";
+      a.download = "fincontrol-import-template.xlsx";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error("Erro ao baixar template:", err);
+      console.error("Error downloading template:", err);
     }
   };
 
   const handleFileSelect = useCallback(async (file: File) => {
     if (!file.name.toLowerCase().endsWith(".xlsx")) {
-      setImportError("Formato inválido. Envie um arquivo .xlsx");
+      setImportError(t("invalidFormat"));
       setImportStep("error");
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setImportError("Arquivo muito grande. Tamanho máximo: 5MB");
+      setImportError(t("fileTooLarge"));
       setImportStep("error");
       return;
     }
@@ -77,7 +90,7 @@ export function DataImportSection() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Erro ao processar arquivo");
+        throw new Error(data.error || t("errorProcessingFile"));
       }
 
       setPreview(data as ImportPreview);
@@ -90,17 +103,17 @@ export function DataImportSection() {
         "goals",
         "recurringExpenses",
       ];
-      const firstWithData = tabs.find((t) => data[t]?.total > 0);
+      const firstWithData = tabs.find((tab) => data[tab]?.total > 0);
       setActiveTab(firstWithData || "transactions");
 
       setImportStep("preview");
     } catch (err) {
       setImportError(
-        err instanceof Error ? err.message : "Erro ao processar arquivo"
+        err instanceof Error ? err.message : t("errorProcessingFile")
       );
       setImportStep("error");
     }
-  }, []);
+  }, [t]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -134,14 +147,14 @@ export function DataImportSection() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Erro ao importar dados");
+        throw new Error(data.error || t("errorImportingData"));
       }
 
       setImportResult(data);
       setImportStep("success");
     } catch (err) {
       setImportError(
-        err instanceof Error ? err.message : "Erro ao importar dados"
+        err instanceof Error ? err.message : t("errorImportingData")
       );
       setImportStep("error");
     }
@@ -171,10 +184,10 @@ export function DataImportSection() {
         </div>
         <div>
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-            Importar Dados
+            {t("importData")}
           </h2>
           <p className="text-sm text-[var(--text-dimmed)]">
-            Importe dados via planilha Excel
+            {t("importDataDesc")}
           </p>
         </div>
       </div>
@@ -187,7 +200,7 @@ export function DataImportSection() {
             className="w-full p-3 rounded-xl border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-all flex items-center justify-center gap-2 font-medium text-sm"
           >
             <Download className="w-4 h-4" />
-            Baixar modelo Excel (.xlsx)
+            {t("downloadTemplate")}
           </button>
 
           <div
@@ -198,10 +211,10 @@ export function DataImportSection() {
           >
             <FileUp className="w-8 h-8 text-blue-400" />
             <span className="text-sm font-medium text-[var(--text-primary)]">
-              Arraste ou clique para enviar .xlsx
+              {t("dragOrClickUpload")}
             </span>
             <span className="text-xs text-[var(--text-dimmed)]">
-              Máximo 5MB
+              {t("maxFileSize")}
             </span>
           </div>
 
@@ -223,7 +236,7 @@ export function DataImportSection() {
         <div className="flex flex-col items-center gap-3 py-8">
           <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
           <p className="text-sm text-[var(--text-muted)]">
-            Processando arquivo...
+            {t("processingFile")}
           </p>
         </div>
       )}
@@ -234,21 +247,21 @@ export function DataImportSection() {
           {/* Summary */}
           <div className="flex items-center gap-4 p-3 rounded-xl bg-[var(--bg-primary)] text-sm">
             <span className="text-[var(--text-primary)] font-medium">
-              {preview.summary.totalRows} linhas
+              {preview.summary.totalRows} {t("rows")}
             </span>
             <span className="text-emerald-400">
-              {preview.summary.validRows} válidas
+              {preview.summary.validRows} {t("validRows")}
             </span>
             {preview.summary.invalidRows > 0 && (
               <span className="text-red-400">
-                {preview.summary.invalidRows} com erros
+                {preview.summary.invalidRows} {t("rowsWithErrors")}
               </span>
             )}
           </div>
 
           {/* Tabs */}
           <div className="flex gap-1 overflow-x-auto pb-1">
-            {(Object.keys(TAB_LABELS) as PreviewTab[]).map((tab) => {
+            {TAB_KEYS.map((tab) => {
               const section = preview[tab];
               if (section.total === 0) return null;
               return (
@@ -261,7 +274,7 @@ export function DataImportSection() {
                       : "bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                   }`}
                 >
-                  {TAB_LABELS[tab]} ({section.valid.length}/
+                  {td(TAB_TRANSLATION_KEYS[tab])} ({section.valid.length}/
                   {section.total})
                 </button>
               );
@@ -282,14 +295,14 @@ export function DataImportSection() {
               onClick={resetImport}
               className="flex-1 p-3 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all font-medium text-sm"
             >
-              Cancelar
+              {tc("cancel")}
             </button>
             <button
               onClick={handleConfirmImport}
               disabled={totalValidItems === 0}
               className="flex-1 p-3 rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-all font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Importar {totalValidItems} itens válidos
+              {t("importValidItems").replace("{count}", String(totalValidItems))}
             </button>
           </div>
         </div>
@@ -300,7 +313,7 @@ export function DataImportSection() {
         <div className="flex flex-col items-center gap-3 py-8">
           <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
           <p className="text-sm text-[var(--text-muted)]">
-            Salvando dados...
+            {t("savingData")}
           </p>
         </div>
       )}
@@ -311,14 +324,14 @@ export function DataImportSection() {
           <div className="flex flex-col items-center gap-3 py-4">
             <CheckCircle className="w-12 h-12 text-emerald-400" />
             <p className="text-lg font-semibold text-[var(--text-primary)]">
-              Importação concluída!
+              {t("importComplete")}
             </p>
           </div>
 
           <div className="space-y-2 text-sm">
             {importResult.transactionsCreated > 0 && (
               <div className="flex justify-between p-2 rounded-lg bg-[var(--bg-primary)]">
-                <span className="text-[var(--text-muted)]">Transações</span>
+                <span className="text-[var(--text-muted)]">{t("transactions")}</span>
                 <span className="text-emerald-400 font-medium">
                   +{importResult.transactionsCreated}
                 </span>
@@ -326,7 +339,7 @@ export function DataImportSection() {
             )}
             {importResult.investmentsCreated > 0 && (
               <div className="flex justify-between p-2 rounded-lg bg-[var(--bg-primary)]">
-                <span className="text-[var(--text-muted)]">Investimentos</span>
+                <span className="text-[var(--text-muted)]">{t("investments")}</span>
                 <span className="text-emerald-400 font-medium">
                   +{importResult.investmentsCreated}
                 </span>
@@ -334,7 +347,7 @@ export function DataImportSection() {
             )}
             {importResult.budgetsCreated > 0 && (
               <div className="flex justify-between p-2 rounded-lg bg-[var(--bg-primary)]">
-                <span className="text-[var(--text-muted)]">Orçamentos</span>
+                <span className="text-[var(--text-muted)]">{t("budgets")}</span>
                 <span className="text-emerald-400 font-medium">
                   +{importResult.budgetsCreated}
                 </span>
@@ -342,7 +355,7 @@ export function DataImportSection() {
             )}
             {importResult.goalsCreated > 0 && (
               <div className="flex justify-between p-2 rounded-lg bg-[var(--bg-primary)]">
-                <span className="text-[var(--text-muted)]">Metas</span>
+                <span className="text-[var(--text-muted)]">{t("goals")}</span>
                 <span className="text-emerald-400 font-medium">
                   +{importResult.goalsCreated}
                 </span>
@@ -350,7 +363,7 @@ export function DataImportSection() {
             )}
             {importResult.recurringExpensesCreated > 0 && (
               <div className="flex justify-between p-2 rounded-lg bg-[var(--bg-primary)]">
-                <span className="text-[var(--text-muted)]">Despesas Recorrentes</span>
+                <span className="text-[var(--text-muted)]">{t("recurringExpensesLabel")}</span>
                 <span className="text-emerald-400 font-medium">
                   +{importResult.recurringExpensesCreated}
                 </span>
@@ -362,7 +375,7 @@ export function DataImportSection() {
             onClick={resetImport}
             className="w-full p-3 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all font-medium text-sm"
           >
-            Concluído
+            {t("done")}
           </button>
         </div>
       )}
@@ -380,7 +393,7 @@ export function DataImportSection() {
             onClick={resetImport}
             className="w-full p-3 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all font-medium text-sm"
           >
-            Tentar novamente
+            {t("tryAgain")}
           </button>
         </div>
       )}

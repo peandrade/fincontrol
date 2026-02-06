@@ -1,7 +1,8 @@
 "use client";
 
 import { CreditCard } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import { getCategoryColor } from "@/lib/constants";
 import type { DayBills } from "./types";
 
@@ -16,17 +17,20 @@ export function SelectedDayDetails({
   hideValues,
   onClose,
 }: SelectedDayDetailsProps) {
+  const { formatCurrency } = useCurrency();
+  const t = useTranslations("common");
+  const td = useTranslations("dashboard");
   return (
     <div className="p-4 sm:p-6 border-t border-[var(--border-color)] bg-[var(--bg-hover)]">
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-medium text-[var(--text-primary)]">
-          Dia {selectedDay.day} - {hideValues ? "•••••" : formatCurrency(selectedDay.total)}
+          {t("day")} {selectedDay.day} - {hideValues ? "•••••" : formatCurrency(selectedDay.total)}
         </span>
         <button
           onClick={onClose}
           className="text-xs text-[var(--text-dimmed)] hover:text-[var(--text-primary)]"
         >
-          Fechar
+          {t("close")}
         </button>
       </div>
       <div className="space-y-2 max-h-[150px] overflow-y-auto">
@@ -67,7 +71,7 @@ export function SelectedDayDetails({
                   {bill.description}
                 </p>
                 <p className="text-[10px] text-[var(--text-dimmed)]">
-                  {bill.type === "invoice" ? "Fatura" : "Recorrente"}
+                  {bill.type === "invoice" ? td("invoice") : td("recurring")}
                 </p>
               </div>
             </div>
@@ -101,12 +105,12 @@ export function SelectedDayDetails({
                 }`}
               >
                 {bill.isPastDue
-                  ? "Atrasada"
+                  ? t("overdue")
                   : bill.isPaid
-                  ? "Paga"
+                  ? t("paid")
                   : bill.value === 0
-                  ? "Sem fatura"
-                  : "Pendente"}
+                  ? t("noInvoice")
+                  : t("pending")}
               </p>
             </div>
           </div>

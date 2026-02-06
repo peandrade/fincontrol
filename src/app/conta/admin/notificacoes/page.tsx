@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { ptBR, enUS, es } from "date-fns/locale";
 import {
   ArrowLeft,
   Bell,
@@ -20,6 +21,7 @@ import {
   X,
   Check,
 } from "lucide-react";
+import { usePreferences } from "@/contexts";
 
 interface Notification {
   id: string;
@@ -38,34 +40,41 @@ const typeConfig = {
     icon: Sparkles,
     color: "text-violet-400",
     bgColor: "bg-violet-500/10",
-    label: "Nova funcionalidade",
+    labelKey: "feature",
   },
   fix: {
     icon: Wrench,
     color: "text-emerald-400",
     bgColor: "bg-emerald-500/10",
-    label: "Correção",
+    labelKey: "fix",
   },
   alert: {
     icon: AlertTriangle,
     color: "text-amber-400",
     bgColor: "bg-amber-500/10",
-    label: "Alerta",
+    labelKey: "alertType",
   },
   info: {
     icon: Info,
     color: "text-blue-400",
     bgColor: "bg-blue-500/10",
-    label: "Informação",
+    labelKey: "infoType",
   },
 };
 
+const dateLocales = { pt: ptBR, en: enUS, es };
+
 export default function AdminNotificacoesPage() {
   const router = useRouter();
+  const t = useTranslations("notifications");
+  const tc = useTranslations("common");
+  const { general } = usePreferences();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingNotification, setEditingNotification] = useState<Notification | null>(null);
+
+  const currentLocale = dateLocales[general.language as keyof typeof dateLocales] || ptBR;
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -102,7 +111,7 @@ export default function AdminNotificacoesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta notificação?")) return;
+    if (!confirm(t("deleteNotificationConfirm"))) return;
 
     try {
       const response = await fetch(`/api/notifications/${id}`, {
@@ -113,7 +122,7 @@ export default function AdminNotificacoesPage() {
         fetchNotifications();
       }
     } catch (error) {
-      console.error("Erro ao excluir notificação:", error);
+      console.error("Error deleting notification:", error);
     }
   };
 
@@ -139,7 +148,7 @@ export default function AdminNotificacoesPage() {
           className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Voltar</span>
+          <span>{tc("back")}</span>
         </button>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -149,10 +158,10 @@ export default function AdminNotificacoesPage() {
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
-                Notificações
+                {t("title")}
               </h1>
               <p className="text-[var(--text-dimmed)] mt-1">
-                Gerenciar notificações da plataforma
+                {t("subtitle")}
               </p>
             </div>
           </div>
@@ -162,7 +171,7 @@ export default function AdminNotificacoesPage() {
             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-violet-500 text-white hover:bg-violet-600 transition-colors font-medium"
           >
             <Plus className="w-4 h-4" />
-            Nova Notificação
+            {t("newNotification")}
           </button>
         </div>
 
@@ -181,7 +190,7 @@ export default function AdminNotificacoesPage() {
             }}
           >
             <Bell className="w-12 h-12 text-[var(--text-dimmed)] mx-auto mb-4" />
-            <p className="text-[var(--text-muted)]">Nenhuma notificação criada</p>
+            <p className="text-[var(--text-muted)]">{t("noNotifications")}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -215,11 +224,11 @@ export default function AdminNotificacoesPage() {
                               {notification.title}
                             </h3>
                             <span className={`text-xs px-2 py-0.5 rounded-full ${config.bgColor} ${config.color}`}>
-                              {config.label}
+                              {t(config.labelKey)}
                             </span>
                             {!notification.isActive && (
                               <span className="text-xs px-2 py-0.5 rounded-full bg-gray-500/10 text-gray-400">
-                                Inativa
+                                {t("inactive")}
                               </span>
                             )}
                           </div>
@@ -232,7 +241,7 @@ export default function AdminNotificacoesPage() {
                           <button
                             onClick={() => handleToggleActive(notification)}
                             className="p-2 rounded-lg hover:bg-[var(--bg-hover)] transition-colors"
-                            title={notification.isActive ? "Desativar" : "Ativar"}
+                            title={notification.isActive ? t("deactivate") : t("activate")}
                           >
                             {notification.isActive ? (
                               <Eye className="w-4 h-4 text-emerald-400" />
@@ -243,14 +252,14 @@ export default function AdminNotificacoesPage() {
                           <button
                             onClick={() => setEditingNotification(notification)}
                             className="p-2 rounded-lg hover:bg-[var(--bg-hover)] transition-colors"
-                            title="Editar"
+                            title={tc("edit")}
                           >
                             <Edit2 className="w-4 h-4 text-[var(--text-muted)]" />
                           </button>
                           <button
                             onClick={() => handleDelete(notification.id)}
                             className="p-2 rounded-lg hover:bg-red-500/10 transition-colors"
-                            title="Excluir"
+                            title={tc("delete")}
                           >
                             <Trash2 className="w-4 h-4 text-red-400" />
                           </button>
@@ -261,18 +270,18 @@ export default function AdminNotificacoesPage() {
                         <span>
                           {formatDistanceToNow(new Date(notification.createdAt), {
                             addSuffix: true,
-                            locale: ptBR,
+                            locale: currentLocale,
                           })}
                         </span>
                         <span className="flex items-center gap-1">
                           <Check className="w-3 h-3" />
-                          {notification.readCount} leituras ({notification.readPercent}%)
+                          {notification.readCount} {t("readings")} ({notification.readPercent}%)
                         </span>
                         {notification.expiresAt && (
                           <span className="text-amber-400">
-                            Expira em{" "}
+                            {t("expiresIn")}{" "}
                             {formatDistanceToNow(new Date(notification.expiresAt), {
-                              locale: ptBR,
+                              locale: currentLocale,
                             })}
                           </span>
                         )}
@@ -312,6 +321,8 @@ interface NotificationModalProps {
 }
 
 function NotificationModal({ notification, onClose, onSave }: NotificationModalProps) {
+  const t = useTranslations("notifications");
+  const tc = useTranslations("common");
   const [title, setTitle] = useState(notification?.title || "");
   const [message, setMessage] = useState(notification?.message || "");
   const [type, setType] = useState<"feature" | "fix" | "alert" | "info">(
@@ -325,9 +336,16 @@ function NotificationModal({ notification, onClose, onSave }: NotificationModalP
 
   const isEditing = !!notification;
 
+  const typeShortLabels: Record<string, string> = {
+    feature: t("feature").split(" ")[0],
+    fix: t("fix"),
+    alertType: t("alertType"),
+    infoType: t("infoType").split(" ")[0] || t("infoType"),
+  };
+
   const handleSubmit = async () => {
     if (!title.trim() || !message.trim()) {
-      setError("Preencha todos os campos obrigatórios");
+      setError(tc("required"));
       return;
     }
 
@@ -353,12 +371,12 @@ function NotificationModal({ notification, onClose, onSave }: NotificationModalP
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Erro ao salvar notificação");
+        throw new Error(data.error || t("saveError"));
       }
 
       onSave();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro desconhecido");
+      setError(err instanceof Error ? err.message : tc("unknownError"));
     } finally {
       setIsSaving(false);
     }
@@ -378,7 +396,7 @@ function NotificationModal({ notification, onClose, onSave }: NotificationModalP
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--border-color)]">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-            {isEditing ? "Editar Notificação" : "Nova Notificação"}
+            {isEditing ? t("editNotification") : t("newNotification")}
           </h2>
           <button
             onClick={onClose}
@@ -398,13 +416,13 @@ function NotificationModal({ notification, onClose, onSave }: NotificationModalP
 
           <div>
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
-              Título *
+              {t("notificationTitle")}
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ex: Nova funcionalidade de exportação"
+              placeholder={t("titlePlaceholder")}
               maxLength={100}
               className="w-full p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:border-violet-500"
             />
@@ -412,12 +430,12 @@ function NotificationModal({ notification, onClose, onSave }: NotificationModalP
 
           <div>
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
-              Mensagem *
+              {t("messageLabel")}
             </label>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Descreva a notificação em detalhes..."
+              placeholder={t("messagePlaceholder")}
               maxLength={1000}
               rows={4}
               className="w-full p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:border-violet-500 resize-none"
@@ -426,19 +444,19 @@ function NotificationModal({ notification, onClose, onSave }: NotificationModalP
 
           <div>
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
-              Tipo
+              {tc("type")}
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {(Object.keys(typeConfig) as Array<keyof typeof typeConfig>).map((t) => {
-                const config = typeConfig[t];
+              {(Object.keys(typeConfig) as Array<keyof typeof typeConfig>).map((typeKey) => {
+                const config = typeConfig[typeKey];
                 const Icon = config.icon;
-                const isSelected = type === t;
+                const isSelected = type === typeKey;
 
                 return (
                   <button
-                    key={t}
+                    key={typeKey}
                     type="button"
-                    onClick={() => setType(t)}
+                    onClick={() => setType(typeKey)}
                     className={`flex items-center justify-center gap-2 p-3 rounded-xl border transition-all ${
                       isSelected
                         ? `${config.bgColor} border-current ${config.color}`
@@ -446,7 +464,7 @@ function NotificationModal({ notification, onClose, onSave }: NotificationModalP
                     }`}
                   >
                     <Icon className="w-4 h-4" />
-                    <span className="text-xs font-medium">{config.label.split(" ")[0]}</span>
+                    <span className="text-xs font-medium">{typeShortLabels[config.labelKey]}</span>
                   </button>
                 );
               })}
@@ -455,7 +473,7 @@ function NotificationModal({ notification, onClose, onSave }: NotificationModalP
 
           <div>
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
-              Data de expiração (opcional)
+              {t("expirationDate")}
             </label>
             <input
               type="date"
@@ -474,7 +492,7 @@ function NotificationModal({ notification, onClose, onSave }: NotificationModalP
             disabled={isSaving}
             className="px-4 py-2.5 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all disabled:opacity-50"
           >
-            Cancelar
+            {tc("cancel")}
           </button>
           <button
             onClick={handleSubmit}
@@ -482,7 +500,7 @@ function NotificationModal({ notification, onClose, onSave }: NotificationModalP
             className="px-4 py-2.5 rounded-xl bg-violet-500 text-white hover:bg-violet-600 transition-all disabled:opacity-50 flex items-center gap-2"
           >
             {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-            {isEditing ? "Salvar" : "Criar"}
+            {isEditing ? tc("save") : tc("create")}
           </button>
         </div>
       </div>

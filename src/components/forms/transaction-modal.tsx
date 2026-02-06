@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useId } from "react";
 import { X, Bookmark } from "lucide-react";
 import { formatDateForInput } from "@/lib/utils";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import { useCategoryStore } from "@/store/category-store";
 import type { CreateTransactionInput, Transaction, TransactionType, TransactionTemplate } from "@/types";
 
@@ -26,7 +28,10 @@ export function TransactionModal({
   template,
   editTransaction,
 }: TransactionModalProps) {
+  const t = useTranslations("transactions");
+  const tc = useTranslations("common");
   const isEditing = !!editTransaction;
+  const { currencySymbol, convertToBRL } = useCurrency();
   const [type, setType] = useState<TransactionType>("expense");
   const [value, setValue] = useState("");
   const [category, setCategory] = useState("");
@@ -99,7 +104,7 @@ export function TransactionModal({
     await onSave(
       {
         type,
-        value: parseFloat(value),
+        value: convertToBRL(parseFloat(value)),
         category,
         date: new Date(date),
         description: description || undefined,
@@ -144,13 +149,13 @@ export function TransactionModal({
             id={titleId}
             className="text-xl font-semibold text-[var(--text-primary)]"
           >
-            {isEditing ? "Editar Transação" : "Nova Transação"}
+            {isEditing ? t("editTransaction") : t("newTransaction")}
           </h2>
           <button
             onClick={onClose}
             disabled={isSubmitting}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-            aria-label="Fechar modal"
+            aria-label={t("closeModal")}
           >
             <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
@@ -169,7 +174,7 @@ export function TransactionModal({
                   : "bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)]"
               }`}
             >
-              Despesa
+              {t("expense")}
             </button>
             <button
               type="button"
@@ -180,18 +185,18 @@ export function TransactionModal({
                   : "bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)]"
               }`}
             >
-              Receita
+              {t("income")}
             </button>
           </div>
 
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Valor
+              {tc("value")}
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">
-                R$
+                {currencySymbol}
               </span>
               <CurrencyInput
                 value={value}
@@ -206,7 +211,7 @@ export function TransactionModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Categoria
+              {tc("category")}
             </label>
             <select
               value={category}
@@ -215,7 +220,7 @@ export function TransactionModal({
               required
             >
               <option value="" className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">
-                Selecione uma categoria
+                {t("selectCategory")}
               </option>
               {categoryList.map((cat) => (
                 <option key={cat.id} value={cat.name} className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">
@@ -228,7 +233,7 @@ export function TransactionModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Data
+              {tc("date")}
             </label>
             <input
               type="date"
@@ -242,13 +247,13 @@ export function TransactionModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Descrição (opcional)
+              {t("descriptionOptional")}
             </label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ex: Compras do mês"
+              placeholder={t("descriptionPlaceholder")}
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
             />
           </div>
@@ -265,7 +270,7 @@ export function TransactionModal({
                 />
                 <Bookmark className="w-4 h-4 text-[var(--text-dimmed)]" />
                 <span className="text-sm font-medium text-[var(--text-muted)]">
-                  Salvar como atalho
+                  {t("saveAsShortcut")}
                 </span>
               </label>
 
@@ -275,7 +280,7 @@ export function TransactionModal({
                     type="text"
                     value={templateName}
                     onChange={(e) => setTemplateName(e.target.value)}
-                    placeholder="Nome do atalho"
+                    placeholder={t("shortcutName")}
                     className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-2.5 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all text-sm"
                     required={saveAsTemplate}
                   />
@@ -291,14 +296,14 @@ export function TransactionModal({
               onClick={onClose}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all"
             >
-              Cancelar
+              {tc("cancel")}
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary disabled:opacity-50"
             >
-              {isSubmitting ? "Salvando..." : isEditing ? "Salvar" : "Adicionar"}
+              {isSubmitting ? tc("saving") : isEditing ? tc("save") : tc("add")}
             </button>
           </div>
         </form>

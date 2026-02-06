@@ -1,7 +1,9 @@
 "use client";
 
 import { Hash, DollarSign } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { useCurrency } from "@/contexts/currency-context";
 
 type SellMode = "quantity" | "value";
 
@@ -28,6 +30,8 @@ export function OperationSellMode({
   calculatedValue,
   exceedsSellTargetValue,
 }: OperationSellModeProps) {
+  const t = useTranslations("investments");
+  const { currencySymbol, formatCurrency } = useCurrency();
   const priceNum = parseFloat(price) || 0;
   const sellTargetNum = parseFloat(sellTargetValue) || 0;
 
@@ -36,7 +40,7 @@ export function OperationSellMode({
       {/* Sell Mode Toggle */}
       <div>
         <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-          Vender por
+          {t("sellBy")}
         </label>
         <div className="flex gap-2">
           <button
@@ -52,7 +56,7 @@ export function OperationSellMode({
             }`}
           >
             <Hash className="w-4 h-4" />
-            Quantidade
+            {t("quantity")}
           </button>
           <button
             type="button"
@@ -64,7 +68,7 @@ export function OperationSellMode({
             }`}
           >
             <DollarSign className="w-4 h-4" />
-            Valor
+            {t("valueLabel")}
           </button>
         </div>
       </div>
@@ -74,7 +78,7 @@ export function OperationSellMode({
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-medium text-[var(--text-muted)]">
-              Valor Desejado
+              {t("desiredValue")}
             </label>
             {currentValue > 0 && (
               <button
@@ -82,13 +86,13 @@ export function OperationSellMode({
                 onClick={() => onSellTargetValueChange(currentValue.toString())}
                 className="text-xs font-semibold text-primary-color hover:opacity-80 bg-primary-soft hover:bg-primary-medium px-2 py-1 rounded-md transition-all"
               >
-                MAX
+                {t("max")}
               </button>
             )}
           </div>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">
-              R$
+              {currencySymbol}
             </span>
             <CurrencyInput
               value={sellTargetValue}
@@ -100,8 +104,8 @@ export function OperationSellMode({
           {currentValue > 0 && (
             <p className={`mt-1 text-xs ${exceedsSellTargetValue ? "text-red-400 font-medium" : "text-[var(--text-dimmed)]"}`}>
               {exceedsSellTargetValue
-                ? `Valor excede o disponível (R$ ${currentValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
-                : `Valor total disponível: R$ ${currentValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                ? t("valueExceedsAvailable", { available: formatCurrency(currentValue) })
+                : t("totalAvailableValue", { available: formatCurrency(currentValue) })
               }
             </p>
           )}
@@ -109,22 +113,22 @@ export function OperationSellMode({
           {/* Calculation Display */}
           {calculatedQuantity > 0 && priceNum > 0 && (
             <div className="mt-3 p-3 bg-primary-soft border border-[var(--color-primary)]/20 rounded-xl">
-              <p className="text-sm text-primary-color font-medium mb-1">Cálculo automático:</p>
+              <p className="text-sm text-primary-color font-medium mb-1">{t("autoCalc")}</p>
               <div className="flex justify-between text-sm">
-                <span className="text-[var(--text-muted)]">Cotas a vender:</span>
+                <span className="text-[var(--text-muted)]">{t("sharesToSell")}</span>
                 <span className="text-[var(--text-primary)] font-medium">
                   {calculatedQuantity.toLocaleString("pt-BR", { maximumFractionDigits: 6 })}
                 </span>
               </div>
               <div className="flex justify-between text-sm mt-1">
-                <span className="text-[var(--text-muted)]">Valor real:</span>
+                <span className="text-[var(--text-muted)]">{t("realValue")}</span>
                 <span className="text-[var(--text-primary)] font-medium">
-                  R$ {calculatedValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatCurrency(calculatedValue)}
                 </span>
               </div>
               {calculatedValue !== sellTargetNum && (
                 <p className="text-xs text-[var(--text-dimmed)] mt-2">
-                  * Valor arredondado para baixo (cotas inteiras ou fração disponível)
+                  {t("roundedNote")}
                 </p>
               )}
             </div>

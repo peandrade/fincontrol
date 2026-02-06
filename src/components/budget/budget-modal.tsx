@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useId } from "react";
 import { X, Wallet } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { useCurrency } from "@/contexts/currency-context";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
 
 interface BudgetModalProps {
@@ -22,7 +24,10 @@ export function BudgetModal({
   existingCategories,
   editData,
 }: BudgetModalProps) {
+  const t = useTranslations("budget");
+  const tc = useTranslations("common");
   const titleId = useId();
+  const { currencySymbol, convertToBRL } = useCurrency();
   const [category, setCategory] = useState("");
   const [limit, setLimit] = useState("");
   const [isFixed, setIsFixed] = useState(true);
@@ -50,7 +55,7 @@ export function BudgetModal({
 
     await onSave({
       category,
-      limit: parseFloat(limit),
+      limit: convertToBRL(parseFloat(limit)),
       isFixed,
     });
 
@@ -78,17 +83,17 @@ export function BudgetModal({
             </div>
             <div>
               <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">
-                {isEditing ? "Editar Orçamento" : "Novo Orçamento"}
+                {isEditing ? t("editBudgetTitle") : t("newBudgetTitle")}
               </h2>
               <p className="text-[var(--text-dimmed)] text-sm">
-                {isEditing ? "Altere o limite mensal" : "Defina um limite mensal por categoria"}
+                {isEditing ? t("editBudgetSubtitle") : t("newBudgetSubtitle")}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            aria-label="Fechar"
+            aria-label={tc("close")}
           >
             <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
@@ -99,7 +104,7 @@ export function BudgetModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Categoria
+              {tc("category")}
             </label>
             {isEditing ? (
               <p className="text-sm text-[var(--text-primary)] bg-[var(--bg-hover)] rounded-xl py-3 px-4 font-medium">
@@ -107,7 +112,7 @@ export function BudgetModal({
               </p>
             ) : availableCategories.length === 0 ? (
               <p className="text-sm text-[var(--text-dimmed)] bg-[var(--bg-hover)] rounded-xl p-4">
-                Todas as categorias já possuem orçamento definido.
+                {t("allCategoriesBudgeted")}
               </p>
             ) : (
               <select
@@ -117,7 +122,7 @@ export function BudgetModal({
                 required
               >
                 <option value="" className="bg-[var(--bg-secondary)]">
-                  Selecione uma categoria
+                  {tc("selectCategory") || t("selectCategory")}
                 </option>
                 {availableCategories.map((cat) => (
                   <option
@@ -135,11 +140,11 @@ export function BudgetModal({
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Limite Mensal
+              {t("monthlyLimit")}
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">
-                R$
+                {currencySymbol}
               </span>
               <CurrencyInput
                 value={limit}
@@ -162,10 +167,10 @@ export function BudgetModal({
               />
               <div>
                 <span className="text-sm font-medium text-[var(--text-primary)]">
-                  Orçamento fixo
+                  {t("fixedBudgetLabel")}
                 </span>
                 <p className="text-xs text-[var(--text-dimmed)]">
-                  Aplicar este limite todos os meses automaticamente
+                  {t("fixedBudgetHint")}
                 </p>
               </div>
             </label>
@@ -178,14 +183,14 @@ export function BudgetModal({
               onClick={onClose}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all"
             >
-              Cancelar
+              {tc("cancel")}
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !category || !limit || (!isEditing && availableCategories.length === 0)}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary disabled:opacity-50"
             >
-              {isSubmitting ? "Salvando..." : isEditing ? "Salvar" : "Criar Orçamento"}
+              {isSubmitting ? tc("saving") : isEditing ? tc("save") : t("createBudget")}
             </button>
           </div>
         </form>

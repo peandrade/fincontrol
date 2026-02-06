@@ -1,8 +1,9 @@
 "use client";
 
 import { TrendingUp, TrendingDown, Wallet, PieChart } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import type { InvestmentSummary } from "@/types";
 
 interface InvestmentSummaryCardsProps {
@@ -10,7 +11,9 @@ interface InvestmentSummaryCardsProps {
 }
 
 export function InvestmentSummaryCards({ summary }: InvestmentSummaryCardsProps) {
+  const t = useTranslations("investments");
   const { privacy } = usePreferences();
+  const { formatCurrency } = useCurrency();
   const { totalInvested, currentValue, profitLoss, profitLossPercent, totalAssets } = summary;
   const isPositive = profitLoss >= 0;
 
@@ -28,7 +31,7 @@ export function InvestmentSummaryCards({ summary }: InvestmentSummaryCardsProps)
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] sm:text-sm font-medium mb-0.5 sm:mb-1 truncate" style={{ color: "var(--text-muted)" }}>
-              Total Investido
+              {t("totalInvested")}
             </p>
             <p className="text-sm sm:text-2xl font-bold truncate" style={{ color: "var(--text-primary)" }}>
               {privacy.hideValues ? "•••••" : formatCurrency(totalInvested)}
@@ -39,7 +42,7 @@ export function InvestmentSummaryCards({ summary }: InvestmentSummaryCardsProps)
           </div>
         </div>
         <p className="mt-1.5 sm:mt-3 text-[9px] sm:text-sm truncate" style={{ color: "var(--text-dimmed)" }}>
-          Capital aplicado
+          {t("capitalApplied")}
         </p>
       </div>
 
@@ -48,7 +51,7 @@ export function InvestmentSummaryCards({ summary }: InvestmentSummaryCardsProps)
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] sm:text-sm font-medium mb-0.5 sm:mb-1 truncate" style={{ color: "var(--text-muted)" }}>
-              Valor Atual
+              {t("currentValue")}
             </p>
             <p className="text-sm sm:text-2xl font-bold truncate" style={{ color: "var(--text-primary)" }}>
               {privacy.hideValues ? "•••••" : formatCurrency(currentValue)}
@@ -59,7 +62,7 @@ export function InvestmentSummaryCards({ summary }: InvestmentSummaryCardsProps)
           </div>
         </div>
         <p className="mt-1.5 sm:mt-3 text-[9px] sm:text-sm truncate" style={{ color: "var(--text-dimmed)" }}>
-          {totalAssets} {totalAssets === 1 ? "ativo" : "ativos"}
+          {totalAssets} {totalAssets === 1 ? t("asset") : t("assets")}
         </p>
       </div>
 
@@ -68,7 +71,7 @@ export function InvestmentSummaryCards({ summary }: InvestmentSummaryCardsProps)
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] sm:text-sm font-medium mb-0.5 sm:mb-1 truncate" style={{ color: "var(--text-muted)" }}>
-              Rentabilidade
+              {t("profitability")}
             </p>
             <p className={`text-sm sm:text-2xl font-bold truncate ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
               {privacy.hideValues ? "•••••" : `${isPositive ? "+" : ""}${formatCurrency(profitLoss)}`}
@@ -83,7 +86,7 @@ export function InvestmentSummaryCards({ summary }: InvestmentSummaryCardsProps)
           </div>
         </div>
         <p className={`mt-1.5 sm:mt-3 text-[9px] sm:text-sm truncate ${isPositive ? "text-emerald-400/70" : "text-red-400/70"}`}>
-          {isPositive ? "Lucro" : "Prejuízo"} total
+          {isPositive ? t("profitTotal") : t("lossTotal")}
         </p>
       </div>
 
@@ -98,7 +101,7 @@ export function InvestmentSummaryCards({ summary }: InvestmentSummaryCardsProps)
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0 flex-1">
             <p className={`text-[10px] sm:text-sm font-medium mb-0.5 sm:mb-1 truncate ${isPositive ? "text-emerald-100" : "text-red-100"}`}>
-              Rentab. %
+              {t("profitabilityPercent")}
             </p>
             <p className="text-sm sm:text-2xl font-bold text-white truncate">
               {isPositive ? "+" : ""}{profitLossPercent.toFixed(2)}%
@@ -113,7 +116,7 @@ export function InvestmentSummaryCards({ summary }: InvestmentSummaryCardsProps)
           </div>
         </div>
         <p className={`mt-1.5 sm:mt-3 text-[9px] sm:text-sm truncate ${isPositive ? "text-emerald-100" : "text-red-100"}`}>
-          {isPositive ? "📈 Valorizada!" : "📉 Desvalorizada"}
+          {isPositive ? t("appreciated") : t("depreciated")}
         </p>
       </div>
     </div>

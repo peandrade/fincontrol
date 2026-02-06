@@ -1,8 +1,9 @@
 "use client";
 
-import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/contexts/currency-context";
 import { formatRateDescription } from "@/lib/rates-service";
 import { isVariableIncome, isFixedIncome } from "@/types";
+import { useTranslations } from "next-intl";
 import type { Investment } from "@/types";
 
 interface InvestmentInfoDisplayProps {
@@ -11,6 +12,8 @@ interface InvestmentInfoDisplayProps {
 }
 
 export function InvestmentInfoDisplay({ investment, noMaturity }: InvestmentInfoDisplayProps) {
+  const { formatCurrency } = useCurrency();
+  const t = useTranslations("investments");
   const isVariable = isVariableIncome(investment.type);
   const isFixed = isFixedIncome(investment.type);
 
@@ -19,22 +22,22 @@ export function InvestmentInfoDisplay({ investment, noMaturity }: InvestmentInfo
       {isVariable && (
         <>
           <div className="flex justify-between text-sm">
-            <span className="text-[var(--text-muted)]">Total investido</span>
+            <span className="text-[var(--text-muted)]">{t("totalInvestedLabel")}</span>
             <span className="text-[var(--text-primary)]">{formatCurrency(investment.totalInvested)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-[var(--text-muted)]">Quantidade</span>
-            <span className="text-[var(--text-primary)]">{investment.quantity.toLocaleString("pt-BR")} cotas</span>
+            <span className="text-[var(--text-muted)]">{t("quantityLabel")}</span>
+            <span className="text-[var(--text-primary)]">{investment.quantity.toLocaleString("pt-BR")} {t("shares")}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-[var(--text-muted)]">Preço médio</span>
+            <span className="text-[var(--text-muted)]">{t("avgPriceLabel")}</span>
             <span className="text-[var(--text-primary)]">{formatCurrency(investment.averagePrice)}</span>
           </div>
         </>
       )}
       {isFixed && investment.interestRate && investment.indexer && (
         <div className="flex justify-between text-sm">
-          <span className="text-[var(--text-muted)]">Taxa atual</span>
+          <span className="text-[var(--text-muted)]">{t("currentRate")}</span>
           <span className="text-emerald-400 font-medium">
             {formatRateDescription(investment.interestRate, investment.indexer)}
           </span>
@@ -42,7 +45,7 @@ export function InvestmentInfoDisplay({ investment, noMaturity }: InvestmentInfo
       )}
       {isFixed && investment.maturityDate && !noMaturity && (
         <div className="flex justify-between text-sm">
-          <span className="text-[var(--text-muted)]">Vencimento</span>
+          <span className="text-[var(--text-muted)]">{t("maturity")}</span>
           <span className="text-[var(--text-primary)]">
             {new Date(investment.maturityDate).toLocaleDateString("pt-BR")}
           </span>
@@ -50,8 +53,8 @@ export function InvestmentInfoDisplay({ investment, noMaturity }: InvestmentInfo
       )}
       {isFixed && noMaturity && (
         <div className="flex justify-between text-sm">
-          <span className="text-[var(--text-muted)]">Vencimento</span>
-          <span className="text-[var(--text-primary)]">Liquidez diária</span>
+          <span className="text-[var(--text-muted)]">{t("maturity")}</span>
+          <span className="text-[var(--text-primary)]">{t("dailyLiquidityShort")}</span>
         </div>
       )}
     </div>

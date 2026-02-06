@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import { Key, Eye, EyeOff, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { calculatePasswordStrength } from "@/lib/password-utils";
 
 export function ChangePasswordSection() {
+  const t = useTranslations("privacy");
+  const tc = useTranslations("common");
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -23,17 +26,17 @@ export function ChangePasswordSection() {
     setPasswordSuccess("");
 
     if (!currentPassword) {
-      setPasswordError("Digite a senha atual");
+      setPasswordError(t("currentPasswordRequired"));
       return;
     }
 
     if (!passwordStrength.isValid) {
-      setPasswordError("A nova senha não atende aos requisitos mínimos");
+      setPasswordError(t("newPasswordWeak"));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError("As senhas não coincidem");
+      setPasswordError(t("passwordsDontMatchLabel"));
       return;
     }
 
@@ -49,11 +52,11 @@ export function ChangePasswordSection() {
       const data = await res.json();
 
       if (!res.ok) {
-        setPasswordError(data.error || "Erro ao alterar senha");
+        setPasswordError(data.error || t("passwordChangeError"));
         return;
       }
 
-      setPasswordSuccess("Senha alterada com sucesso!");
+      setPasswordSuccess(t("passwordChangeSuccess"));
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -62,7 +65,7 @@ export function ChangePasswordSection() {
         setPasswordSuccess("");
       }, 2000);
     } catch {
-      setPasswordError("Erro ao alterar senha. Tente novamente.");
+      setPasswordError(t("passwordChangeGenericError"));
     } finally {
       setIsChangingPassword(false);
     }
@@ -84,8 +87,8 @@ export function ChangePasswordSection() {
           <Key className="w-5 h-5 text-blue-400" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Alterar Senha</h2>
-          <p className="text-sm text-[var(--text-dimmed)]">Atualize sua senha de acesso</p>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("changePassword")}</h2>
+          <p className="text-sm text-[var(--text-dimmed)]">{t("changePasswordDesc")}</p>
         </div>
       </div>
 
@@ -94,7 +97,7 @@ export function ChangePasswordSection() {
           onClick={() => setIsExpanded(true)}
           className="w-full p-4 rounded-xl border-2 border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all font-medium"
         >
-          Alterar senha
+          {t("changePassword")}
         </button>
       ) : (
         <div className="space-y-3">
@@ -116,7 +119,7 @@ export function ChangePasswordSection() {
           <div className="relative">
             <input
               type={showCurrentPassword ? "text" : "password"}
-              placeholder="Senha atual"
+              placeholder={t("currentPasswordPlaceholder")}
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               className="w-full p-4 pr-12 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:border-blue-500"
@@ -135,7 +138,7 @@ export function ChangePasswordSection() {
             <div className="relative">
               <input
                 type={showNewPassword ? "text" : "password"}
-                placeholder="Nova senha"
+                placeholder={t("newPasswordPlaceholder")}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="w-full p-4 pr-12 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:border-blue-500"
@@ -174,7 +177,7 @@ export function ChangePasswordSection() {
             <div className="relative">
               <input
                 type={showConfirmNewPassword ? "text" : "password"}
-                placeholder="Confirmar nova senha"
+                placeholder={t("confirmNewPasswordPlaceholder")}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full p-4 pr-12 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:border-blue-500"
@@ -193,7 +196,7 @@ export function ChangePasswordSection() {
                 className="text-xs mt-2"
                 style={{ color: newPassword === confirmPassword ? "#22c55e" : "#ef4444" }}
               >
-                {newPassword === confirmPassword ? "Senhas coincidem" : "Senhas não coincidem"}
+                {newPassword === confirmPassword ? t("passwordsMatchLabel") : t("passwordsDontMatchLabel")}
               </p>
             )}
           </div>
@@ -205,7 +208,7 @@ export function ChangePasswordSection() {
               disabled={isChangingPassword}
               className="p-3 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all disabled:opacity-50"
             >
-              Cancelar
+              {tc("cancel")}
             </button>
             <button
               onClick={handleChangePassword}
@@ -215,10 +218,10 @@ export function ChangePasswordSection() {
               {isChangingPassword ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Salvando...
+                  {tc("saving")}
                 </>
               ) : (
-                "Salvar"
+                tc("save")
               )}
             </button>
           </div>

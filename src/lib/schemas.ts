@@ -259,12 +259,16 @@ export const updateProfileSchema = z.object({
   image: z.string().nullable().optional(),
 });
 
+export const displayCurrencySchema = z.enum(["BRL", "USD", "EUR", "GBP"]);
+
 export const updatePreferencesSchema = z.object({
   general: z.object({
     defaultPage: z.enum(["dashboard", "cards", "investments"]).optional(),
     defaultPeriod: z.enum(["week", "month", "quarter", "year"]).optional(),
     defaultSort: z.enum(["recent", "oldest", "highest", "lowest"]).optional(),
     confirmBeforeDelete: z.boolean().optional(),
+    displayCurrency: displayCurrencySchema.optional(),
+    language: z.enum(["pt", "en", "es"]).optional(),
   }).optional(),
   notifications: z.object({
     budgetAlerts: z.boolean().optional(),

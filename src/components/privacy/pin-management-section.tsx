@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { KeyRound, Shield, Trash2, RefreshCw, Loader2, AlertCircle, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { SetupPinModal } from "./setup-pin-modal";
 
 interface PinManagementSectionProps {
@@ -11,6 +12,8 @@ interface PinManagementSectionProps {
 }
 
 export function PinManagementSection({ hasPin, onPinCreated, onPinDeleted }: PinManagementSectionProps) {
+  const t = useTranslations("privacy");
+  const tc = useTranslations("common");
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
@@ -20,7 +23,7 @@ export function PinManagementSection({ hasPin, onPinCreated, onPinDeleted }: Pin
 
   const handleDeletePin = async () => {
     if (!deletePassword) {
-      setDeleteError("Digite sua senha da conta");
+      setDeleteError(t("confirmAccountPassword"));
       return;
     }
 
@@ -37,7 +40,7 @@ export function PinManagementSection({ hasPin, onPinCreated, onPinDeleted }: Pin
       const data = await res.json();
 
       if (!res.ok) {
-        setDeleteError(data.error || "Erro ao remover PIN");
+        setDeleteError(data.error || t("removePinGenericError"));
         return;
       }
 
@@ -49,7 +52,7 @@ export function PinManagementSection({ hasPin, onPinCreated, onPinDeleted }: Pin
         onPinDeleted();
       }, 1500);
     } catch {
-      setDeleteError("Erro ao remover PIN. Tente novamente.");
+      setDeleteError(t("removePinGenericError"));
     } finally {
       setIsDeleting(false);
     }
@@ -79,10 +82,10 @@ export function PinManagementSection({ hasPin, onPinCreated, onPinDeleted }: Pin
           </div>
           <div>
             <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-              PIN do Modo Discreto
+              {t("pinTitle")}
             </h3>
             <p className="text-sm text-[var(--text-muted)]">
-              PIN de 6 dígitos para proteger seus dados
+              {t("pinDesc")}
             </p>
           </div>
         </div>
@@ -93,22 +96,20 @@ export function PinManagementSection({ hasPin, onPinCreated, onPinDeleted }: Pin
             <div className="flex items-center gap-2">
               <Shield className={`w-4 h-4 ${hasPin ? "text-emerald-400" : "text-amber-400"}`} />
               <span className="text-sm text-[var(--text-primary)]">
-                {hasPin ? "PIN configurado" : "PIN não configurado"}
+                {hasPin ? t("pinConfigured") : t("pinNotConfigured")}
               </span>
             </div>
             {hasPin && (
               <div className="flex items-center gap-1 text-emerald-400">
                 <Check className="w-4 h-4" />
-                <span className="text-xs">Ativo</span>
+                <span className="text-xs">{tc("active")}</span>
               </div>
             )}
           </div>
 
           {/* Descrição */}
           <p className="text-sm text-[var(--text-dimmed)]">
-            {hasPin
-              ? "Seu PIN está configurado. Ele será solicitado quando você tentar desativar o modo discreto."
-              : "Configure um PIN para adicionar uma camada extra de segurança ao modo discreto. Diferente da senha da sua conta, o PIN é exclusivo para proteger a visualização dos seus dados financeiros."}
+            {hasPin ? t("pinConfiguredDesc") : t("pinNotConfiguredDesc")}
           </p>
 
           {/* Ações */}
@@ -120,14 +121,14 @@ export function PinManagementSection({ hasPin, onPinCreated, onPinDeleted }: Pin
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 transition-colors text-sm font-medium"
                 >
                   <RefreshCw className="w-4 h-4" />
-                  Alterar PIN
+                  {t("changePin")}
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-medium"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Remover PIN
+                  {t("removePin")}
                 </button>
               </>
             ) : (
@@ -136,7 +137,7 @@ export function PinManagementSection({ hasPin, onPinCreated, onPinDeleted }: Pin
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-500 text-white hover:bg-violet-600 transition-colors text-sm font-medium"
               >
                 <KeyRound className="w-4 h-4" />
-                Criar PIN
+                {t("createPin")}
               </button>
             )}
           </div>
@@ -171,10 +172,10 @@ export function PinManagementSection({ hasPin, onPinCreated, onPinDeleted }: Pin
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-[var(--text-primary)]">
-                  Remover PIN
+                  {t("removePin")}
                 </h3>
                 <p className="text-sm text-[var(--text-muted)]">
-                  Confirme com sua senha da conta
+                  {t("removePinConfirm")}
                 </p>
               </div>
             </div>
@@ -182,7 +183,7 @@ export function PinManagementSection({ hasPin, onPinCreated, onPinDeleted }: Pin
             {deleteSuccess ? (
               <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
                 <Check className="w-5 h-5 text-emerald-500" />
-                <span className="text-emerald-500 font-medium">PIN removido com sucesso!</span>
+                <span className="text-emerald-500 font-medium">{t("pinRemoved")}</span>
               </div>
             ) : (
               <>
@@ -194,12 +195,12 @@ export function PinManagementSection({ hasPin, onPinCreated, onPinDeleted }: Pin
                 )}
 
                 <p className="text-sm text-[var(--text-dimmed)] mb-4">
-                  Ao remover o PIN, o modo discreto será desativado e você precisará criar um novo PIN para usá-lo novamente.
+                  {t("removePinWarning")}
                 </p>
 
                 <input
                   type="password"
-                  placeholder="Digite sua senha da conta"
+                  placeholder={t("accountPassword")}
                   value={deletePassword}
                   onChange={(e) => setDeletePassword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleDeletePin()}
@@ -212,7 +213,7 @@ export function PinManagementSection({ hasPin, onPinCreated, onPinDeleted }: Pin
                     disabled={isDeleting}
                     className="px-4 py-2.5 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all disabled:opacity-50"
                   >
-                    Cancelar
+                    {tc("cancel")}
                   </button>
                   <button
                     onClick={handleDeletePin}
@@ -222,10 +223,10 @@ export function PinManagementSection({ hasPin, onPinCreated, onPinDeleted }: Pin
                     {isDeleting ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Removendo...
+                        {t("removingPin")}
                       </>
                     ) : (
-                      "Remover PIN"
+                      t("removePinButton")
                     )}
                   </button>
                 </div>

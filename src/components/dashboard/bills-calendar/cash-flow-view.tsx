@@ -1,6 +1,7 @@
 "use client";
 
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import type { CashFlowProjection } from "./types";
 
 interface CashFlowViewProps {
@@ -9,6 +10,7 @@ interface CashFlowViewProps {
 }
 
 export function CashFlowView({ projections, hideValues }: CashFlowViewProps) {
+  const { formatCurrency } = useCurrency();
   return (
     <div className="p-4 sm:p-6">
       <h4 className="text-sm font-medium text-[var(--text-primary)] mb-3">

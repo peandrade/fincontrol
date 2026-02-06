@@ -11,9 +11,10 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTemplateStore } from "@/store/template-store";
-import { formatCurrency } from "@/lib/utils";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TemplateModal } from "./template-modal";
 import type { TransactionTemplate, TransactionType } from "@/types";
@@ -31,6 +32,8 @@ export function FabActionPanel({
   onClose,
   onUseTemplate,
 }: FabActionPanelProps) {
+  const t = useTranslations("shortcuts");
+  const tc = useTranslations("common");
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<TransactionTemplate | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -38,6 +41,7 @@ export function FabActionPanel({
   const [editingTemplate, setEditingTemplate] = useState<TransactionTemplate | null>(null);
   const [isTemplateSubmitting, setIsTemplateSubmitting] = useState(false);
 
+  const { formatCurrency } = useCurrency();
   const { privacy } = usePreferences();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
@@ -126,7 +130,7 @@ export function FabActionPanel({
                 <Zap className="w-5 h-5 text-yellow-400" />
               </div>
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-                Atalhos
+                {t("title")}
               </h2>
             </div>
             <div className="flex items-center gap-2">
@@ -138,7 +142,7 @@ export function FabActionPanel({
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary-color hover:bg-primary-soft rounded-lg transition-all"
               >
                 <Plus className="w-4 h-4" />
-                Novo
+                {tc("new")}
               </button>
               <button
                 onClick={onClose}
@@ -158,9 +162,9 @@ export function FabActionPanel({
             ) : templates.length === 0 ? (
               <div className="text-center py-8">
                 <Zap className="w-10 h-10 text-[var(--text-dimmed)] mx-auto mb-3" />
-                <p className="text-[var(--text-muted)]">Nenhum atalho criado</p>
+                <p className="text-[var(--text-muted)]">{t("noShortcuts")}</p>
                 <p className="text-sm text-[var(--text-dimmed)] mt-1">
-                  Crie atalhos para suas transações frequentes
+                  {t("createShortcutsHint")}
                 </p>
                 <button
                   onClick={() => {
@@ -170,7 +174,7 @@ export function FabActionPanel({
                   className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-color hover:bg-primary-soft rounded-lg transition-all"
                 >
                   <Plus className="w-4 h-4" />
-                  Criar primeiro atalho
+                  {t("createFirstShortcut")}
                 </button>
               </div>
             ) : (
@@ -229,7 +233,7 @@ export function FabActionPanel({
                               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
                             >
                               <Edit2 className="w-4 h-4" />
-                              Editar
+                              {tc("edit")}
                             </button>
                             <button
                               onClick={(e) => {
@@ -240,7 +244,7 @@ export function FabActionPanel({
                               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                             >
                               <Trash2 className="w-4 h-4" />
-                              Excluir
+                              {tc("delete")}
                             </button>
                           </div>
                         )}
@@ -281,9 +285,9 @@ export function FabActionPanel({
         isOpen={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
         onConfirm={handleDeleteTemplate}
-        title="Excluir atalho"
-        message={`Tem certeza que deseja excluir o atalho "${deleteConfirm?.name}"? Esta ação não pode ser desfeita.`}
-        confirmText="Excluir"
+        title={t("deleteShortcut")}
+        message={t("deleteShortcutConfirm", { name: deleteConfirm?.name ?? "" })}
+        confirmText={tc("delete")}
         isLoading={isDeleting}
       />
     </>

@@ -8,6 +8,8 @@ const defaultGeneral = {
   defaultPeriod: "month",
   defaultSort: "recent",
   confirmBeforeDelete: true,
+  displayCurrency: "BRL",
+  language: "pt",
 };
 
 const defaultNotifications = {

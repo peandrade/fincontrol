@@ -2,8 +2,9 @@
 
 import { useMemo, useId } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { useTheme } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import type { AllocationData } from "@/types";
 
 interface AllocationChartProps {
@@ -11,7 +12,10 @@ interface AllocationChartProps {
 }
 
 export function AllocationChart({ data }: AllocationChartProps) {
+  const t = useTranslations("investments");
+  const tc = useTranslations("common");
   const { theme } = useTheme();
+  const { formatCurrency } = useCurrency();
   const descriptionId = useId();
 
   const chartData = useMemo(
@@ -41,11 +45,11 @@ export function AllocationChart({ data }: AllocationChartProps) {
         borderColor: "var(--border-color)"
       }}
     >
-      <h3 className="text-lg font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Alocação</h3>
-      <p className="text-sm mb-4" style={{ color: "var(--text-dimmed)" }}>Distribuição por tipo de ativo</p>
+      <h3 className="text-lg font-semibold mb-1" style={{ color: "var(--text-primary)" }}>{t("allocation")}</h3>
+      <p className="text-sm mb-4" style={{ color: "var(--text-dimmed)" }}>{t("allocationByType")}</p>
       <p id={descriptionId} className="sr-only">
-        Gráfico de pizza mostrando alocação de investimentos por tipo de ativo.
-        Total: {formatCurrency(total)}.
+        {t("allocationChartDesc")}
+        {tc("total")}: {formatCurrency(total)}.
         {data.slice(0, 3).map(d => `${d.label}: ${d.percentage.toFixed(0)}%`).join(", ")}.
       </p>
 
@@ -67,7 +71,7 @@ export function AllocationChart({ data }: AllocationChartProps) {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value) => [formatCurrency(Number(value)), "Valor"]}
+                formatter={(value) => [formatCurrency(Number(value)), tc("value")]}
                 contentStyle={tooltipStyle}
                 labelStyle={{ color: theme === "dark" ? "#9CA3AF" : "#6B7280" }}
                 itemStyle={{ color: theme === "dark" ? "#f3f4f6" : "#1f2937" }}
@@ -75,7 +79,7 @@ export function AllocationChart({ data }: AllocationChartProps) {
             </PieChart>
           </ResponsiveContainer>
         ) : (
-          <p style={{ color: "var(--text-dimmed)" }}>Nenhum investimento registrado</p>
+          <p style={{ color: "var(--text-dimmed)" }}>{t("noInvestments")}</p>
         )}
       </div>
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { CreditCard } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import type { BillEvent } from "./types";
 
 interface InvoicesSummaryProps {
@@ -15,12 +16,14 @@ export function InvoicesSummary({
   totalInvoices,
   hideValues,
 }: InvoicesSummaryProps) {
+  const t = useTranslations("dashboard");
+  const { formatCurrency } = useCurrency();
   if (invoiceBills.length === 0) return null;
 
   return (
     <div className="p-4 sm:p-6 border-t border-[var(--border-color)]">
       <p className="text-xs font-medium text-[var(--text-muted)] mb-2">
-        Faturas do mês
+        {t("invoicesOfMonth")}
       </p>
       <div className="space-y-2">
         {invoiceBills.map((bill) => (
@@ -39,7 +42,7 @@ export function InvoicesSummary({
                 {bill.cardName}
               </span>
               <span className="text-[10px] text-[var(--text-dimmed)]">
-                dia {bill.day}
+                {t("dayLabel")} {bill.day}
               </span>
             </div>
             <span
@@ -58,7 +61,7 @@ export function InvoicesSummary({
         {invoiceBills.length > 1 && (
           <div className="flex items-center justify-between pt-2 border-t border-[var(--border-color)]">
             <span className="text-xs font-medium text-[var(--text-muted)]">
-              Total faturas
+              {t("totalInvoices")}
             </span>
             <span className="text-xs font-bold text-blue-400">
               {hideValues ? "•••••" : formatCurrency(totalInvoices)}

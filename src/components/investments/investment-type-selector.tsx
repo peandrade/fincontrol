@@ -1,6 +1,7 @@
 "use client";
 
-import { INVESTMENT_TYPES, getInvestmentTypeLabel, getInvestmentTypeIcon } from "@/lib/constants";
+import { useTranslations } from "next-intl";
+import { INVESTMENT_TYPES, getInvestmentTypeIcon } from "@/lib/constants";
 import type { InvestmentType } from "@/types";
 
 interface InvestmentTypeSelectorProps {
@@ -12,23 +13,25 @@ export function InvestmentTypeSelector({
   onSelectType,
   onCancel,
 }: InvestmentTypeSelectorProps) {
+  const tc = useTranslations("categories");
+
   return (
     <div className="p-4 sm:p-6">
       <p className="text-xs sm:text-sm text-[var(--text-muted)] mb-3 sm:mb-4">
         Selecione o tipo de investimento:
       </p>
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        {INVESTMENT_TYPES.map((t) => (
+        {INVESTMENT_TYPES.map((type) => (
           <button
-            key={t}
+            key={type}
             type="button"
-            onClick={() => onSelectType(t)}
+            onClick={() => onSelectType(type)}
             className="p-2.5 sm:p-4 rounded-xl text-center transition-all bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] active:bg-[var(--bg-hover-strong)] hover:text-[var(--text-primary)] border border-transparent hover:border-[color-mix(in_srgb,var(--color-primary)_50%,transparent)] group"
           >
             <span className="text-xl sm:text-2xl block mb-1 sm:mb-2 group-hover:scale-110 transition-transform">
-              {getInvestmentTypeIcon(t)}
+              {getInvestmentTypeIcon(type)}
             </span>
-            <span className="text-[10px] sm:text-xs font-medium">{getInvestmentTypeLabel(t)}</span>
+            <span className="text-[10px] sm:text-xs font-medium">{tc(`investmentTypes.${type}`)}</span>
           </button>
         ))}
       </div>

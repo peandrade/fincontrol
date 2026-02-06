@@ -1,7 +1,8 @@
 "use client";
 
 import { Wallet } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 
 interface OperationBalanceDisplayProps {
   balance: number | null;
@@ -12,6 +13,10 @@ export function OperationBalanceDisplay({
   balance,
   isLoading,
 }: OperationBalanceDisplayProps) {
+  const t = useTranslations("investments");
+  const tc = useTranslations("common");
+  const { formatCurrency } = useCurrency();
+
   return (
     <div
       className="bg-[var(--bg-hover)] rounded-xl p-3 flex items-center justify-between"
@@ -19,7 +24,7 @@ export function OperationBalanceDisplay({
     >
       <div className="flex items-center gap-2">
         <Wallet className="w-4 h-4 text-[var(--text-muted)]" aria-hidden="true" />
-        <span className="text-sm text-[var(--text-muted)]">Saldo Disponível:</span>
+        <span className="text-sm text-[var(--text-muted)]">{t("availableBalance")}</span>
       </div>
       <span
         className={`font-medium ${
@@ -27,7 +32,7 @@ export function OperationBalanceDisplay({
         }`}
       >
         {isLoading
-          ? "Carregando..."
+          ? tc("loading")
           : balance !== null
           ? formatCurrency(balance)
           : "—"}

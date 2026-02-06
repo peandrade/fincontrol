@@ -14,7 +14,8 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import { usePreferences } from "@/contexts";
 import { useDashboardSummary } from "@/hooks";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,6 +60,9 @@ interface QuickStatsProps {
 }
 
 export function QuickStats({ refreshTrigger = 0 }: QuickStatsProps) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
+  const { formatCurrency } = useCurrency();
   const { data: hookData, isLoading } = useDashboardSummary([refreshTrigger]);
   const { privacy, toggleHideValues, setSessionUnlocked, updatePrivacy, refreshPinStatus } = usePreferences();
   const [showSetupPinModal, setShowSetupPinModal] = useState(false);
@@ -114,10 +118,10 @@ export function QuickStats({ refreshTrigger = 0 }: QuickStatsProps) {
 
   const stats = [
     {
-      title: "Saldo em Conta",
+      title: t("accountBalance"),
       value: data.balance.current,
       subValue: data.balance.monthlyBalance,
-      subLabel: "este mês",
+      subLabel: tc("thisMonth"),
       icon: Wallet,
       iconBg: "bg-primary-soft",
       iconColor: "text-primary-color",
@@ -125,10 +129,10 @@ export function QuickStats({ refreshTrigger = 0 }: QuickStatsProps) {
       href: "/",
     },
     {
-      title: "Investimentos",
+      title: t("investmentsLabel"),
       value: data.investments.currentValue,
       subValue: data.investments.profitLossPercent,
-      subLabel: "rendimento",
+      subLabel: t("yield"),
       icon: TrendingUp,
       iconBg: "bg-emerald-500/10",
       iconColor: "text-emerald-400",
@@ -137,10 +141,10 @@ export function QuickStats({ refreshTrigger = 0 }: QuickStatsProps) {
       href: "/investimentos",
     },
     {
-      title: "Cartões",
+      title: t("cardsLabel"),
       value: data.cards.availableLimit,
       subValue: data.cards.usagePercent,
-      subLabel: "do limite usado",
+      subLabel: t("limitUsed"),
       icon: CreditCard,
       iconBg: "bg-blue-500/10",
       iconColor: "text-blue-400",
@@ -150,10 +154,10 @@ export function QuickStats({ refreshTrigger = 0 }: QuickStatsProps) {
       href: "/cartoes",
     },
     {
-      title: "Metas",
+      title: t("goalsLabel"),
       value: data.goals.currentValue,
       subValue: data.goals.progress,
-      subLabel: "do objetivo",
+      subLabel: t("goalProgress"),
       icon: Target,
       iconBg: "bg-amber-500/10",
       iconColor: "text-amber-400",
@@ -175,8 +179,8 @@ export function QuickStats({ refreshTrigger = 0 }: QuickStatsProps) {
             <button
               onClick={handleToggleVisibility}
               className="p-1.5 rounded-lg flex-shrink-0 hover:bg-white/10 transition-colors"
-              title={privacy.hideValues ? "Mostrar valores" : "Ocultar valores"}
-              aria-label={privacy.hideValues ? "Mostrar valores" : "Ocultar valores"}
+              title={privacy.hideValues ? t("showValues") : t("hideValues")}
+              aria-label={privacy.hideValues ? t("showValues") : t("hideValues")}
             >
               {privacy.hideValues ? (
                 <EyeOff className="w-4 h-4 text-[var(--text-muted)]" />
@@ -185,7 +189,7 @@ export function QuickStats({ refreshTrigger = 0 }: QuickStatsProps) {
               )}
             </button>
           </div>
-          <p className="text-xs sm:text-sm text-[var(--text-muted)] mb-1 truncate">Patrimônio Total</p>
+          <p className="text-xs sm:text-sm text-[var(--text-muted)] mb-1 truncate">{t("totalWealth")}</p>
           <p className="text-lg sm:text-xl font-bold text-[var(--text-primary)] truncate">
             {privacy.hideValues ? "•••••" : formatCurrency(data.wealth.total)}
           </p>

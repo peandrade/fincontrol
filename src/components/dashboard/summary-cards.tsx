@@ -1,7 +1,8 @@
 "use client";
 
 import { TrendingUp, TrendingDown, Wallet, ArrowUp, ArrowDown } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import { usePreferences } from "@/contexts";
 import type { MonthlySummary } from "@/types";
 
@@ -10,6 +11,9 @@ interface SummaryCardsProps {
 }
 
 export function SummaryCards({ summary }: SummaryCardsProps) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
+  const { formatCurrency } = useCurrency();
   const { privacy } = usePreferences();
   const { income, expense, balance, incomeChange, expenseChange } = summary;
 
@@ -20,7 +24,7 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-emerald-100 text-xs sm:text-sm font-medium mb-1">
-              Receitas
+              {t("income")}
             </p>
             <p className="text-xl sm:text-3xl font-bold text-white">
               {privacy.hideValues ? "•••••" : formatCurrency(income)}
@@ -40,7 +44,7 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
             {incomeChange !== undefined
               ? `${incomeChange >= 0 ? "+" : ""}${incomeChange.toFixed(1)}%`
               : "+0.0%"}
-            {" "}vs mês anterior
+            {" "}{tc("vsPrevMonth")}
           </span>
         </div>
       </div>
@@ -50,7 +54,7 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-orange-100 text-xs sm:text-sm font-medium mb-1">
-              Despesas
+              {t("expenses")}
             </p>
             <p className="text-xl sm:text-3xl font-bold text-white">
               {privacy.hideValues ? "•••••" : formatCurrency(expense)}
@@ -70,7 +74,7 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
             {expenseChange !== undefined
               ? `${expenseChange >= 0 ? "+" : ""}${expenseChange.toFixed(1)}%`
               : "+0.0%"}
-            {" "}vs mês anterior
+            {" "}{tc("vsPrevMonth")}
           </span>
         </div>
       </div>
@@ -90,7 +94,7 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
                 balance >= 0 ? "text-cyan-100" : "text-red-100"
               }`}
             >
-              Saldo do Mês
+              {t("monthBalance")}
             </p>
             <p className="text-xl sm:text-3xl font-bold text-white">
               {privacy.hideValues ? "•••••" : formatCurrency(balance)}
@@ -106,7 +110,7 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
           }`}
         >
           <span>
-            {balance >= 0 ? "✨ Saldo positivo este mês!" : "⚠️ Atenção: saldo negativo"}
+            {balance >= 0 ? `✨ ${t("positiveBalance")}` : `⚠️ ${t("negativeBalance")}`}
           </span>
         </div>
       </div>

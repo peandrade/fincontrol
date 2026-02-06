@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useSession } from "next-auth/react";
 import { Bug, Lightbulb, MessageCircle, X, ImagePlus, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   Modal,
   ModalContent,
@@ -24,8 +25,8 @@ const feedbackSchema = z.object({
   type: z.enum(["bug", "suggestion", "other"]),
   description: z
     .string()
-    .min(10, "Descrição deve ter pelo menos 10 caracteres")
-    .max(2000, "Descrição deve ter no máximo 2000 caracteres"),
+    .min(10)
+    .max(2000),
 });
 
 type FeedbackFormData = z.infer<typeof feedbackSchema>;
@@ -35,17 +36,19 @@ interface FeedbackModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const feedbackTypes = [
-  { value: "bug", label: "Bug", icon: Bug, color: "text-red-400" },
-  { value: "suggestion", label: "Sugestao", icon: Lightbulb, color: "text-amber-400" },
-  { value: "other", label: "Outro", icon: MessageCircle, color: "text-blue-400" },
-] as const;
-
 export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
+  const t = useTranslations("feedback");
+  const tc = useTranslations("common");
   const { data: session } = useSession();
   const { profile } = useUser();
   const { success, error: showError } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const feedbackTypes = [
+    { value: "bug", label: t("bug"), icon: Bug, color: "text-red-400" },
+    { value: "suggestion", label: t("suggestion"), icon: Lightbulb, color: "text-amber-400" },
+    { value: "other", label: t("other"), icon: MessageCircle, color: "text-blue-400" },
+  ] as const;
 
   const [attachments, setAttachments] = useState<string[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState<File[]>([]);
@@ -77,7 +80,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
 
     const remainingSlots = 3 - attachments.length;
     if (remainingSlots <= 0) {
-      showError("Limite atingido", "Voce pode anexar no maximo 3 imagens");
+      showError(tc("error"), t("maxAttachments"));
       return;
     }
 
@@ -85,12 +88,12 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
 
     for (const file of filesToUpload) {
       if (!file.type.startsWith("image/")) {
-        showError("Tipo invalido", "Apenas imagens sao permitidas");
+        showError(tc("error"), t("onlyImages"));
         continue;
       }
 
       if (file.size > 5 * 1024 * 1024) {
-        showError("Arquivo muito grande", "O tamanho maximo e 5MB");
+        showError(tc("error"), t("maxFileSize"));
         continue;
       }
 
@@ -107,13 +110,13 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
 
         if (!response.ok) {
           const data = await response.json();
-          throw new Error(data.error || "Erro ao fazer upload");
+          throw new Error(data.error || t("uploadError"));
         }
 
         const data = await response.json();
         setAttachments((prev) => [...prev, data.url]);
       } catch (err) {
-        showError("Erro no upload", err instanceof Error ? err.message : "Tente novamente");
+        showError(tc("error"), err instanceof Error ? err.message : tc("retry"));
       } finally {
         setUploadingFiles((prev) => prev.filter((f) => f !== file));
       }
@@ -144,15 +147,15 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao enviar feedback");
+        throw new Error(errorData.error || t("submitError"));
       }
 
-      success("Feedback enviado!", "Obrigado por nos ajudar a melhorar");
+      success(tc("success"), t("subtitle"));
       reset();
       setAttachments([]);
       onOpenChange(false);
     } catch (err) {
-      showError("Erro ao enviar", err instanceof Error ? err.message : "Tente novamente");
+      showError(tc("error"), err instanceof Error ? err.message : tc("retry"));
     } finally {
       setIsSubmitting(false);
     }
@@ -168,9 +171,9 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
     <Modal open={open} onOpenChange={handleClose}>
       <ModalContent className="max-w-lg">
         <ModalHeader>
-          <ModalTitle>Enviar Feedback</ModalTitle>
+          <ModalTitle>{t("title")}</ModalTitle>
           <ModalDescription>
-            Nos ajude a melhorar o FinControl
+            {t("subtitle")}
           </ModalDescription>
         </ModalHeader>
 
@@ -180,15 +183,15 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">
-                  Nome
+                  {t("nameLabel")}
                 </label>
                 <div className="h-11 px-4 flex items-center bg-white/5 rounded-xl text-gray-300">
-                  {userName || "Usuario"}
+                  {userName || t("userLabel")}
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">
-                  Email
+                  {t("emailLabel")}
                 </label>
                 <div className="h-11 px-4 flex items-center bg-white/5 rounded-xl text-gray-300 truncate">
                   {userEmail}
@@ -199,7 +202,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
             {/* Feedback type selector */}
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-2">
-                Tipo de feedback
+                {t("feedbackType")}
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {feedbackTypes.map(({ value, label, icon: Icon, color }) => (
@@ -224,16 +227,16 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
             {/* Description */}
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1.5">
-                Descricao
+                {t("descriptionLabel")}
               </label>
               <textarea
                 {...register("description")}
                 placeholder={
                   selectedType === "bug"
-                    ? "Descreva o problema encontrado..."
+                    ? t("bugPlaceholder")
                     : selectedType === "suggestion"
-                    ? "Compartilhe sua ideia..."
-                    : "Como podemos ajudar?"
+                    ? t("suggestionPlaceholder")
+                    : t("otherPlaceholder")
                 }
                 rows={4}
                 className={cn(
@@ -244,17 +247,23 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                 )}
               />
               {errors.description && (
-                <p className="text-sm text-red-400 mt-1">{errors.description.message}</p>
+                <p className="text-sm text-red-400 mt-1">
+                  {errors.description.type === "too_small"
+                    ? t("descriptionMinLength")
+                    : errors.description.type === "too_big"
+                    ? t("descriptionMaxLength")
+                    : errors.description.message}
+                </p>
               )}
               <p className="text-xs text-gray-500 mt-1">
-                {watch("description")?.length || 0}/2000 caracteres
+                {watch("description")?.length || 0}/2000 {t("characters")}
               </p>
             </div>
 
             {/* Attachments */}
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-2">
-                Anexos (opcional)
+                {t("attachments")}
               </label>
 
               {/* Attachment previews */}
@@ -264,7 +273,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                     <div key={index} className="relative group">
                       <img
                         src={url}
-                        alt={`Anexo ${index + 1}`}
+                        alt={t("attachmentLabel", { index: index + 1 })}
                         className="w-16 h-16 object-cover rounded-lg border border-white/10"
                       />
                       <button
@@ -306,7 +315,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                   )}
                 >
                   <ImagePlus className="w-4 h-4" />
-                  <span className="text-sm">Adicionar imagem</span>
+                  <span className="text-sm">{t("addImage")}</span>
                 </button>
               )}
 
@@ -320,7 +329,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
               />
 
               <p className="text-xs text-gray-500 mt-2">
-                Maximo 3 imagens, 5MB cada (JPG, PNG, GIF, WebP)
+                {t("attachmentHint")}
               </p>
             </div>
           </ModalBody>
@@ -332,14 +341,14 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
               onClick={handleClose}
               disabled={isSubmitting}
             >
-              Cancelar
+              {tc("cancel")}
             </Button>
             <Button
               type="submit"
               isLoading={isSubmitting}
               disabled={uploadingFiles.length > 0}
             >
-              Enviar Feedback
+              {t("sendFeedbackButton")}
             </Button>
           </ModalFooter>
         </form>

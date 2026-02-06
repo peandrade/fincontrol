@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useId } from "react";
 import { X, ChevronDown, ChevronLeft, ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { formatDateForInput } from "@/lib/utils";
-import { getInvestmentTypeLabel, getInvestmentTypeIcon } from "@/lib/constants";
+import { getInvestmentTypeIcon } from "@/lib/constants";
 import { isFixedIncome, INDEXER_TYPES } from "@/types";
+import { useCurrency } from "@/contexts/currency-context";
 import { InvestmentTypeSelector } from "./investment-type-selector";
 import { InvestmentDepositForm } from "./investment-deposit-form";
 import type { CreateInvestmentInput, InvestmentType, IndexerType } from "@/types";
@@ -22,6 +24,10 @@ export function InvestmentModal({
   onSave,
   isSubmitting,
 }: InvestmentModalProps) {
+  const t = useTranslations("investments");
+  const tc = useTranslations("common");
+  const tcat = useTranslations("categories");
+  const { currencySymbol } = useCurrency();
   const titleId = useId();
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
@@ -106,7 +112,7 @@ export function InvestmentModal({
     if (showFixedIncomeFields) {
       const depositValue = parseFloat(initialDeposit);
       if (!depositValue || depositValue < 1) {
-        alert("O depósito inicial deve ser de pelo menos R$ 1,00");
+        alert(t("minDeposit", { symbol: currencySymbol }));
         return;
       }
     }
@@ -166,19 +172,19 @@ export function InvestmentModal({
               <button
                 onClick={handleBack}
                 className="p-1.5 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover-strong)] rounded-lg transition-colors"
-                aria-label="Voltar"
+                aria-label={tc("back")}
               >
                 <ChevronLeft className="w-5 h-5 text-[var(--text-muted)]" aria-hidden="true" />
               </button>
             )}
             <div>
               <h2 id={titleId} className="text-lg sm:text-xl font-semibold text-[var(--text-primary)]">
-                {step === 1 ? "Novo Investimento" : step === 3 ? "Depósito Inicial" : "Detalhes do Ativo"}
+                {step === 1 ? t("step1Title") : step === 3 ? t("step3Title") : t("step2Title")}
               </h2>
               {(step === 2 || step === 3) && (
                 <p className="text-xs sm:text-sm text-[var(--text-dimmed)] flex items-center gap-1.5 mt-0.5">
                   <span className="text-base sm:text-lg">{getInvestmentTypeIcon(type)}</span>
-                  {getInvestmentTypeLabel(type)}
+                  {tcat(`investmentTypes.${type}`)}
                   {showFixedIncomeFields && (
                     <span className="text-[var(--text-dimmed)]">• {step === 2 ? "1" : "2"}/2</span>
                   )}
@@ -189,7 +195,7 @@ export function InvestmentModal({
           <button
             onClick={handleClose}
             className="p-2 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover-strong)] rounded-lg transition-colors"
-            aria-label="Fechar"
+            aria-label={tc("close")}
           >
             <X className="w-5 h-5 text-[var(--text-muted)]" aria-hidden="true" />
           </button>
@@ -209,7 +215,7 @@ export function InvestmentModal({
             {}
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                Nome do Ativo *
+                {t("assetName")}
               </label>
               <input
                 type="text"
@@ -217,8 +223,8 @@ export function InvestmentModal({
                 onChange={(e) => setName(e.target.value)}
                 placeholder={
                   showFixedIncomeFields
-                    ? "Ex: CDB Nubank 100% CDI, Tesouro Selic 2029"
-                    : "Ex: Petrobras, Bitcoin, IVVB11"
+                    ? t("assetNamePlaceholderFixed")
+                    : t("assetNamePlaceholderVariable")
                 }
                 className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
                 autoFocus
@@ -230,13 +236,13 @@ export function InvestmentModal({
             {!showFixedIncomeFields && (
               <div>
                 <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                  Ticker/Código
+                  {t("tickerCode")}
                 </label>
                 <input
                   type="text"
                   value={ticker}
                   onChange={(e) => setTicker(e.target.value.toUpperCase())}
-                  placeholder="Ex: PETR4, BTC, IVVB11"
+                  placeholder={t("tickerPlaceholder")}
                   className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all uppercase"
                 />
               </div>
@@ -245,13 +251,13 @@ export function InvestmentModal({
             {}
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                {showFixedIncomeFields ? "Banco/Corretora" : "Corretora"}
+                {showFixedIncomeFields ? t("bankBroker") : t("broker")}
               </label>
               <input
                 type="text"
                 value={institution}
                 onChange={(e) => setInstitution(e.target.value)}
-                placeholder={showFixedIncomeFields ? "Ex: Nubank, XP, Inter" : "Ex: XP, Clear, Rico"}
+                placeholder={showFixedIncomeFields ? t("brokerPlaceholderFixed") : t("brokerPlaceholderVariable")}
                 className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
               />
             </div>
@@ -263,7 +269,7 @@ export function InvestmentModal({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                      Indexador
+                      {t("indexer")}
                     </label>
                     <div className="relative">
                       <select
@@ -286,14 +292,14 @@ export function InvestmentModal({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                      Taxa (%)
+                      {t("rate")}
                     </label>
                     <input
                       type="number"
                       step="0.01"
                       value={indexer === "NA" ? "" : interestRate}
                       onChange={(e) => setInterestRate(e.target.value)}
-                      placeholder={indexer === "CDI" ? "100" : indexer === "NA" ? "-" : "5.5"}
+                      placeholder={indexer === "CDI" ? t("ratePlaceholderCDI") : indexer === "NA" ? t("ratePlaceholderNA") : t("ratePlaceholderDefault")}
                       disabled={indexer === "NA"}
                       className={`w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all ${indexer === "NA" ? "opacity-50 cursor-not-allowed" : ""}`}
                     />
@@ -301,10 +307,10 @@ export function InvestmentModal({
                 </div>
                 {indexer !== "NA" && (
                   <p className="text-xs text-[var(--text-dimmed)] -mt-2">
-                    {indexer === "CDI" && "Ex: 100 para 100% do CDI"}
-                    {indexer === "IPCA" && "Ex: 5.5 para IPCA + 5,5%"}
-                    {indexer === "SELIC" && "Ex: 0 para apenas SELIC"}
-                    {indexer === "PREFIXADO" && "Ex: 12.5 para 12,5% a.a."}
+                    {indexer === "CDI" && t("rateHintCDI")}
+                    {indexer === "IPCA" && t("rateHintIPCA")}
+                    {indexer === "SELIC" && t("rateHintSELIC")}
+                    {indexer === "PREFIXADO" && t("rateHintFixed")}
                   </p>
                 )}
 
@@ -312,7 +318,7 @@ export function InvestmentModal({
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-sm font-medium text-[var(--text-muted)]">
-                      Vencimento
+                      {t("maturity")}
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -324,12 +330,12 @@ export function InvestmentModal({
                         }}
                         className="w-4 h-4 rounded border-[var(--border-color-strong)] bg-[var(--bg-hover)] text-primary-color focus:ring-[var(--color-primary)] focus:ring-offset-0 cursor-pointer"
                       />
-                      <span className="text-xs text-[var(--text-muted)]">Sem vencimento</span>
+                      <span className="text-xs text-[var(--text-muted)]">{t("noMaturity")}</span>
                     </label>
                   </div>
                   {noMaturity ? (
                     <div className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-dimmed)]">
-                      Liquidez diária (sem vencimento)
+                      {t("dailyLiquidity")}
                     </div>
                   ) : (
                     <input
@@ -348,12 +354,12 @@ export function InvestmentModal({
             {!showFixedIncomeFields && (
               <div>
                 <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                  Observações
+                  {tc("notes")}
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Anotações opcionais..."
+                  placeholder={tc("notesPlaceholder")}
                   rows={2}
                   className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all resize-none"
                 />
@@ -368,7 +374,7 @@ export function InvestmentModal({
                 className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all flex items-center justify-center gap-2"
               >
                 <ChevronLeft className="w-4 h-4" />
-                Voltar
+                {tc("back")}
               </button>
               {showFixedIncomeFields ? (
                 <button
@@ -377,7 +383,7 @@ export function InvestmentModal({
                   disabled={!name}
                   className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  Avançar
+                  {tc("next")}
                   <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
@@ -386,7 +392,7 @@ export function InvestmentModal({
                   disabled={isSubmitting || !name}
                   className="flex-1 py-3 px-4 rounded-xl font-medium bg-primary-gradient text-white transition-all shadow-lg shadow-primary disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {isSubmitting ? "Salvando..." : "Criar Ativo"}
+                  {isSubmitting ? tc("saving") : t("createAsset")}
                   {!isSubmitting && <ArrowRight className="w-4 h-4" />}
                 </button>
               )}

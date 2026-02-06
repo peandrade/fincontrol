@@ -2,8 +2,9 @@
 
 import { useId } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { getInvoiceStatusColor } from "@/lib/card-constants";
+import { useCurrency } from "@/contexts/currency-context";
 import { useTheme } from "@/contexts";
 import type { InvoicePreview } from "@/types/credit-card";
 
@@ -20,9 +21,14 @@ const cardStyle = {
   borderColor: "var(--border-color)"
 };
 
-export function InvoicePreviewChart({ data, title = "Previsão de Faturas" }: InvoicePreviewChartProps) {
+export function InvoicePreviewChart({ data, title }: InvoicePreviewChartProps) {
+  const { formatCurrency } = useCurrency();
   const { theme } = useTheme();
   const descriptionId = useId();
+  const t = useTranslations("cards");
+  const tc = useTranslations("common");
+
+  const displayTitle = title || t("invoiceForecast");
 
   const axisTickColor = theme === "dark" ? "#9CA3AF" : "#4B5563";
   const totalAmount = data.reduce((sum, d) => sum + d.amount, 0);
@@ -36,10 +42,10 @@ export function InvoicePreviewChart({ data, title = "Previsão de Faturas" }: In
   if (data.length === 0) {
     return (
       <div className="backdrop-blur rounded-2xl p-6 transition-colors duration-300" style={cardStyle}>
-        <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--text-primary)" }}>{title}</h3>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--text-primary)" }}>{displayTitle}</h3>
         <div className="text-center py-8">
-          <p style={{ color: "var(--text-dimmed)" }}>Nenhum dado para exibir</p>
-          <p className="text-sm mt-1" style={{ color: "var(--text-dimmed)" }}>Adicione um cartão e faça uma compra</p>
+          <p style={{ color: "var(--text-dimmed)" }}>{t("noDataToShow")}</p>
+          <p className="text-sm mt-1" style={{ color: "var(--text-dimmed)" }}>{t("addCardAndPurchase")}</p>
         </div>
       </div>
     );
@@ -49,28 +55,28 @@ export function InvoicePreviewChart({ data, title = "Previsão de Faturas" }: In
     <div className="backdrop-blur rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-colors duration-300" style={cardStyle}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
         <div>
-          <h3 className="text-base sm:text-lg font-semibold" style={{ color: "var(--text-primary)" }}>{title}</h3>
-          <p className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>Próximos 6 meses</p>
+          <h3 className="text-base sm:text-lg font-semibold" style={{ color: "var(--text-primary)" }}>{displayTitle}</h3>
+          <p className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>{t("next6Months")}</p>
         </div>
         <div className="flex items-center gap-3 sm:gap-4 text-[10px] sm:text-xs">
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-blue-500" />
-            <span style={{ color: "var(--text-muted)" }}>Aberta</span>
+            <span style={{ color: "var(--text-muted)" }}>{tc("open")}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500" />
-            <span style={{ color: "var(--text-muted)" }}>Paga</span>
+            <span style={{ color: "var(--text-muted)" }}>{tc("paid")}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-yellow-500" />
-            <span style={{ color: "var(--text-muted)" }}>Fechada</span>
+            <span style={{ color: "var(--text-muted)" }}>{tc("closed")}</span>
           </div>
         </div>
       </div>
 
       <p id={descriptionId} className="sr-only">
-        Gráfico de barras mostrando previsão de faturas dos próximos 6 meses.
-        Total previsto: {formatCurrency(totalAmount)}.
+        {t("chartDesc")}
+        {" "}{tc("total")}: {formatCurrency(totalAmount)}.
         {data.slice(0, 3).map(d => `${d.label}: ${formatCurrency(d.amount)}`).join(", ")}.
       </p>
 
@@ -100,7 +106,7 @@ export function InvoicePreviewChart({ data, title = "Previsão de Faturas" }: In
               contentStyle={tooltipStyle}
               labelStyle={{ color: theme === "dark" ? "#9CA3AF" : "#6B7280", marginBottom: "4px" }}
               itemStyle={{ color: theme === "dark" ? "#f3f4f6" : "#1f2937" }}
-              formatter={(value) => [formatCurrency(Number(value)), "Valor"]}
+              formatter={(value) => [formatCurrency(Number(value)), tc("value")]}
             />
             <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
               {data.map((entry, index) => (

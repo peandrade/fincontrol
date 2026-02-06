@@ -18,29 +18,7 @@ import {
   Linkedin,
 } from "lucide-react";
 import { useTheme, useUser, useSidebar } from "@/contexts";
-
-const navItems = [
-  {
-    label: "Dashboard",
-    href: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Investimentos",
-    href: "/investimentos",
-    icon: TrendingUp,
-  },
-  {
-    label: "Cartões",
-    href: "/cartoes",
-    icon: CreditCard,
-  },
-  {
-    label: "Relatórios",
-    href: "/relatorios",
-    icon: FileBarChart,
-  },
-];
+import { useTranslations } from "next-intl";
 
 const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
 
@@ -51,6 +29,31 @@ export function Sidebar() {
   const { data: session } = useSession();
   const { profile } = useUser();
   const { isCollapsed, toggleSidebar } = useSidebar();
+  const t = useTranslations("nav");
+  const tc = useTranslations("common");
+
+  const navItems = [
+    {
+      label: t("dashboard"),
+      href: "/",
+      icon: LayoutDashboard,
+    },
+    {
+      label: t("investments"),
+      href: "/investimentos",
+      icon: TrendingUp,
+    },
+    {
+      label: t("cards"),
+      href: "/cartoes",
+      icon: CreditCard,
+    },
+    {
+      label: t("reports"),
+      href: "/relatorios",
+      icon: FileBarChart,
+    },
+  ];
 
   if (authRoutes.includes(pathname)) {
     return null;
@@ -130,7 +133,7 @@ export function Sidebar() {
           className={`flex items-center gap-3 w-full rounded-xl transition-all text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] ${
             isCollapsed ? "justify-center p-3" : "px-4 py-2.5"
           }`}
-          title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+          title={theme === "dark" ? t("lightTheme") : t("darkTheme")}
         >
           {mounted ? (
             theme === "dark" ? (
@@ -143,7 +146,7 @@ export function Sidebar() {
           )}
           {!isCollapsed && (
             <span className="text-sm font-medium">
-              {mounted ? (theme === "dark" ? "Tema claro" : "Tema escuro") : "Tema"}
+              {mounted ? (theme === "dark" ? t("lightTheme") : t("darkTheme")) : t("theme")}
             </span>
           )}
         </button>
@@ -155,7 +158,7 @@ export function Sidebar() {
               {userImage ? (
                 <img
                   src={userImage}
-                  alt="Avatar"
+                  alt={tc("avatar")}
                   className="w-8 h-8 rounded-full object-cover border-2 shrink-0"
                   style={{ borderColor: "var(--color-primary)" }}
                 />
@@ -182,10 +185,10 @@ export function Sidebar() {
               className={`flex items-center gap-3 w-full rounded-xl transition-all text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] ${
                 isCollapsed ? "justify-center p-3" : "px-4 py-2.5"
               }`}
-              title={isCollapsed ? "Minha Conta" : undefined}
+              title={isCollapsed ? t("myAccount") : undefined}
             >
               <User className="w-5 h-5 shrink-0" />
-              {!isCollapsed && <span className="text-sm font-medium">Minha Conta</span>}
+              {!isCollapsed && <span className="text-sm font-medium">{t("myAccount")}</span>}
             </button>
 
             {/* Logout */}
@@ -194,10 +197,10 @@ export function Sidebar() {
               className={`flex items-center gap-3 w-full rounded-xl transition-all text-red-400 hover:bg-red-500/10 ${
                 isCollapsed ? "justify-center p-3" : "px-4 py-2.5"
               }`}
-              title={isCollapsed ? "Sair" : undefined}
+              title={isCollapsed ? t("logout") : undefined}
             >
               <LogOut className="w-5 h-5 shrink-0" />
-              {!isCollapsed && <span className="text-sm font-medium">Sair</span>}
+              {!isCollapsed && <span className="text-sm font-medium">{t("logout")}</span>}
             </button>
           </>
         )}
@@ -208,14 +211,14 @@ export function Sidebar() {
           className={`flex items-center gap-3 w-full rounded-xl transition-all text-[var(--text-dimmed)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] ${
             isCollapsed ? "justify-center p-3" : "px-4 py-2.5"
           }`}
-          title={isCollapsed ? "Expandir" : "Recolher"}
+          title={isCollapsed ? tc("expand") : tc("collapse")}
         >
           {isCollapsed ? (
             <ChevronsRight className="w-5 h-5 shrink-0" />
           ) : (
             <>
               <ChevronsLeft className="w-5 h-5 shrink-0" />
-              <span className="text-sm font-medium">Recolher</span>
+              <span className="text-sm font-medium">{tc("collapse")}</span>
             </>
           )}
         </button>
@@ -228,7 +231,7 @@ export function Sidebar() {
             rel="noopener noreferrer"
             className="p-2 rounded-lg transition-all text-[var(--text-dimmed)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
             title="GitHub"
-            aria-label="Visitar perfil no GitHub"
+            aria-label={t("visitGithub")}
           >
             <Github className="w-4 h-4" aria-hidden="true" />
           </a>
@@ -238,7 +241,7 @@ export function Sidebar() {
             rel="noopener noreferrer"
             className="p-2 rounded-lg transition-all text-[var(--text-dimmed)] hover:text-[#0A66C2] hover:bg-[var(--bg-hover)]"
             title="LinkedIn"
-            aria-label="Visitar perfil no LinkedIn"
+            aria-label={t("visitLinkedin")}
           >
             <Linkedin className="w-4 h-4" aria-hidden="true" />
           </a>

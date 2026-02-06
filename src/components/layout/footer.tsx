@@ -1,9 +1,11 @@
 "use client";
 
 import { Github, Linkedin } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const tc = useTranslations("common");
 
   return (
     <footer
@@ -20,7 +22,7 @@ export function Footer() {
             className="text-sm"
             style={{ color: "var(--text-muted)" }}
           >
-            Feito por{" "}
+            {tc("madeBy")}{" "}
             <span
               className="font-medium"
               style={{ color: "var(--text-primary)" }}

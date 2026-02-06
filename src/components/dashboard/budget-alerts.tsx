@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { AlertTriangle, AlertCircle, XCircle, RefreshCw, ChevronRight } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import { usePreferences } from "@/contexts";
 import { getCategoryColor } from "@/lib/constants";
 import Link from "next/link";
@@ -53,6 +54,7 @@ const alertStyles = {
 };
 
 export function BudgetAlerts() {
+  const { formatCurrency } = useCurrency();
   const [data, setData] = useState<BudgetAlertsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { privacy, notifications } = usePreferences();

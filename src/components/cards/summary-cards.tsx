@@ -1,8 +1,9 @@
 "use client";
 
 import { CreditCard, Wallet, TrendingUp, Calendar } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import type { CardSummary } from "@/types/credit-card";
 
 interface SummaryCardsProps {
@@ -10,6 +11,9 @@ interface SummaryCardsProps {
 }
 
 export function SummaryCards({ summary }: SummaryCardsProps) {
+  const t = useTranslations("cards");
+  const tc = useTranslations("common");
+  const { formatCurrency } = useCurrency();
   const { privacy } = usePreferences();
   const usagePercent = summary.totalLimit > 0
     ? (summary.usedLimit / summary.totalLimit) * 100
@@ -30,14 +34,14 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
           <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-primary-medium">
             <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-primary-color" />
           </div>
-          <span className="text-[10px] sm:text-sm truncate" style={{ color: "var(--text-muted)" }}>Limite Total</span>
+          <span className="text-[10px] sm:text-sm truncate" style={{ color: "var(--text-muted)" }}>{t("totalLimit")}</span>
         </div>
         <p className="text-base sm:text-2xl font-bold truncate" style={{ color: "var(--text-primary)" }}>
           {privacy.hideValues ? "•••••" : formatCurrency(summary.totalLimit)}
         </p>
         <div className="mt-1.5 sm:mt-2">
           <div className="flex justify-between text-[9px] sm:text-xs mb-1" style={{ color: "var(--text-dimmed)" }}>
-            <span>Usado</span>
+            <span>{tc("used")}</span>
             <span>{usagePercent.toFixed(0)}%</span>
           </div>
           <div className="w-full rounded-full h-1.5 sm:h-2" style={{ backgroundColor: "var(--bg-hover)" }}>
@@ -57,13 +61,13 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
           <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-emerald-500/20">
             <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
           </div>
-          <span className="text-[10px] sm:text-sm truncate" style={{ color: "var(--text-muted)" }}>Disponível</span>
+          <span className="text-[10px] sm:text-sm truncate" style={{ color: "var(--text-muted)" }}>{t("availableLimit")}</span>
         </div>
         <p className="text-base sm:text-2xl font-bold text-emerald-400 truncate">
           {privacy.hideValues ? "•••••" : formatCurrency(summary.availableLimit)}
         </p>
         <p className="text-[10px] sm:text-sm mt-1 truncate" style={{ color: "var(--text-dimmed)" }}>
-          {privacy.hideValues ? "•••••" : formatCurrency(summary.usedLimit)} usado
+          {privacy.hideValues ? "•••••" : formatCurrency(summary.usedLimit)} {tc("used")}
         </p>
       </div>
 
@@ -73,12 +77,12 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
           <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-blue-500/20">
             <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
           </div>
-          <span className="text-[10px] sm:text-sm truncate" style={{ color: "var(--text-muted)" }}>Fatura Atual</span>
+          <span className="text-[10px] sm:text-sm truncate" style={{ color: "var(--text-muted)" }}>{t("currentInvoice")}</span>
         </div>
         <p className="text-base sm:text-2xl font-bold truncate" style={{ color: "var(--text-primary)" }}>
           {privacy.hideValues ? "•••••" : formatCurrency(summary.currentInvoice)}
         </p>
-        <p className="text-[10px] sm:text-sm mt-1" style={{ color: "var(--text-dimmed)" }}>Este mês</p>
+        <p className="text-[10px] sm:text-sm mt-1" style={{ color: "var(--text-dimmed)" }}>{tc("thisMonth")}</p>
       </div>
 
       {}
@@ -87,12 +91,12 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
           <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-orange-500/20">
             <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400" />
           </div>
-          <span className="text-[10px] sm:text-sm truncate" style={{ color: "var(--text-muted)" }}>Próxima Fatura</span>
+          <span className="text-[10px] sm:text-sm truncate" style={{ color: "var(--text-muted)" }}>{t("nextInvoice")}</span>
         </div>
         <p className="text-base sm:text-2xl font-bold truncate" style={{ color: "var(--text-primary)" }}>
           {privacy.hideValues ? "•••••" : formatCurrency(summary.nextInvoice)}
         </p>
-        <p className="text-[10px] sm:text-sm mt-1" style={{ color: "var(--text-dimmed)" }}>Mês que vem</p>
+        <p className="text-[10px] sm:text-sm mt-1" style={{ color: "var(--text-dimmed)" }}>{tc("nextMonth")}</p>
       </div>
     </div>
   );

@@ -32,9 +32,9 @@ interface GoalProgress {
 
 interface GoalInsight {
   type: "positive" | "negative" | "neutral" | "achievement";
-  title: string;
-  description: string;
-  goalName?: string;
+  titleKey: string;
+  descriptionKey: string;
+  params?: Record<string, string | number>;
 }
 
 export async function GET() {
@@ -197,9 +197,9 @@ export async function GET() {
     if (recentlyCompleted.length > 0) {
       insights.push({
         type: "achievement",
-        title: "Meta concluída!",
-        description: `Parabéns! Você completou "${recentlyCompleted[0].name}"`,
-        goalName: recentlyCompleted[0].name,
+        titleKey: "insightGoalCompleted",
+        descriptionKey: "insightGoalCompletedDesc",
+        params: { name: recentlyCompleted[0].name },
       });
     }
 
@@ -213,9 +213,9 @@ export async function GET() {
     if (urgentGoals.length > 0) {
       insights.push({
         type: "negative",
-        title: "Prazo se aproximando",
-        description: `"${urgentGoals[0].name}" vence em menos de 30 dias`,
-        goalName: urgentGoals[0].name,
+        titleKey: "insightDeadlineApproaching",
+        descriptionKey: "insightDeadlineApproachingDesc",
+        params: { name: urgentGoals[0].name },
       });
     }
 
@@ -224,8 +224,9 @@ export async function GET() {
     if (offTrackGoals.length > 0) {
       insights.push({
         type: "neutral",
-        title: "Aumente suas contribuições",
-        description: `${offTrackGoals.length} meta${offTrackGoals.length !== 1 ? "s" : ""} precisa${offTrackGoals.length !== 1 ? "m" : ""} de mais aportes`,
+        titleKey: "insightIncreaseContributions",
+        descriptionKey: "insightIncreaseContributionsDesc",
+        params: { count: offTrackGoals.length },
       });
     }
 
@@ -234,8 +235,9 @@ export async function GET() {
     if (onTrackGoals.length > 0) {
       insights.push({
         type: "positive",
-        title: "No caminho certo",
-        description: `${onTrackGoals.length} meta${onTrackGoals.length !== 1 ? "s estão" : " está"} no ritmo para conclusão`,
+        titleKey: "insightOnTrack",
+        descriptionKey: "insightOnTrackDesc",
+        params: { count: onTrackGoals.length },
       });
     }
 
@@ -251,9 +253,9 @@ export async function GET() {
       const nextMilestone = closeToMilestone.milestones.find((m) => !m.reached);
       insights.push({
         type: "positive",
-        title: "Quase lá!",
-        description: `"${closeToMilestone.name}" está próxima dos ${nextMilestone?.percentage}%`,
-        goalName: closeToMilestone.name,
+        titleKey: "insightAlmostThere",
+        descriptionKey: "insightAlmostThereDesc",
+        params: { name: closeToMilestone.name, percent: nextMilestone?.percentage || 0 },
       });
     }
 

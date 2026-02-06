@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   CheckCircle,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { PortfolioInsight } from "./analytics-types";
 
 interface PortfolioInsightsProps {
@@ -14,6 +15,8 @@ interface PortfolioInsightsProps {
 }
 
 export function PortfolioInsights({ insights, showHeader = false }: PortfolioInsightsProps) {
+  const t = useTranslations("investments");
+
   if (insights.length === 0) return null;
 
   return (
@@ -24,7 +27,7 @@ export function PortfolioInsights({ insights, showHeader = false }: PortfolioIns
             <Lightbulb className="w-5 h-5 text-amber-400" />
           </div>
           <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-            Insights da Carteira
+            {t("portfolioInsights")}
           </h3>
         </div>
       )}
@@ -39,6 +42,9 @@ export function PortfolioInsights({ insights, showHeader = false }: PortfolioIns
 }
 
 function InsightCard({ insight }: { insight: PortfolioInsight }) {
+  const t = useTranslations("investments");
+  const tcat = useTranslations("categories");
+
   const bgClass =
     insight.type === "positive"
       ? "bg-emerald-500/10 border-emerald-500/30"
@@ -75,6 +81,19 @@ function InsightCard({ insight }: { insight: PortfolioInsight }) {
       ? AlertTriangle
       : Lightbulb;
 
+  // Translate params if they contain type keys
+  const translatedParams = insight.params ? (() => {
+    const params: Record<string, string | number> = {};
+    for (const [key, value] of Object.entries(insight.params!)) {
+      if (key === "type" && typeof value === "string") {
+        params[key] = tcat(`investmentTypes.${value}`);
+      } else if (value !== undefined) {
+        params[key] = value;
+      }
+    }
+    return params;
+  })() : undefined;
+
   return (
     <div className={`p-3 sm:p-4 rounded-xl border ${bgClass}`}>
       <div className="flex items-start gap-3">
@@ -82,9 +101,9 @@ function InsightCard({ insight }: { insight: PortfolioInsight }) {
           <Icon className={`w-4 h-4 ${textClass}`} />
         </div>
         <div>
-          <p className={`text-sm font-medium ${textClass}`}>{insight.title}</p>
+          <p className={`text-sm font-medium ${textClass}`}>{t(insight.titleKey)}</p>
           <p className="text-xs text-[var(--text-muted)] mt-1">
-            {insight.description}
+            {t(insight.descriptionKey, translatedParams)}
           </p>
         </div>
       </div>

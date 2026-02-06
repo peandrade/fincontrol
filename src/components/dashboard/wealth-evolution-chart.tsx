@@ -11,7 +11,8 @@ import {
   ReferenceLine,
 } from "recharts";
 import { ChevronDown, TrendingUp, TrendingDown, Wallet, RefreshCw, Eye, EyeOff } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import { useTheme, usePreferences } from "@/contexts";
 import { useWealthEvolution } from "@/hooks";
 import { SetupPinModal, VerifyPinModal } from "@/components/privacy";
@@ -32,12 +33,12 @@ function mapDefaultPeriodToWealth(defaultPeriod: string): EvolutionPeriod {
   return periodMap[defaultPeriod] || "1y";
 }
 
-const PERIOD_OPTIONS: { value: EvolutionPeriod; label: string }[] = [
-  { value: "1w", label: "1 Semana" },
-  { value: "1m", label: "30 Dias" },
-  { value: "3m", label: "3 Meses" },
-  { value: "6m", label: "6 Meses" },
-  { value: "1y", label: "1 Ano" },
+const PERIOD_KEYS: { value: EvolutionPeriod; key: string }[] = [
+  { value: "1w", key: "1w" },
+  { value: "1m", key: "1m" },
+  { value: "3m", key: "3m" },
+  { value: "6m", key: "6m" },
+  { value: "1y", key: "1y" },
 ];
 
 interface TooltipPayload {
@@ -52,11 +53,15 @@ function ChartTooltip({
   active,
   payload,
   hideValues,
+  formatCurrency,
+  labels,
 }: {
   active?: boolean;
   payload?: TooltipPayload[];
   label?: string;
   hideValues?: boolean;
+  formatCurrency: (value: number) => string;
+  labels: { patrimony: string; balance: string; invested: string; goals: string; debt: string };
 }) {
   if (active && payload && payload.length) {
     const data = payload[0]?.payload as WealthDataPoint;
@@ -78,22 +83,22 @@ function ChartTooltip({
         </p>
         <div className="space-y-1 text-xs">
           <p style={{ color: "#8B5CF6" }}>
-            Patrimônio: <span className="font-medium">{fmt(data.totalWealth)}</span>
+            {labels.patrimony} <span className="font-medium">{fmt(data.totalWealth)}</span>
           </p>
           <p style={{ color: "#10B981" }}>
-            Saldo: <span className="font-medium">{fmt(data.transactionBalance)}</span>
+            {labels.balance}: <span className="font-medium">{fmt(data.transactionBalance)}</span>
           </p>
           <p style={{ color: "#3B82F6" }}>
-            Investido: <span className="font-medium">{fmt(data.investmentValue)}</span>
+            {labels.invested}: <span className="font-medium">{fmt(data.investmentValue)}</span>
           </p>
           {data.goalsSaved > 0 && (
             <p style={{ color: "#F59E0B" }}>
-              Metas: <span className="font-medium">{fmt(data.goalsSaved)}</span>
+              {labels.goals}: <span className="font-medium">{fmt(data.goalsSaved)}</span>
             </p>
           )}
           {data.cardDebt > 0 && (
             <p style={{ color: "#EF4444" }}>
-              Dívida: <span className="font-medium">-{fmt(data.cardDebt)}</span>
+              {labels.debt}: <span className="font-medium">-{fmt(data.cardDebt)}</span>
             </p>
           )}
         </div>
@@ -108,9 +113,14 @@ interface WealthEvolutionChartProps {
 }
 
 export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChartProps) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
+  const tp = useTranslations("periods");
+  const { formatCurrency } = useCurrency();
   const { theme } = useTheme();
   const { general, privacy, toggleHideValues, setSessionUnlocked, updatePrivacy, refreshPinStatus } = usePreferences();
   const descriptionId = useId();
+  const PERIOD_OPTIONS = PERIOD_KEYS.map(p => ({ value: p.value, label: tp(p.key) }));
   const [period, setPeriod] = useState<EvolutionPeriod>(() =>
     mapDefaultPeriodToWealth(general.defaultPeriod)
   );
@@ -192,15 +202,15 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
             <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-primary-color" />
           </div>
           <h3 className="text-sm sm:text-lg font-semibold truncate" style={{ color: "var(--text-primary)" }}>
-            Evolução Patrimonial
+            {t("wealthEvolution")}
           </h3>
         </div>
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           <button
             onClick={handleToggleVisibility}
             className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors"
-            title={privacy.hideValues ? "Mostrar valores" : "Ocultar valores"}
-            aria-label={privacy.hideValues ? "Mostrar valores" : "Ocultar valores"}
+            title={privacy.hideValues ? t("showValues") : t("hideValues")}
+            aria-label={privacy.hideValues ? t("showValues") : t("hideValues")}
           >
             {privacy.hideValues ? (
               <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" aria-hidden="true" />
@@ -212,8 +222,8 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
             onClick={() => refresh()}
             disabled={isLoading}
             className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors"
-            title="Atualizar"
-            aria-label="Atualizar gráfico"
+            title={tc("refresh")}
+            aria-label={t("refreshChart")}
           >
             <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />
           </button>
@@ -253,7 +263,7 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
           <div className="flex items-center gap-1 mt-1">
             <EyeOff className="w-3 h-3 sm:w-4 sm:h-4 text-[var(--text-dimmed)]" />
             <span className="text-[10px] sm:text-xs" style={{ color: "var(--text-dimmed)" }}>
-              Modo discreto ativo
+              {t("discreteMode")}
             </span>
           </div>
         ) : (
@@ -272,7 +282,7 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
               {formatCurrency(summary.wealthChange)}
             </span>
             <span className="text-[10px] sm:text-xs hidden sm:inline" style={{ color: "var(--text-dimmed)" }}>
-              vs mês anterior
+              {tc("vsPrevMonth")}
             </span>
           </div>
         )}
@@ -280,10 +290,10 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
 
       {/* Chart */}
       <p id={descriptionId} className="sr-only">
-        Gráfico de evolução patrimonial mostrando patrimônio total, saldo, investimentos, metas e dívidas.
+        {t("wealthChartDesc")}
         {privacy.hideValues
-          ? " Valores ocultos."
-          : ` Patrimônio atual: ${formatCurrency(summary.currentWealth)}. Variação: ${summary.wealthChangePercent.toFixed(1)}% vs mês anterior.`
+          ? ` ${t("valuesHidden")}.`
+          : ` ${t("patrimony")} ${formatCurrency(summary.currentWealth)}. ${summary.wealthChangePercent.toFixed(1)}% ${tc("vsPrevMonth")}.`
         }
       </p>
       <div className="h-48 sm:h-72" role="img" aria-describedby={descriptionId}>
@@ -347,12 +357,12 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
                 }
                 width={35}
               />
-              <Tooltip content={<ChartTooltip hideValues={privacy.hideValues} />} />
+              <Tooltip content={<ChartTooltip hideValues={privacy.hideValues} formatCurrency={formatCurrency} labels={{ patrimony: t("patrimony"), balance: t("balance"), invested: t("invested"), goals: t("goals"), debt: t("debt") }} />} />
               <ReferenceLine y={0} stroke="#6B7280" strokeDasharray="3 3" />
               <Area
                 type="monotone"
                 dataKey="transactionBalance"
-                name="Saldo"
+                name={t("balance")}
                 stroke="#10B981"
                 strokeWidth={1.5}
                 fillOpacity={1}
@@ -361,7 +371,7 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
               <Area
                 type="monotone"
                 dataKey="investmentValue"
-                name="Investido"
+                name={t("invested")}
                 stroke="#3B82F6"
                 strokeWidth={1.5}
                 fillOpacity={1}
@@ -370,7 +380,7 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
               <Area
                 type="monotone"
                 dataKey="goalsSaved"
-                name="Metas"
+                name={t("goals")}
                 stroke="#F59E0B"
                 strokeWidth={1.5}
                 fillOpacity={1}
@@ -379,7 +389,7 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
               <Area
                 type="monotone"
                 dataKey="cardDebt"
-                name="Dívida"
+                name={t("debt")}
                 stroke="#EF4444"
                 strokeWidth={1.5}
                 fillOpacity={1}
@@ -388,7 +398,7 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
               <Area
                 type="monotone"
                 dataKey="totalWealth"
-                name="Patrimônio"
+                name={t("patrimony").replace(":", "")}
                 stroke="#8B5CF6"
                 strokeWidth={2}
                 fillOpacity={1}
@@ -399,7 +409,7 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
         ) : (
           <div className="h-full flex items-center justify-center">
             <p className="text-sm" style={{ color: "var(--text-dimmed)" }}>
-              Sem dados para exibir
+              {t("noDataToShow")}
             </p>
           </div>
         )}
@@ -411,7 +421,7 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
           <div className="flex items-center justify-center gap-1 mb-0.5 sm:mb-1">
             <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 flex-shrink-0" />
             <span className="text-[9px] sm:text-xs truncate" style={{ color: "var(--text-dimmed)" }}>
-              Saldo
+              {t("balance")}
             </span>
           </div>
           <p className="text-[10px] sm:text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
@@ -422,7 +432,7 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
           <div className="flex items-center justify-center gap-1 mb-0.5 sm:mb-1">
             <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-blue-500 flex-shrink-0" />
             <span className="text-[9px] sm:text-xs truncate" style={{ color: "var(--text-dimmed)" }}>
-              Invest.
+              {t("invested")}
             </span>
           </div>
           <p className="text-[10px] sm:text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
@@ -433,7 +443,7 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
           <div className="flex items-center justify-center gap-1 mb-0.5 sm:mb-1">
             <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-500 flex-shrink-0" />
             <span className="text-[9px] sm:text-xs truncate" style={{ color: "var(--text-dimmed)" }}>
-              Metas
+              {t("goals")}
             </span>
           </div>
           <p className="text-[10px] sm:text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
@@ -444,7 +454,7 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
           <div className="flex items-center justify-center gap-1 mb-0.5 sm:mb-1">
             <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-red-500 flex-shrink-0" />
             <span className="text-[9px] sm:text-xs truncate" style={{ color: "var(--text-dimmed)" }}>
-              Dívida
+              {t("debt")}
             </span>
           </div>
           <p className="text-[10px] sm:text-sm font-medium text-red-400 truncate">

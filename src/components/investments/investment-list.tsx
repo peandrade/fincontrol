@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { TrendingUp, TrendingDown, Trash2, Plus, Pencil, Target } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import {
-  getInvestmentTypeLabel,
   getInvestmentTypeColor,
   getInvestmentTypeIcon,
 } from "@/lib/constants";
@@ -31,7 +31,11 @@ export function InvestmentList({
   headerExtra,
 }: InvestmentListProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<Investment | null>(null);
+  const t = useTranslations("investments");
+  const tc = useTranslations("common");
+  const tcat = useTranslations("categories");
   const { privacy, general } = usePreferences();
+  const { formatCurrency } = useCurrency();
 
   const handleDeleteClick = (investment: Investment) => {
     if (!general.confirmBeforeDelete) {
@@ -57,11 +61,11 @@ export function InvestmentList({
   if (investments.length === 0) {
     return (
       <div className="backdrop-blur rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-colors duration-300 h-full" style={cardStyle}>
-        <h3 className="text-base sm:text-lg font-semibold mb-4 sm:mb-6" style={{ color: "var(--text-primary)" }}>Meus Investimentos</h3>
+        <h3 className="text-base sm:text-lg font-semibold mb-4 sm:mb-6" style={{ color: "var(--text-primary)" }}>{t("myInvestments")}</h3>
         <div className="text-center py-8 sm:py-12">
-          <p className="text-sm sm:text-base" style={{ color: "var(--text-dimmed)" }}>Nenhum investimento registrado</p>
+          <p className="text-sm sm:text-base" style={{ color: "var(--text-dimmed)" }}>{t("noInvestments")}</p>
           <p className="text-xs sm:text-sm mt-1" style={{ color: "var(--text-dimmed)" }}>
-            Clique em &quot;Novo Investimento&quot; para começar
+            {t("clickNewInvestment")}
           </p>
         </div>
       </div>
@@ -72,13 +76,13 @@ export function InvestmentList({
     <div className="backdrop-blur rounded-2xl p-4 sm:p-6 transition-colors duration-300 h-full flex flex-col" style={cardStyle}>
       <div className="flex items-center justify-between mb-4 sm:mb-6 flex-shrink-0">
         <div>
-          <h3 className="text-base sm:text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Meus Investimentos</h3>
-          <p className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>Acompanhe sua carteira</p>
+          <h3 className="text-base sm:text-lg font-semibold" style={{ color: "var(--text-primary)" }}>{t("myInvestments")}</h3>
+          <p className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>{t("trackPortfolio")}</p>
         </div>
         <div className="flex items-center gap-3">
           {headerExtra}
           <span className="text-xs sm:text-sm" style={{ color: "var(--text-dimmed)" }}>
-            {investments.length} {investments.length === 1 ? "ativo" : "ativos"}
+            {investments.length} {investments.length === 1 ? t("asset") : t("assets")}
           </span>
         </div>
       </div>
@@ -126,29 +130,29 @@ export function InvestmentList({
                         className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-medium"
                         style={{ backgroundColor: `${color}30`, color }}
                       >
-                        {getInvestmentTypeLabel(investment.type)}
+                        {tcat(`investmentTypes.${investment.type}`)}
                       </span>
                       {isVariable ? (
                         <>
                           <span className="hidden sm:inline" style={{ color: "var(--text-dimmed)" }}>
-                            {investment.quantity.toLocaleString("pt-BR")} cotas
+                            {investment.quantity.toLocaleString("pt-BR")} {t("shares")}
                           </span>
                           <span className="hidden sm:inline" style={{ color: "var(--text-dimmed)" }}>•</span>
                           <span style={{ color: "var(--text-dimmed)" }}>
-                            PM: {privacy.hideValues ? "•••••" : formatCurrency(investment.averagePrice)}
+                            {t("avgPrice")} {privacy.hideValues ? "•••••" : formatCurrency(investment.averagePrice)}
                           </span>
                           {investment.currentPrice > 0 && (
                             <>
                               <span className="hidden sm:inline" style={{ color: "var(--text-dimmed)" }}>•</span>
                               <span className="hidden sm:inline" style={{ color: "var(--text-dimmed)" }}>
-                                Atual: {privacy.hideValues ? "•••••" : formatCurrency(investment.currentPrice)}
+                                {t("currentPrice")} {privacy.hideValues ? "•••••" : formatCurrency(investment.currentPrice)}
                               </span>
                             </>
                           )}
                         </>
                       ) : (
                         <span style={{ color: "var(--text-dimmed)" }}>
-                          Aplicado: {privacy.hideValues ? "•••••" : formatCurrency(investment.totalInvested)}
+                          {t("applied")} {privacy.hideValues ? "•••••" : formatCurrency(investment.totalInvested)}
                         </span>
                       )}
                     </div>
@@ -182,16 +186,16 @@ export function InvestmentList({
                     <button
                       onClick={() => onAddOperation(investment)}
                       className="p-1.5 hover:bg-emerald-500/20 active:bg-emerald-500/30 rounded-lg transition-all"
-                      title="Nova operação"
-                      aria-label="Adicionar nova operação"
+                      title={t("newOperation")}
+                      aria-label={t("addNewOperation")}
                     >
                       <Plus className="w-4 h-4 text-emerald-400" aria-hidden="true" />
                     </button>
                     <button
                       onClick={() => onEdit(investment)}
                       className="p-1.5 hover:bg-amber-500/20 active:bg-amber-500/30 rounded-lg transition-all"
-                      title="Editar / Atualizar"
-                      aria-label="Editar investimento"
+                      title={t("editUpdate")}
+                      aria-label={t("editInvestment")}
                     >
                       <Pencil className="w-4 h-4 text-amber-400" aria-hidden="true" />
                     </button>
@@ -199,11 +203,11 @@ export function InvestmentList({
                       onClick={() => handleDeleteClick(investment)}
                       disabled={deletingId === investment.id}
                       className="p-1.5 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all disabled:opacity-50"
-                      title="Excluir"
-                      aria-label="Excluir investimento"
+                      title={tc("delete")}
+                      aria-label={t("deleteInvestment")}
                     >
                       {deletingId === investment.id ? (
-                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" aria-label="Excluindo..." />
+                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" aria-label={tc("deleting")} />
                       ) : (
                         <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
                       )}
@@ -218,7 +222,7 @@ export function InvestmentList({
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2 text-sm">
                       <Target className="w-4 h-4 text-primary-color" />
-                      <span style={{ color: "var(--text-muted)" }}>Meta</span>
+                      <span style={{ color: "var(--text-muted)" }}>{t("goalLabel")}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <span style={{ color: "var(--text-dimmed)" }}>
@@ -242,7 +246,7 @@ export function InvestmentList({
                     />
                   </div>
                   {goalProgress >= 100 && (
-                    <p className="text-emerald-400 text-xs mt-2 text-center">🎉 Meta alcançada!</p>
+                    <p className="text-emerald-400 text-xs mt-2 text-center">{t("goalReached")}</p>
                   )}
                 </div>
               )}
@@ -256,9 +260,9 @@ export function InvestmentList({
         isOpen={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
         onConfirm={handleConfirmDelete}
-        title="Excluir investimento"
-        message={`Tem certeza que deseja excluir "${deleteConfirm?.ticker || deleteConfirm?.name}"? Todas as operações relacionadas serão removidas. Esta ação não pode ser desfeita.`}
-        confirmText="Excluir"
+        title={t("deleteInvestment")}
+        message={t("deleteInvestmentConfirm", { name: deleteConfirm?.ticker || deleteConfirm?.name || "" })}
+        confirmText={tc("delete")}
         isLoading={!!deletingId}
       />
     </div>

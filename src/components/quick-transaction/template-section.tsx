@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Zap, Plus, MoreVertical, Edit2, Trash2, TrendingUp, TrendingDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTemplateStore } from "@/store/template-store";
-import { formatCurrency } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useCurrency } from "@/contexts/currency-context";
 import type { TransactionTemplate, TransactionType } from "@/types";
 
 interface TemplateSectionProps {
@@ -18,6 +19,9 @@ export function TemplateSection({
   onEditTemplate,
   onCreateTemplate,
 }: TemplateSectionProps) {
+  const t = useTranslations("shortcuts");
+  const tc = useTranslations("common");
+  const { formatCurrency } = useCurrency();
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<TransactionTemplate | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -74,7 +78,7 @@ export function TemplateSection({
         <div className="flex items-center gap-2 mb-4">
           <Zap className="w-5 h-5 text-yellow-400" />
           <h3 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-            Atalhos
+            {t("title")}
           </h3>
         </div>
         <div className="flex items-center justify-center py-8">
@@ -98,7 +102,7 @@ export function TemplateSection({
         <div className="flex items-center gap-2">
           <Zap className="w-5 h-5 text-yellow-400" />
           <h3 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-            Atalhos
+            {t("title")}
           </h3>
         </div>
         <button
@@ -106,22 +110,22 @@ export function TemplateSection({
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary-color hover:bg-primary-soft rounded-lg transition-all"
         >
           <Plus className="w-4 h-4" />
-          Novo
+          {tc("new")}
         </button>
       </div>
 
       {templates.length === 0 ? (
         <div className="text-center py-8">
-          <p style={{ color: "var(--text-dimmed)" }}>Nenhum atalho criado</p>
+          <p style={{ color: "var(--text-dimmed)" }}>{t("noShortcuts")}</p>
           <p className="text-sm mt-1" style={{ color: "var(--text-dimmed)" }}>
-            Crie atalhos para suas transações frequentes
+            {t("createShortcutsHint")}
           </p>
           <button
             onClick={onCreateTemplate}
             className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-color hover:bg-primary-soft rounded-lg transition-all"
           >
             <Plus className="w-4 h-4" />
-            Criar primeiro atalho
+            {t("createFirstShortcut")}
           </button>
         </div>
       ) : (
@@ -176,7 +180,7 @@ export function TemplateSection({
                       setMenuOpen(menuOpen === template.id ? null : template.id);
                     }}
                     className="p-1 opacity-0 group-hover:opacity-100 hover:bg-white/10 rounded transition-all"
-                    aria-label="Abrir menu de opções"
+                    aria-label={tc("options")}
                     aria-expanded={menuOpen === template.id}
                     aria-haspopup="menu"
                   >
@@ -197,7 +201,7 @@ export function TemplateSection({
                         className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
                       >
                         <Edit2 className="w-4 h-4" />
-                        Editar
+                        {tc("edit")}
                       </button>
                       <button
                         onClick={(e) => {
@@ -208,7 +212,7 @@ export function TemplateSection({
                         className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
-                        Excluir
+                        {tc("delete")}
                       </button>
                     </div>
                   )}
@@ -235,9 +239,9 @@ export function TemplateSection({
         isOpen={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
         onConfirm={handleDeleteTemplate}
-        title="Excluir atalho"
-        message={`Tem certeza que deseja excluir o atalho "${deleteConfirm?.name}"? Esta ação não pode ser desfeita.`}
-        confirmText="Excluir"
+        title={t("deleteShortcut")}
+        message={t("deleteShortcutConfirm", { name: deleteConfirm?.name ?? "" })}
+        confirmText={tc("delete")}
         isLoading={isDeleting}
       />
     </div>

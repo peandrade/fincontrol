@@ -5,6 +5,8 @@ import { Search, Filter, X, ChevronDown, ChevronUp } from "lucide-react";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useCategoryStore } from "@/store/category-store";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { useTranslations } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import type { TransactionType } from "@/types";
 
 interface TransactionFiltersProps {
@@ -12,6 +14,9 @@ interface TransactionFiltersProps {
 }
 
 export function TransactionFilters({ className }: TransactionFiltersProps) {
+  const t = useTranslations("transactions");
+  const tc = useTranslations("common");
+  const { currencySymbol } = useCurrency();
   const [isExpanded, setIsExpanded] = useState(false);
   const [localSearch, setLocalSearch] = useState("");
 
@@ -73,7 +78,7 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
             type="text"
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
-            placeholder="Buscar transações..."
+            placeholder={t("searchTransactions")}
             className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 pl-12 pr-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
           />
           {localSearch && (
@@ -96,7 +101,7 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
           }`}
         >
           <Filter className="w-5 h-5" />
-          <span className="hidden sm:inline">Filtros</span>
+          <span className="hidden sm:inline">{tc("filters")}</span>
           {activeFiltersCount > 0 && (
             <span className="bg-[var(--color-primary)] text-white text-xs px-2 py-0.5 rounded-full">
               {activeFiltersCount}
@@ -116,13 +121,13 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Tipo
+              {tc("type")}
             </label>
             <div className="flex gap-2">
               {[
-                { value: "all" as const, label: "Todos" },
-                { value: "income" as const, label: "Receitas" },
-                { value: "expense" as const, label: "Despesas" },
+                { value: "all" as const, label: tc("all") },
+                { value: "income" as const, label: t("incomes") },
+                { value: "expense" as const, label: t("expenses") },
               ].map(({ value, label }) => (
                 <button
                   key={value}
@@ -147,7 +152,7 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                Data inicial
+                {t("startDate")}
               </label>
               <input
                 type="date"
@@ -158,7 +163,7 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                Data final
+                {t("endDate")}
               </label>
               <input
                 type="date"
@@ -173,11 +178,11 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                Valor mínimo
+                {t("minValue")}
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)] text-sm">
-                  R$
+                  {currencySymbol}
                 </span>
                 <CurrencyInput
                   value={filters.minValue?.toString() || ""}
@@ -189,11 +194,11 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                Valor máximo
+                {t("maxValue")}
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)] text-sm">
-                  R$
+                  {currencySymbol}
                 </span>
                 <CurrencyInput
                   value={filters.maxValue?.toString() || ""}
@@ -209,7 +214,7 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
           {uniqueCategories.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                Categorias
+                {t("categories")}
               </label>
               <div className="flex flex-wrap gap-2">
                 {uniqueCategories.map((categoryName) => (
@@ -237,7 +242,7 @@ export function TransactionFilters({ className }: TransactionFiltersProps) {
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
               >
                 <X className="w-4 h-4" />
-                Limpar todos os filtros
+                {tc("clearAllFilters")}
               </button>
             </div>
           )}

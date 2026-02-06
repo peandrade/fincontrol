@@ -2,8 +2,10 @@
 
 import { Percent, Calendar, ChevronDown } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { useCurrency } from "@/contexts/currency-context";
 import { INDEXER_TYPES } from "@/types";
 import { formatRateDescription } from "@/lib/rates-service";
+import { useTranslations } from "next-intl";
 import type { IndexerType } from "@/types";
 
 interface FixedIncomeFieldsProps {
@@ -31,15 +33,17 @@ export function FixedIncomeFields({
   onMaturityDateChange,
   onNoMaturityChange,
 }: FixedIncomeFieldsProps) {
+  const { currencySymbol } = useCurrency();
+  const t = useTranslations("investments");
   return (
     <>
       {/* Total Invested */}
       <div>
         <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-          Total Investido
+          {t("totalInvestedLabel")}
         </label>
         <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">R$</span>
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">{currencySymbol}</span>
           <CurrencyInput
             value={totalInvested}
             onChange={onTotalInvestedChange}
@@ -48,7 +52,7 @@ export function FixedIncomeFields({
           />
         </div>
         <p className="mt-1 text-xs text-[var(--text-dimmed)]">
-          Some todos os aportes realizados
+          {t("sumAllDeposits")}
         </p>
       </div>
 
@@ -57,7 +61,7 @@ export function FixedIncomeFields({
         <div>
           <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
             <Percent className="w-4 h-4 inline mr-1" />
-            Indexador
+            {t("indexer")}
           </label>
           <div className="relative">
             <select
@@ -80,7 +84,7 @@ export function FixedIncomeFields({
         </div>
         <div>
           <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-            Taxa (%)
+            {t("rate")}
           </label>
           <input
             type="number"
@@ -98,7 +102,7 @@ export function FixedIncomeFields({
       {interestRate && indexer !== "NA" && (
         <div className="bg-[var(--bg-hover)] rounded-xl p-3 -mt-2">
           <p className="text-sm text-[var(--text-primary)]">
-            Taxa contratada: <span className="font-semibold">{formatRateDescription(parseFloat(interestRate), indexer)}</span>
+            {t("currentRate")}: <span className="font-semibold">{formatRateDescription(parseFloat(interestRate), indexer)}</span>
           </p>
         </div>
       )}
@@ -108,7 +112,7 @@ export function FixedIncomeFields({
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-medium text-[var(--text-muted)]">
             <Calendar className="w-4 h-4 inline mr-1" />
-            Vencimento
+            {t("maturity")}
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -117,12 +121,12 @@ export function FixedIncomeFields({
               onChange={(e) => onNoMaturityChange(e.target.checked)}
               className="w-4 h-4 rounded border-[var(--border-color-strong)] bg-[var(--bg-hover)] text-primary-color focus:ring-[var(--color-primary)] focus:ring-offset-0 cursor-pointer"
             />
-            <span className="text-xs text-[var(--text-muted)]">Sem vencimento</span>
+            <span className="text-xs text-[var(--text-muted)]">{t("noMaturity")}</span>
           </label>
         </div>
         {noMaturity && (
           <div className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-dimmed)]">
-            Liquidez diária (sem vencimento)
+            {t("dailyLiquidity")}
           </div>
         )}
         {!noMaturity && (

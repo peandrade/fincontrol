@@ -2,7 +2,9 @@
 
 import { useId } from "react";
 import { X, TrendingUp, TrendingDown, PiggyBank, Wallet, FileText, Coins } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
+import { useCurrency } from "@/contexts/currency-context";
 import { isFixedIncome } from "@/types";
 import type { Investment, Operation, OperationType, InvestmentType } from "@/types";
 
@@ -30,23 +32,29 @@ function getOperationIcon(type: OperationType, isFixed: boolean) {
   );
 }
 
-function getOperationLabel(type: OperationType, isFixed: boolean): string {
-  if (type === "dividend") {
-    return "Provento";
-  }
-  if (isFixed) {
-    return type === "buy" || type === "deposit" ? "Depósito" : "Resgate";
-  }
-  return type === "buy" ? "Compra" : "Venda";
+function useOperationLabel() {
+  const t = useTranslations("investments");
+  return (type: OperationType, isFixed: boolean): string => {
+    if (type === "dividend") {
+      return t("dividendLabel");
+    }
+    if (isFixed) {
+      return type === "buy" || type === "deposit" ? t("depositLabel") : t("withdrawLabel");
+    }
+    return type === "buy" ? t("purchaseLabel") : t("saleLabel");
+  };
 }
 
-function formatDate(date: Date | string): string {
-  const d = new Date(date);
-  return d.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+function useFormatDate() {
+  const locale = useLocale();
+  return (date: Date | string): string => {
+    const d = new Date(date);
+    return d.toLocaleDateString(locale === "pt" ? "pt-BR" : locale === "es" ? "es-ES" : "en-US", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
 }
 
 export function TransactionHistoryModal({
@@ -55,6 +63,9 @@ export function TransactionHistoryModal({
   investment,
 }: TransactionHistoryModalProps) {
   const titleId = useId();
+  const t = useTranslations("investments");
+  const tc = useTranslations("common");
+  const { formatCurrency } = useCurrency();
 
   if (!isOpen || !investment) return null;
 
@@ -89,7 +100,7 @@ export function TransactionHistoryModal({
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-color-strong)] flex-shrink-0">
           <div>
             <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">
-              Histórico de Transações
+              {t("transactionHistory")}
             </h2>
             <p className="text-[var(--text-dimmed)] text-sm">
               {investment.ticker || investment.name}
@@ -98,7 +109,7 @@ export function TransactionHistoryModal({
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            aria-label="Fechar"
+            aria-label={tc("close")}
           >
             <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
@@ -109,7 +120,7 @@ export function TransactionHistoryModal({
           <div className={`grid gap-4 ${totalDividends > 0 ? "grid-cols-4" : "grid-cols-3"}`}>
             <div className="text-center">
               <p className="text-xs text-[var(--text-muted)] mb-1">
-                {isFixed ? "Depósitos" : "Compras"}
+                {isFixed ? t("deposits") : t("purchases")}
               </p>
               <p className="text-emerald-400 font-semibold">
                 {formatCurrency(totalDeposits)}
@@ -117,7 +128,7 @@ export function TransactionHistoryModal({
             </div>
             <div className="text-center">
               <p className="text-xs text-[var(--text-muted)] mb-1">
-                {isFixed ? "Resgates" : "Vendas"}
+                {isFixed ? t("withdrawals") : t("sales")}
               </p>
               <p className="text-red-400 font-semibold">
                 {formatCurrency(totalWithdrawals)}
@@ -125,14 +136,14 @@ export function TransactionHistoryModal({
             </div>
             {totalDividends > 0 && (
               <div className="text-center">
-                <p className="text-xs text-[var(--text-muted)] mb-1">Proventos</p>
+                <p className="text-xs text-[var(--text-muted)] mb-1">{t("dividendsTab")}</p>
                 <p className="text-amber-400 font-semibold">
                   {formatCurrency(totalDividends)}
                 </p>
               </div>
             )}
             <div className="text-center">
-              <p className="text-xs text-[var(--text-muted)] mb-1">Operações</p>
+              <p className="text-xs text-[var(--text-muted)] mb-1">{t("operations")}</p>
               <p className="text-[var(--text-primary)] font-semibold">
                 {operations.length}
               </p>
@@ -146,7 +157,7 @@ export function TransactionHistoryModal({
             <div className="text-center py-8">
               <FileText className="w-12 h-12 text-[var(--text-dimmed)] mx-auto mb-3" />
               <p className="text-[var(--text-muted)]">
-                Nenhuma transação registrada
+                {t("noTransactions")}
               </p>
             </div>
           ) : (
@@ -168,7 +179,7 @@ export function TransactionHistoryModal({
             onClick={onClose}
             className="w-full py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all"
           >
-            Fechar
+            {tc("close")}
           </button>
         </div>
       </div>
@@ -183,6 +194,11 @@ function TransactionItem({
   operation: Operation;
   isFixed: boolean;
 }) {
+  const t = useTranslations("investments");
+  const { formatCurrency } = useCurrency();
+  const getOperationLabel = useOperationLabel();
+  const formatDate = useFormatDate();
+  const locale = useLocale();
   const isDividend = operation.type === "dividend";
   const isDeposit = operation.type === "buy" || operation.type === "deposit";
   const isPositive = isDividend || isDeposit;
@@ -219,15 +235,15 @@ function TransactionItem({
             </div>
             {!isFixed && !isDividend && (
               <p className="text-sm text-[var(--text-muted)] mt-0.5">
-                {operation.quantity.toLocaleString("pt-BR", {
+                {operation.quantity.toLocaleString(locale === "pt" ? "pt-BR" : locale === "es" ? "es-ES" : "en-US", {
                   maximumFractionDigits: 6,
                 })}{" "}
-                cotas × {formatCurrency(operation.price)}
+                {t("shares")} × {formatCurrency(operation.price)}
               </p>
             )}
             {operation.fees > 0 && (
               <p className="text-xs text-[var(--text-dimmed)] mt-0.5">
-                Taxas: {formatCurrency(operation.fees)}
+                {t("fees", { amount: formatCurrency(operation.fees) })}
               </p>
             )}
           </div>

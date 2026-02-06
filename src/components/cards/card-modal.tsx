@@ -2,9 +2,11 @@
 
 import { useState, useId } from "react";
 import { X, CreditCard } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { CreateCardInput } from "@/types/credit-card";
 import { CARD_COLORS } from "@/lib/card-constants";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { useCurrency } from "@/contexts/currency-context";
 
 interface CardModalProps {
   isOpen: boolean;
@@ -14,7 +16,10 @@ interface CardModalProps {
 }
 
 export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalProps) {
+  const t = useTranslations("cards");
+  const tc = useTranslations("common");
   const titleId = useId();
+  const { currencySymbol, convertToBRL } = useCurrency();
   const [name, setName] = useState("");
   const [lastDigits, setLastDigits] = useState("");
   const [limit, setLimit] = useState("");
@@ -30,7 +35,7 @@ export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalPr
     await onSave({
       name,
       lastDigits,
-      limit: limit ? parseFloat(limit) : 0,
+      limit: limit ? convertToBRL(parseFloat(limit)) : 0,
       closingDay: parseInt(closingDay),
       dueDay: parseInt(dueDay),
       color,
@@ -61,12 +66,12 @@ export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalPr
             <div className="p-2 rounded-xl" style={{ backgroundColor: `${color}30` }}>
               <CreditCard className="w-5 h-5" style={{ color }} aria-hidden="true" />
             </div>
-            <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">Novo Cartão</h2>
+            <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)]">{t("newCard")}</h2>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            aria-label="Fechar"
+            aria-label={tc("close")}
           >
             <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
@@ -77,13 +82,13 @@ export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalPr
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Nome do Cartão *
+              {t("cardName")} *
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Nubank, Inter, Itaú..."
+              placeholder={t("cardNamePlaceholder")}
               required
               className="w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 text-[var(--text-primary)] placeholder-[var(--text-dimmed)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)]"
             />
@@ -92,7 +97,7 @@ export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalPr
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Últimos 4 dígitos *
+              {t("lastDigits")} *
             </label>
             <input
               type="text"
@@ -108,10 +113,10 @@ export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalPr
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Limite *
+              {t("limit")} *
             </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">R$</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dimmed)]">{currencySymbol}</span>
               <CurrencyInput
                 value={limit}
                 onChange={setLimit}
@@ -124,7 +129,7 @@ export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalPr
               />
             </div>
             {limit !== "" && parseFloat(limit) <= 0 && (
-              <p className="text-red-500 text-sm mt-1">O limite deve ser maior que 0</p>
+              <p className="text-red-500 text-sm mt-1">{t("limitMustBePositive")}</p>
             )}
           </div>
 
@@ -132,7 +137,7 @@ export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalPr
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                Dia de Fechamento *
+                {t("closingDay")} *
               </label>
               <select
                 value={closingDay}
@@ -149,7 +154,7 @@ export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalPr
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                Dia de Vencimento *
+                {t("dueDay")} *
               </label>
               <select
                 value={dueDay}
@@ -169,7 +174,7 @@ export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalPr
           {}
           <div>
             <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Cor do Cartão
+              {t("cardColor")}
             </label>
             <div className="flex gap-2 flex-wrap">
               {CARD_COLORS.map((c) => (
@@ -199,7 +204,7 @@ export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalPr
                 <CreditCard className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-[var(--text-primary)] font-medium">{name || "Nome do Cartão"}</p>
+                <p className="text-[var(--text-primary)] font-medium">{name || t("cardName")}</p>
                 <p className="text-[var(--text-muted)] text-sm">
                   •••• {lastDigits || "0000"}
                 </p>
@@ -214,7 +219,7 @@ export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalPr
               onClick={onClose}
               className="flex-1 py-3 px-4 rounded-xl font-medium bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-hover-strong)] transition-all"
             >
-              Cancelar
+              {tc("cancel")}
             </button>
             <button
               type="submit"
@@ -222,7 +227,7 @@ export function CardModal({ isOpen, onClose, onSave, isSubmitting }: CardModalPr
               className="flex-1 py-3 px-4 rounded-xl font-medium text-white transition-all shadow-lg disabled:opacity-50"
               style={{ backgroundColor: color }}
             >
-              {isSubmitting ? "Salvando..." : "Criar Cartão"}
+              {isSubmitting ? tc("saving") : t("createCard")}
             </button>
           </div>
         </form>

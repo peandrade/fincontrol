@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Download,
   FileSpreadsheet,
@@ -15,13 +16,14 @@ type ExportStatus = "idle" | "loading" | "success" | "error";
 
 export function DataExportSection() {
   const router = useRouter();
+  const t = useTranslations("settings");
   const [exportStatus, setExportStatus] = useState<ExportStatus>("idle");
 
   const handleExportCSV = async () => {
     setExportStatus("loading");
     try {
       const res = await fetch("/api/data/export");
-      if (!res.ok) throw new Error("Erro ao exportar");
+      if (!res.ok) throw new Error(t("exportError"));
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -30,7 +32,7 @@ export function DataExportSection() {
         res.headers
           .get("Content-Disposition")
           ?.match(/filename="(.+)"/)?.[1] ||
-        "fincontrol-transacoes.csv";
+        "fincontrol-transactions.csv";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -55,10 +57,10 @@ export function DataExportSection() {
         </div>
         <div>
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-            Exportar Dados
+            {t("exportData")}
           </h2>
           <p className="text-sm text-[var(--text-dimmed)]">
-            Baixe suas transações e relatórios
+            {t("exportDataDesc")}
           </p>
         </div>
       </div>
@@ -79,10 +81,10 @@ export function DataExportSection() {
             <FileSpreadsheet className="w-8 h-8 text-emerald-400" />
           )}
           <span className="text-sm font-medium text-[var(--text-primary)]">
-            Exportar CSV
+            {t("exportCSV")}
           </span>
           <span className="text-xs text-[var(--text-dimmed)]">
-            Planilha Excel
+            {t("excelSpreadsheet")}
           </span>
         </button>
 
@@ -92,10 +94,10 @@ export function DataExportSection() {
         >
           <FileText className="w-8 h-8 text-emerald-400" />
           <span className="text-sm font-medium text-[var(--text-primary)]">
-            Exportar PDF
+            {t("exportPDF")}
           </span>
           <span className="text-xs text-[var(--text-dimmed)]">
-            Relatório completo
+            {t("fullReport")}
           </span>
         </button>
       </div>

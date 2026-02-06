@@ -1,6 +1,7 @@
 "use client";
 
 import { Eye, EyeOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface DiscreteModeProps {
   enabled: boolean;
@@ -8,6 +9,8 @@ interface DiscreteModeProps {
 }
 
 export function DiscreteModeSection({ enabled, onToggle }: DiscreteModeProps) {
+  const t = useTranslations("privacy");
+
   return (
     <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
       <div className="flex items-center justify-between">
@@ -20,8 +23,8 @@ export function DiscreteModeSection({ enabled, onToggle }: DiscreteModeProps) {
             )}
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Modo Discreto</h2>
-            <p className="text-sm text-[var(--text-dimmed)]">Ocultar valores com •••••</p>
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("discreteMode")}</h2>
+            <p className="text-sm text-[var(--text-dimmed)]">{t("discreteModeDesc")}</p>
           </div>
         </div>
         <button
@@ -46,9 +49,9 @@ export function DiscreteModeSection({ enabled, onToggle }: DiscreteModeProps) {
 
       {enabled && (
         <div className="mt-4 p-4 rounded-xl bg-violet-500/10">
-          <p className="text-sm text-[var(--text-muted)]">Exemplo:</p>
+          <p className="text-sm text-[var(--text-muted)]">{t("example")}</p>
           <p className="text-lg font-semibold text-[var(--text-primary)] mt-1">
-            Saldo: <span className="text-violet-400">•••••</span>
+            {t("balanceHidden")}
           </p>
         </div>
       )}

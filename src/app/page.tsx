@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { Calendar, CalendarDays } from "lucide-react";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useFeedback } from "@/hooks/use-feedback";
 import { useTemplateStore } from "@/store/template-store";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
-import { getMonthYearLabel } from "@/lib/constants";
 import { SummaryCards, MonthlyChart, CategoryChart, TransactionList, WealthEvolutionChart, QuickStats } from "@/components/dashboard";
 import { NotificationButton } from "@/components/notifications";
 import { FinancialHealthScore } from "@/components/dashboard/financial-health-score";
@@ -17,6 +17,11 @@ import { RecurringSection } from "@/components/recurring";
 import { QuickActionButtons } from "@/components/quick-transaction";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import type { CreateTransactionInput, EvolutionPeriod, Transaction, TransactionType, TransactionTemplate } from "@/types";
+
+const MONTH_KEYS = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december"
+] as const;
 
 // Helper function to map defaultPeriod to EvolutionPeriod
 function mapDefaultPeriodToEvolution(defaultPeriod: string): EvolutionPeriod {
@@ -31,6 +36,9 @@ function mapDefaultPeriodToEvolution(defaultPeriod: string): EvolutionPeriod {
 
 export default function DashboardPage() {
   const { general } = usePreferences();
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
+  const tm = useTranslations("months");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -83,6 +91,13 @@ export default function DashboardPage() {
   const summary = getSummary();
   const categoryData = getCategoryData();
   const monthlyData = getMonthlyEvolution(evolutionPeriod);
+
+  const monthYearLabel = useMemo(() => {
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    return `${tm(MONTH_KEYS[month])} ${year}`;
+  }, [tm]);
 
   const handleAddTransaction = async (
     data: CreateTransactionInput,
@@ -162,7 +177,7 @@ export default function DashboardPage() {
       >
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-primary-color border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p style={{ color: "var(--text-muted)" }}>Carregando transações...</p>
+          <p style={{ color: "var(--text-muted)" }}>{tc("loading")}</p>
         </div>
       </div>
     );
@@ -204,7 +219,7 @@ export default function DashboardPage() {
             </h1>
             <p className="mt-1 flex items-center gap-2 text-sm" style={{ color: "var(--text-dimmed)" }}>
               <Calendar className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">{getMonthYearLabel()}</span>
+              <span className="truncate">{monthYearLabel}</span>
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -217,7 +232,7 @@ export default function DashboardPage() {
                     ? "border-blue-500/50 bg-blue-500/10"
                     : "border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
                 }`}
-                title="Calendário de Contas"
+                title={t("billsCalendar")}
               >
                 <CalendarDays className="w-5 h-5 text-blue-400" />
               </button>

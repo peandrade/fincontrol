@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
   Bell,
@@ -14,6 +15,8 @@ import { usePreferences } from "@/contexts";
 
 export default function ConfiguracoesPage() {
   const router = useRouter();
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const { notifications, updateNotifications, isLoading, isSaving } = usePreferences();
 
   if (isLoading) {
@@ -46,20 +49,20 @@ export default function ConfiguracoesPage() {
           className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Voltar</span>
+          <span>{tc("back")}</span>
         </button>
 
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
-              Configurações
+              {t("config")}
             </h1>
             <p className="text-[var(--text-dimmed)] mt-1">
-              Ajustes avançados e notificações
+              {t("configDesc")}
             </p>
           </div>
           {isSaving && (
-            <span className="text-sm text-[var(--text-muted)] animate-pulse">Salvando...</span>
+            <span className="text-sm text-[var(--text-muted)] animate-pulse">{tc("saving")}</span>
           )}
         </div>
 
@@ -72,8 +75,8 @@ export default function ConfiguracoesPage() {
                   <PiggyBank className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-[var(--text-primary)]">Alertas de Orçamento</h2>
-                  <p className="text-sm text-[var(--text-dimmed)]">Avisar quando orçamento estiver acabando</p>
+                  <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("budgetAlerts")}</h2>
+                  <p className="text-sm text-[var(--text-dimmed)]">{t("budgetAlertsDesc")}</p>
                 </div>
               </div>
               <button
@@ -98,7 +101,7 @@ export default function ConfiguracoesPage() {
 
             {notifications.budgetAlerts && (
               <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
-                <p className="text-sm text-[var(--text-muted)] mb-3">Alertar quando atingir</p>
+                <p className="text-sm text-[var(--text-muted)] mb-3">{t("alertWhenReach")}</p>
                 <div className="flex items-center gap-4">
                   <input
                     type="range"
@@ -125,8 +128,8 @@ export default function ConfiguracoesPage() {
                   <Receipt className="w-5 h-5 text-red-400" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-[var(--text-primary)]">Lembrete de Contas</h2>
-                  <p className="text-sm text-[var(--text-dimmed)]">Avisar sobre contas próximas do vencimento</p>
+                  <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("billReminders")}</h2>
+                  <p className="text-sm text-[var(--text-dimmed)]">{t("billRemindersDesc")}</p>
                 </div>
               </div>
               <button
@@ -151,7 +154,7 @@ export default function ConfiguracoesPage() {
 
             {notifications.billReminders && (
               <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
-                <p className="text-sm text-[var(--text-muted)] mb-3">Dias de antecedência</p>
+                <p className="text-sm text-[var(--text-muted)] mb-3">{t("daysInAdvance")}</p>
                 <div className="grid grid-cols-4 gap-2">
                   {[1, 3, 5, 7].map((days) => (
                     <button
@@ -163,7 +166,7 @@ export default function ConfiguracoesPage() {
                           : "border-[var(--border-color)] hover:border-[var(--border-color-strong)]"
                       }`}
                     >
-                      <span className="text-sm text-[var(--text-primary)]">{days} {days === 1 ? "dia" : "dias"}</span>
+                      <span className="text-sm text-[var(--text-primary)]">{days} {days === 1 ? tc("day") : tc("days")}</span>
                     </button>
                   ))}
                 </div>
@@ -178,8 +181,8 @@ export default function ConfiguracoesPage() {
                 <Mail className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Relatórios por Email</h2>
-                <p className="text-sm text-[var(--text-dimmed)]">Receba resumos das suas finanças</p>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("emailReports")}</h2>
+                <p className="text-sm text-[var(--text-dimmed)]">{t("emailReportsDesc")}</p>
               </div>
             </div>
 
@@ -187,7 +190,7 @@ export default function ConfiguracoesPage() {
               <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-hover)]">
                 <div className="flex items-center gap-3">
                   <TrendingUp className="w-5 h-5 text-[var(--text-muted)]" />
-                  <span className="text-[var(--text-primary)]">Resumo Semanal</span>
+                  <span className="text-[var(--text-primary)]">{t("weeklySummary")}</span>
                 </div>
                 <button
                   onClick={() => updateNotifications({ weeklyReport: !notifications.weeklyReport })}
@@ -212,7 +215,7 @@ export default function ConfiguracoesPage() {
               <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-hover)]">
                 <div className="flex items-center gap-3">
                   <TrendingUp className="w-5 h-5 text-[var(--text-muted)]" />
-                  <span className="text-[var(--text-primary)]">Resumo Mensal</span>
+                  <span className="text-[var(--text-primary)]">{t("monthlySummary")}</span>
                 </div>
                 <button
                   onClick={() => updateNotifications({ monthlyReport: !notifications.monthlyReport })}
@@ -243,8 +246,8 @@ export default function ConfiguracoesPage() {
                 <Bell className="w-5 h-5 text-violet-400" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Sons e Vibração</h2>
-                <p className="text-sm text-[var(--text-dimmed)]">Feedback ao registrar transações</p>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("soundsVibration")}</h2>
+                <p className="text-sm text-[var(--text-dimmed)]">{t("soundsVibrationDesc")}</p>
               </div>
             </div>
 
@@ -252,7 +255,7 @@ export default function ConfiguracoesPage() {
               <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-hover)]">
                 <div className="flex items-center gap-3">
                   <Bell className="w-5 h-5 text-[var(--text-muted)]" />
-                  <span className="text-[var(--text-primary)]">Sons</span>
+                  <span className="text-[var(--text-primary)]">{t("sounds")}</span>
                 </div>
                 <button
                   onClick={() => updateNotifications({ sounds: !notifications.sounds })}
@@ -277,7 +280,7 @@ export default function ConfiguracoesPage() {
               <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-hover)] sm:hidden">
                 <div className="flex items-center gap-3">
                   <Vibrate className="w-5 h-5 text-[var(--text-muted)]" />
-                  <span className="text-[var(--text-primary)]">Vibração</span>
+                  <span className="text-[var(--text-primary)]">{t("vibration")}</span>
                 </div>
                 <button
                   onClick={() => updateNotifications({ vibration: !notifications.vibration })}

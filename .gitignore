@@ -44,6 +44,7 @@ next-env.d.ts
 
 # Claude Code
 .claude/
+CLAUDE.md
 
 # Windows
 nul

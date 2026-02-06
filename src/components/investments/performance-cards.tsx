@@ -1,8 +1,9 @@
 "use client";
 
 import { TrendingUp, TrendingDown } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import type { InvestmentAnalyticsData, PerformanceData } from "./analytics-types";
 import { typeColors } from "./analytics-types";
 
@@ -13,7 +14,9 @@ interface PerformanceCardsProps {
 }
 
 export function PerformanceCards({ performance }: PerformanceCardsProps) {
+  const t = useTranslations("investments");
   const { privacy } = usePreferences();
+  const { formatCurrency } = useCurrency();
   const fmt = (v: number) => (privacy.hideValues ? HIDDEN : formatCurrency(v));
 
   const hasTop = performance.top.length > 0;
@@ -25,7 +28,7 @@ export function PerformanceCards({ performance }: PerformanceCardsProps) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {hasTop && (
         <PerformanceList
-          title="Melhores Desempenhos"
+          title={t("bestPerformance")}
           items={performance.top}
           variant="positive"
           fmt={fmt}
@@ -34,7 +37,7 @@ export function PerformanceCards({ performance }: PerformanceCardsProps) {
 
       {hasWorst && (
         <PerformanceList
-          title="Atenção Necessária"
+          title={t("needsAttention")}
           items={performance.worst}
           variant="negative"
           fmt={fmt}

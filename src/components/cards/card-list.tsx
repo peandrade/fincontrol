@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { CreditCard as CardIcon, Trash2, ChevronRight } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePreferences } from "@/contexts";
+import { useCurrency } from "@/contexts/currency-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { CreditCard } from "@/types/credit-card";
 
@@ -30,6 +31,9 @@ export function CardList({
   deletingId,
 }: CardListProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<CreditCard | null>(null);
+  const t = useTranslations("cards");
+  const tc = useTranslations("common");
+  const { formatCurrency } = useCurrency();
   const { privacy, general } = usePreferences();
 
   const handleDeleteClick = (e: React.MouseEvent, card: CreditCard) => {
@@ -50,12 +54,12 @@ export function CardList({
   if (cards.length === 0) {
     return (
       <div className="backdrop-blur rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-colors duration-300" style={cardStyle}>
-        <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: "var(--text-primary)" }}>Meus Cartões</h3>
+        <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: "var(--text-primary)" }}>{t("myCards")}</h3>
         <div className="text-center py-6 sm:py-8">
           <CardIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3" style={{ color: "var(--text-dimmed)" }} />
-          <p className="text-sm sm:text-base" style={{ color: "var(--text-dimmed)" }}>Nenhum cartão cadastrado</p>
+          <p className="text-sm sm:text-base" style={{ color: "var(--text-dimmed)" }}>{t("noCards")}</p>
           <p className="text-xs sm:text-sm mt-1" style={{ color: "var(--text-dimmed)" }}>
-            Adicione seu primeiro cartão
+            {t("addFirstCard")}
           </p>
         </div>
       </div>
@@ -64,7 +68,7 @@ export function CardList({
 
   return (
     <div className="backdrop-blur rounded-2xl p-4 sm:p-6 transition-colors duration-300" style={cardStyle}>
-      <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: "var(--text-primary)" }}>Meus Cartões</h3>
+      <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: "var(--text-primary)" }}>{t("myCards")}</h3>
       <div className="space-y-2 sm:space-y-3">
         {cards.map((card) => {
           const isSelected = selectedCardId === card.id;
@@ -129,11 +133,11 @@ export function CardList({
                     </div>
                     <div className="flex items-center gap-1 sm:gap-3 text-[10px] sm:text-sm">
                       <span style={{ color: "var(--text-dimmed)" }}>
-                        Fecha {card.closingDay}
+                        {t("closes")} {card.closingDay}
                       </span>
                       <span style={{ color: "var(--text-dimmed)" }}>•</span>
                       <span style={{ color: "var(--text-dimmed)" }}>
-                        Vence {card.dueDay}
+                        {t("dueDate")} {card.dueDay}
                       </span>
                     </div>
                   </div>
@@ -146,8 +150,8 @@ export function CardList({
                     </p>
                     <p className="text-[10px] sm:text-sm hidden sm:block" style={{ color: "var(--text-dimmed)" }}>
                       {displayTotal > 0 && displayInvoice
-                        ? `Fatura ${displayInvoice.month}/${displayInvoice.year}`
-                        : "Fatura atual"}
+                        ? `${t("invoiceLabel")} ${displayInvoice.month}/${displayInvoice.year}`
+                        : t("currentInvoiceLabel")}
                     </p>
                   </div>
 
@@ -156,11 +160,11 @@ export function CardList({
                       onClick={(e) => handleDeleteClick(e, card)}
                       disabled={deletingId === card.id}
                       className="p-1.5 sm:p-2 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-all"
-                      title="Excluir cartão"
-                      aria-label="Excluir cartão"
+                      title={t("deleteCard")}
+                      aria-label={t("deleteCard")}
                     >
                       {deletingId === card.id ? (
-                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" aria-label="Excluindo..." />
+                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" aria-label={tc("deleting")} />
                       ) : (
                         <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
                       )}
@@ -176,9 +180,9 @@ export function CardList({
               {card.limit > 0 && (
                 <div className="mt-2 sm:mt-3 pt-2 sm:pt-3" style={{ borderTop: "1px solid var(--border-color)" }}>
                   <div className="flex justify-between text-[10px] sm:text-xs mb-1" style={{ color: "var(--text-dimmed)" }}>
-                    <span>Limite: {privacy.hideValues ? "•••••" : formatCurrency(card.limit)}</span>
+                    <span>{t("limitLabel")} {privacy.hideValues ? "•••••" : formatCurrency(card.limit)}</span>
                     <span className={usagePercent > 80 ? "text-red-400" : usagePercent > 50 ? "text-yellow-400" : ""}>
-                      {usagePercent.toFixed(0)}% usado
+                      {usagePercent.toFixed(0)}% {tc("used")}
                     </span>
                   </div>
                   <div className="w-full rounded-full h-1 sm:h-1.5" style={{ backgroundColor: "var(--bg-hover)" }}>
@@ -206,9 +210,9 @@ export function CardList({
         isOpen={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
         onConfirm={handleConfirmDelete}
-        title="Excluir cartão"
-        message={`Tem certeza que deseja excluir o cartão "${deleteConfirm?.name}"? Todas as compras e faturas serão removidas. Esta ação não pode ser desfeita.`}
-        confirmText="Excluir"
+        title={t("deleteCard")}
+        message={t("deleteCardConfirm", { name: deleteConfirm?.name || "" })}
+        confirmText={tc("delete")}
         isLoading={!!deletingId}
       />
     </div>

@@ -5,17 +5,18 @@ import { cn } from "@/lib/utils";
 interface SkeletonProps {
   className?: string;
   style?: React.CSSProperties;
+  ariaLabel?: string;
 }
 
 /**
  * Base skeleton component with pulse animation
  */
-export function Skeleton({ className, style }: SkeletonProps) {
+export function Skeleton({ className, style, ariaLabel = "Loading..." }: SkeletonProps) {
   return (
     <div
       role="status"
       aria-busy="true"
-      aria-label="Carregando..."
+      aria-label={ariaLabel}
       className={cn(
         "animate-pulse rounded-lg bg-[var(--bg-hover)]",
         className
@@ -28,9 +29,9 @@ export function Skeleton({ className, style }: SkeletonProps) {
 /**
  * Skeleton for text lines
  */
-export function SkeletonText({ className, lines = 1 }: SkeletonProps & { lines?: number }) {
+export function SkeletonText({ className, lines = 1, ariaLabel = "Loading text..." }: SkeletonProps & { lines?: number }) {
   return (
-    <div role="status" aria-busy="true" aria-label="Carregando texto..." className={cn("space-y-2", className)}>
+    <div role="status" aria-busy="true" aria-label={ariaLabel} className={cn("space-y-2", className)}>
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={i}
@@ -48,12 +49,12 @@ export function SkeletonText({ className, lines = 1 }: SkeletonProps & { lines?:
 /**
  * Skeleton for cards (summary cards, stat cards)
  */
-export function SkeletonCard({ className }: SkeletonProps) {
+export function SkeletonCard({ className, ariaLabel = "Loading card..." }: SkeletonProps) {
   return (
     <div
       role="status"
       aria-busy="true"
-      aria-label="Carregando card..."
+      aria-label={ariaLabel}
       className={cn(
         "bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6",
         className
@@ -72,12 +73,12 @@ export function SkeletonCard({ className }: SkeletonProps) {
 /**
  * Skeleton for chart components
  */
-export function SkeletonChart({ className }: SkeletonProps) {
+export function SkeletonChart({ className, ariaLabel = "Loading chart..." }: SkeletonProps) {
   return (
     <div
       role="status"
       aria-busy="true"
-      aria-label="Carregando gráfico..."
+      aria-label={ariaLabel}
       className={cn(
         "bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6",
         className
@@ -106,12 +107,12 @@ export function SkeletonChart({ className }: SkeletonProps) {
 /**
  * Skeleton for list items
  */
-export function SkeletonListItem({ className }: SkeletonProps) {
+export function SkeletonListItem({ className, ariaLabel = "Loading item..." }: SkeletonProps) {
   return (
     <div
       role="status"
       aria-busy="true"
-      aria-label="Carregando item..."
+      aria-label={ariaLabel}
       className={cn(
         "flex items-center gap-4 p-4 bg-[var(--bg-hover)] rounded-xl",
         className
@@ -130,9 +131,9 @@ export function SkeletonListItem({ className }: SkeletonProps) {
 /**
  * Skeleton for a list of items
  */
-export function SkeletonList({ count = 3, className }: SkeletonProps & { count?: number }) {
+export function SkeletonList({ count = 3, className, ariaLabel = "Loading list..." }: SkeletonProps & { count?: number }) {
   return (
-    <div role="status" aria-busy="true" aria-label="Carregando lista..." className={cn("space-y-3", className)}>
+    <div role="status" aria-busy="true" aria-label={ariaLabel} className={cn("space-y-3", className)}>
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
@@ -154,9 +155,9 @@ export function SkeletonList({ count = 3, className }: SkeletonProps & { count?:
 /**
  * Skeleton for dashboard quick stats row
  */
-export function SkeletonQuickStats() {
+export function SkeletonQuickStats({ ariaLabel = "Loading stats..." }: Pick<SkeletonProps, "ariaLabel">) {
   return (
-    <div role="status" aria-busy="true" aria-label="Carregando estatísticas..." className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div role="status" aria-busy="true" aria-label={ariaLabel} className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
       {Array.from({ length: 4 }).map((_, i) => (
         <div
           key={i}
@@ -179,9 +180,9 @@ export function SkeletonQuickStats() {
 /**
  * Skeleton for summary cards (income, expense, balance)
  */
-export function SkeletonSummaryCards() {
+export function SkeletonSummaryCards({ ariaLabel = "Loading summary..." }: Pick<SkeletonProps, "ariaLabel">) {
   return (
-    <div role="status" aria-busy="true" aria-label="Carregando resumo..." className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div role="status" aria-busy="true" aria-label={ariaLabel} className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       {Array.from({ length: 3 }).map((_, i) => (
         <div
           key={i}
@@ -203,9 +204,9 @@ export function SkeletonSummaryCards() {
 /**
  * Skeleton for the entire dashboard
  */
-export function SkeletonDashboard() {
+export function SkeletonDashboard({ ariaLabel = "Loading dashboard..." }: Pick<SkeletonProps, "ariaLabel">) {
   return (
-    <div role="status" aria-busy="true" aria-label="Carregando dashboard..." className="space-y-6">
+    <div role="status" aria-busy="true" aria-label={ariaLabel} className="space-y-6">
       <SkeletonQuickStats />
       <SkeletonSummaryCards />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" aria-hidden="true">
@@ -221,9 +222,9 @@ export function SkeletonDashboard() {
 /**
  * Skeleton for investment list
  */
-export function SkeletonInvestmentList() {
+export function SkeletonInvestmentList({ ariaLabel = "Loading investments..." }: Pick<SkeletonProps, "ariaLabel">) {
   return (
-    <div role="status" aria-busy="true" aria-label="Carregando investimentos..." className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
+    <div role="status" aria-busy="true" aria-label={ariaLabel} className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
       <div className="flex items-center justify-between mb-4" aria-hidden="true">
         <div className="animate-pulse rounded-lg bg-[var(--bg-hover)] h-6 w-32" />
         <div className="animate-pulse rounded-lg bg-[var(--bg-hover)] h-8 w-24" />
@@ -236,9 +237,9 @@ export function SkeletonInvestmentList() {
 /**
  * Skeleton for allocation chart (pie/donut)
  */
-export function SkeletonAllocationChart() {
+export function SkeletonAllocationChart({ ariaLabel = "Loading allocation..." }: Pick<SkeletonProps, "ariaLabel">) {
   return (
-    <div role="status" aria-busy="true" aria-label="Carregando alocação..." className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
+    <div role="status" aria-busy="true" aria-label={ariaLabel} className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-6">
       <div className="animate-pulse rounded-lg bg-[var(--bg-hover)] h-6 w-32 mb-6" aria-hidden="true" />
       <div className="flex items-center justify-center" aria-hidden="true">
         <div className="animate-pulse rounded-full bg-[var(--bg-hover)] h-48 w-48" />

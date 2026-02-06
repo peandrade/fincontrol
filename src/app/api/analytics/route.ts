@@ -15,7 +15,7 @@ interface CategoryTrend {
 
 interface DayOfWeekPattern {
   dayOfWeek: number;
-  dayName: string;
+  dayKey: string;
   totalExpenses: number;
   transactionCount: number;
   averageTransaction: number;
@@ -40,7 +40,7 @@ interface YearComparison {
   previousYear: number;
   months: {
     month: number;
-    monthName: string;
+    monthKey: string;
     currentYearExpenses: number;
     previousYearExpenses: number;
     currentYearIncome: number;
@@ -58,10 +58,9 @@ interface YearComparison {
 
 interface TopInsight {
   type: "positive" | "negative" | "neutral";
-  title: string;
-  description: string;
-  value?: number;
-  category?: string;
+  titleKey: string;
+  descriptionKey: string;
+  params?: Record<string, string | number>;
 }
 
 export async function GET() {
@@ -120,7 +119,7 @@ export async function GET() {
       ]);
 
       // === DAY OF WEEK PATTERNS ===
-      const dayNames = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+      const dayKeys = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
       const dayOfWeekData: Record<number, { total: number; count: number }> = {};
 
       for (let i = 0; i < 7; i++) {
@@ -139,7 +138,7 @@ export async function GET() {
       const dayOfWeekPatterns: DayOfWeekPattern[] = Object.entries(dayOfWeekData).map(
         ([day, data]) => ({
           dayOfWeek: parseInt(day),
-          dayName: dayNames[parseInt(day)],
+          dayKey: dayKeys[parseInt(day)],
           totalExpenses: data.total,
           transactionCount: data.count,
           averageTransaction: data.count > 0 ? data.total / data.count : 0,
@@ -215,7 +214,7 @@ export async function GET() {
       };
 
       // === YEAR COMPARISON ===
-      const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+      const yearMonthKeys = ["jan", "feb", "mar", "apr", "mayShort", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
       // Index monthly totals
       const monthlyIndex: Record<string, number> = {};
@@ -233,7 +232,7 @@ export async function GET() {
         const monthNum = month + 1;
         yearComparisonMonths.push({
           month,
-          monthName: monthNames[month],
+          monthKey: yearMonthKeys[month],
           currentYearExpenses: monthlyIndex[`${currentYear}-${monthNum}-expense`] || 0,
           previousYearExpenses: monthlyIndex[`${previousYear}-${monthNum}-expense`] || 0,
           currentYearIncome: monthlyIndex[`${currentYear}-${monthNum}-income`] || 0,
@@ -274,10 +273,9 @@ export async function GET() {
         const biggest = increasingCategories[0];
         insights.push({
           type: "negative",
-          title: "Gastos em alta",
-          description: `${biggest.category} aumentou ${biggest.trend.toFixed(0)}% nos últimos meses`,
-          value: biggest.trend,
-          category: biggest.category,
+          titleKey: "insightSpendingUp",
+          descriptionKey: "insightSpendingUpDesc",
+          params: { category: biggest.category, percent: Math.round(biggest.trend) },
         });
       }
 
@@ -286,26 +284,25 @@ export async function GET() {
         const biggest = decreasingCategories.sort((a, b) => a.trend - b.trend)[0];
         insights.push({
           type: "positive",
-          title: "Economia identificada",
-          description: `${biggest.category} reduziu ${Math.abs(biggest.trend).toFixed(0)}% nos últimos meses`,
-          value: biggest.trend,
-          category: biggest.category,
+          titleKey: "insightSavingsFound",
+          descriptionKey: "insightSavingsFoundDesc",
+          params: { category: biggest.category, percent: Math.round(Math.abs(biggest.trend)) },
         });
       }
 
       if (spendingVelocity.comparison.vsLastMonth > 20) {
         insights.push({
           type: "negative",
-          title: "Ritmo acelerado",
-          description: `Você está gastando ${spendingVelocity.comparison.vsLastMonth.toFixed(0)}% mais rápido que o mês passado`,
-          value: spendingVelocity.comparison.vsLastMonth,
+          titleKey: "insightFastPace",
+          descriptionKey: "insightFastPaceDesc",
+          params: { percent: Math.round(spendingVelocity.comparison.vsLastMonth) },
         });
       } else if (spendingVelocity.comparison.vsLastMonth < -20) {
         insights.push({
           type: "positive",
-          title: "Ritmo controlado",
-          description: `Seus gastos estão ${Math.abs(spendingVelocity.comparison.vsLastMonth).toFixed(0)}% menores que o mês passado`,
-          value: spendingVelocity.comparison.vsLastMonth,
+          titleKey: "insightControlledPace",
+          descriptionKey: "insightControlledPaceDesc",
+          params: { percent: Math.round(Math.abs(spendingVelocity.comparison.vsLastMonth)) },
         });
       }
 
@@ -315,9 +312,9 @@ export async function GET() {
       if (highestSpendingDay.percentage > 20) {
         insights.push({
           type: "neutral",
-          title: "Padrão de gastos",
-          description: `${highestSpendingDay.dayName} é o dia que você mais gasta (${highestSpendingDay.percentage.toFixed(0)}% do total)`,
-          value: highestSpendingDay.percentage,
+          titleKey: "insightSpendingPattern",
+          descriptionKey: "insightSpendingPatternDesc",
+          params: { dayKey: highestSpendingDay.dayKey, percent: Math.round(highestSpendingDay.percentage) },
         });
       }
 

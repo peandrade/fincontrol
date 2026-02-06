@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { ArrowLeft } from "lucide-react";
 import { usePreferences } from "@/contexts";
 import {
@@ -16,6 +17,8 @@ import {
 
 export default function PrivacidadePage() {
   const router = useRouter();
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const { privacy, updatePrivacy, isLoading, isSaving, toggleHideValues, setSessionUnlocked, hasPin, refreshPinStatus } = usePreferences();
 
   const [showSetupPinModal, setShowSetupPinModal] = useState(false);
@@ -78,20 +81,20 @@ export default function PrivacidadePage() {
           className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Voltar</span>
+          <span>{tc("back")}</span>
         </button>
 
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
-              Privacidade
+              {t("privacy")}
             </h1>
             <p className="text-[var(--text-dimmed)] mt-1">
-              Controle sua privacidade e segurança
+              {t("privacyDesc")}
             </p>
           </div>
           {isSaving && (
-            <span className="text-sm text-[var(--text-muted)] animate-pulse">Salvando...</span>
+            <span className="text-sm text-[var(--text-muted)] animate-pulse">{tc("saving")}</span>
           )}
         </div>
 
