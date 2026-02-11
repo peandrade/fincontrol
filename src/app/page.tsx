@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { Calendar, CalendarDays } from "lucide-react";
+import { motion } from "framer-motion";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useFeedback } from "@/hooks/use-feedback";
 import { useTemplateStore } from "@/store/template-store";
@@ -16,7 +17,28 @@ import { BudgetOverviewCard } from "@/components/budget/budget-overview-card";
 import { RecurringSection } from "@/components/recurring";
 import { QuickActionButtons } from "@/components/quick-transaction";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { SkeletonDashboard } from "@/components/ui/skeleton";
 import type { CreateTransactionInput, EvolutionPeriod, Transaction, TransactionType, TransactionTemplate } from "@/types";
+
+// Page animation variants
+const pageVariants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 },
+};
+
+const staggerContainer = {
+  animate: {
+    transition: {
+      staggerChildren: 0.05,
+    },
+  },
+};
+
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+};
 
 const MONTH_KEYS = [
   "january", "february", "march", "april", "may", "june",
@@ -172,28 +194,28 @@ export default function DashboardPage() {
   if (isLoading && transactions.length === 0) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center transition-colors duration-300"
+        className="min-h-screen"
         style={{ backgroundColor: "var(--bg-primary)" }}
       >
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary-color border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p style={{ color: "var(--text-muted)" }}>{tc("loading")}</p>
+        <div className="max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <SkeletonDashboard />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen transition-colors duration-300 overflow-x-hidden" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}>
-      {}
+    <motion.div
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={pageVariants}
+      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+      className="min-h-screen overflow-x-hidden"
+      style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}
+    >
+      {/* Styles */}
       <style>{`
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-slideUp {
-          animation: slideUp 0.3s ease-out;
-        }
         .card-hover {
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
@@ -202,15 +224,18 @@ export default function DashboardPage() {
         }
       `}</style>
 
-      {}
+      {/* Background decorations */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
         <div className="absolute -top-40 -right-40 w-40 sm:w-80 h-40 sm:h-80 bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] rounded-full blur-3xl opacity-50" />
         <div className="absolute top-1/2 -left-40 w-40 sm:w-80 h-40 sm:h-80 bg-[color-mix(in_srgb,var(--color-secondary)_10%,transparent)] rounded-full blur-3xl opacity-50" />
         <div className="absolute -bottom-40 right-1/3 w-40 sm:w-80 h-40 sm:h-80 bg-fuchsia-600/10 rounded-full blur-3xl opacity-50" />
       </div>
 
-      {}
-      <div className="relative max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">
+      {/* Main content */}
+      <motion.div
+        variants={staggerContainer}
+        className="relative max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden"
+      >
         {}
         <header className="flex flex-row items-center justify-between gap-3 mb-6 sm:mb-8">
           <div className="min-w-0">
@@ -297,18 +322,20 @@ export default function DashboardPage() {
         </div>
 
         {/* Transações Recentes */}
-        <TransactionList
-          transactions={transactions}
-          onDelete={handleDeleteTransaction}
-          onEdit={handleEditTransaction}
-          deletingId={deletingId}
-        />
-      </div>
+        <motion.div variants={fadeInUp}>
+          <TransactionList
+            transactions={transactions}
+            onDelete={handleDeleteTransaction}
+            onEdit={handleEditTransaction}
+            deletingId={deletingId}
+          />
+        </motion.div>
+      </motion.div>
 
-      {}
+      {/* Quick Action Buttons */}
       <QuickActionButtons onQuickAdd={handleQuickAdd} onUseTemplate={handleUseTemplate} />
 
-      {}
+      {/* Transaction Modal */}
       <TransactionModal
         isOpen={isModalOpen}
         onClose={handleCloseTransactionModal}
@@ -318,6 +345,6 @@ export default function DashboardPage() {
         template={selectedTemplate}
         editTransaction={editingTransaction}
       />
-    </div>
+    </motion.div>
   );
 }

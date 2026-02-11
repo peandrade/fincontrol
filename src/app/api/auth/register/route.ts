@@ -31,7 +31,13 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, email, password } = body;
+    const { name, email, password, language, currency } = body;
+
+    // Validate language and currency
+    const validLanguages = ["pt", "en", "es"];
+    const validCurrencies = ["BRL", "USD", "EUR", "GBP"];
+    const userLanguage = validLanguages.includes(language) ? language : "pt";
+    const userCurrency = validCurrencies.includes(currency) ? currency : "BRL";
 
     if (!email || !password) {
       return NextResponse.json(
@@ -77,6 +83,14 @@ export async function POST(request: Request) {
         name: name || null,
         email: email.toLowerCase().trim(),
         password: hashedPassword,
+        generalSettings: {
+          defaultPage: "dashboard",
+          defaultPeriod: "month",
+          defaultSort: "recent",
+          confirmBeforeDelete: true,
+          displayCurrency: userCurrency,
+          language: userLanguage,
+        },
       },
     });
 

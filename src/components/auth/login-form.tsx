@@ -74,7 +74,7 @@ export function LoginForm() {
         borderWidth: "1px",
       }}
     >
-      {}
+      {/* Header */}
       <div className="text-center mb-8">
         <div className="w-16 h-16 rounded-2xl bg-primary-gradient flex items-center justify-center mx-auto shadow-lg shadow-primary mb-4">
           <span className="text-3xl">💰</span>

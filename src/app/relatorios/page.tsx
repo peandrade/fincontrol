@@ -2,12 +2,20 @@
 
 import { useState, useEffect, useRef } from "react";
 import { FileBarChart, Calendar, Download, Filter, RefreshCw, Lightbulb, TrendingUp } from "lucide-react";
+import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useAnalytics } from "@/hooks";
 import { CategoryReport, MonthlyComparison, AdvancedAnalytics, InsightsContent, SpendingVelocityContent } from "@/components/reports";
 import { generateReportPDF } from "@/lib/pdf-generator";
+import { SkeletonReportsPage } from "@/components/ui/skeleton";
+
+const pageVariants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 },
+};
 
 const MONTH_KEYS = [
   "january", "february", "march", "april", "may", "june",
@@ -88,32 +96,36 @@ export default function RelatoriosPage() {
   if (isLoading && transactions.length === 0) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center"
+        className="min-h-screen"
         style={{ backgroundColor: "var(--bg-primary)" }}
       >
-        <div className="text-center">
-          <RefreshCw className="w-8 h-8 text-primary-color animate-spin mx-auto mb-4" />
-          <p style={{ color: "var(--text-muted)" }}>{t("loadingReports")}</p>
+        <div className="max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <SkeletonReportsPage />
         </div>
       </div>
     );
   }
 
   return (
-    <div
-      className="min-h-screen transition-colors duration-300"
+    <motion.div
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={pageVariants}
+      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+      className="min-h-screen"
       style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}
     >
-      {}
+      {/* Background decorations */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] rounded-full blur-3xl" />
         <div className="absolute top-1/2 -left-40 w-80 h-80 bg-[color-mix(in_srgb,var(--color-secondary)_10%,transparent)] rounded-full blur-3xl" />
         <div className="absolute -bottom-40 right-1/3 w-80 h-80 bg-fuchsia-600/10 rounded-full blur-3xl" />
       </div>
 
-      {}
+      {/* Main content */}
       <div className="relative max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">
-        {}
+        {/* Header */}
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-3" style={{ color: "var(--text-primary)" }}>
@@ -315,12 +327,12 @@ export default function RelatoriosPage() {
             />
           </div>
 
-          {}
+          {/* Advanced Analytics */}
           <div className="mt-6">
             <AdvancedAnalytics />
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

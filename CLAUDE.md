@@ -394,3 +394,68 @@ src/
     prompts.ts                # System prompts
 ```
 
+### 10. Testes Automatizados
+
+**Estrutura recomendada (dentro do projeto):**
+```
+fincontrol/
+  src/
+  tests/
+    unit/              # Vitest - funcoes puras
+    components/        # Vitest + Testing Library
+    e2e/               # Playwright - fluxos completos
+  vitest.config.ts
+  playwright.config.ts
+```
+
+**Stack:**
+| Tipo | Ferramenta | O que testar |
+|------|------------|--------------|
+| Unit | Vitest | formatCurrency, calculo IR, utils, validacoes Zod |
+| Component | Vitest + React Testing Library | Componentes isolados, hooks |
+| E2E | Playwright | Login, criar transacao, dashboard, fluxos criticos |
+
+**Por que Playwright (nao Cypress):**
+- Mais rapido e leve
+- Suporte nativo a multiplos browsers
+- Melhor integracao com Next.js
+- Sem limitacoes com fetch/APIs modernas
+
+**Comandos:**
+```bash
+npm run test          # Roda unit + component
+npm run test:e2e      # Roda Playwright
+npm run test:coverage # Gera relatorio de coverage
+```
+
+**Coverage minimo sugerido:**
+- Funcoes de calculo (IR, formatCurrency, etc.): 90%
+- APIs criticas: 80%
+- Componentes de formulario: 70%
+
+### 11. PWA (Progressive Web App)
+- Manifest.json para instalacao na home screen
+- Service Worker para cache e offline support
+- Push notifications para alertas
+- Splash screen customizada
+
+### 12. Otimizacoes de Performance
+- Lazy loading de componentes pesados (charts, modals)
+- Virtualizacao de listas longas (react-window)
+- Prefetch de rotas frequentes
+- Image optimization com next/image
+- Bundle analysis e code splitting
+
+### 13. Onboarding para Novos Usuarios
+- Tour guiado interativo (react-joyride ou similar)
+- Wizard de configuracao inicial
+- Dados de exemplo para demonstracao
+- Tooltips contextuais nas primeiras visitas
+
+### 14. Melhorias de UI/UX
+- Transicao suave entre dark/light mode
+- Animacoes de entrada/saida (framer-motion)
+- Skeleton loading em todas as paginas
+- Feedback haptico em mobile
+- Atalhos de teclado (Cmd+K para busca, etc.)
+

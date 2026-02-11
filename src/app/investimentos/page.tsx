@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Plus, RefreshCw, TrendingUp, Check, AlertCircle, Percent, Lightbulb } from "lucide-react";
+import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import {
   InvestmentSummaryCards,
@@ -23,6 +24,13 @@ import type { GoalsAnalyticsData } from "@/components/goals/goals-analytics";
 import type { Investment, CreateInvestmentInput, CreateOperationInput, UpdateInvestmentInput } from "@/types";
 import { useInvestmentStore } from "@/store/investments-store";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { SkeletonInvestmentsPage } from "@/components/ui/skeleton";
+
+const pageVariants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 },
+};
 
 export default function InvestmentsPage() {
   const t = useTranslations("investments");
@@ -216,12 +224,11 @@ export default function InvestmentsPage() {
   if (isLoading && investments.length === 0) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center transition-colors duration-300"
+        className="min-h-screen"
         style={{ backgroundColor: "var(--bg-primary)" }}
       >
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary-color border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p style={{ color: "var(--text-muted)" }}>{tc("loading")}</p>
+        <div className="max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <SkeletonInvestmentsPage />
         </div>
       </div>
     );
@@ -235,25 +242,25 @@ export default function InvestmentsPage() {
     goalAnalyticsData.insights.length > 0;
 
   return (
-    <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}>
-      <style>{`
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-slideUp { animation: slideUp 0.3s ease-out; }
-      `}</style>
-
-      {}
+    <motion.div
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={pageVariants}
+      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+      className="min-h-screen"
+      style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}
+    >
+      {/* Background decorations */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
         <div className="absolute top-1/2 -left-40 w-80 h-80 bg-[color-mix(in_srgb,var(--color-primary)_10%,transparent)] rounded-full blur-3xl" />
         <div className="absolute -bottom-40 right-1/3 w-80 h-80 bg-emerald-600/10 rounded-full blur-3xl" />
       </div>
 
-      {}
+      {/* Main content */}
       <div className="relative max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">
-        {}
+        {/* Header */}
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>
@@ -467,6 +474,6 @@ export default function InvestmentsPage() {
         onSave={handleUpdateInvestment}
         isSubmitting={isSubmitting}
       />
-    </div>
+    </motion.div>
   );
 }

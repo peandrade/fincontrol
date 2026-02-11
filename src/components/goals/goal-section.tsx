@@ -9,6 +9,7 @@ import { useFeedback } from "@/hooks/use-feedback";
 import { getGoalCategoryLabel, getGoalCategoryColor, getGoalCategoryIcon, type GoalCategoryType } from "@/lib/constants";
 import { GoalModal } from "./goal-modal";
 import { EditGoalModal } from "./edit-goal-modal";
+import { ContributeModal } from "./contribute-modal";
 import { GoalCard } from "./goal-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { GoalWithProgress } from "@/app/api/goals/route";
@@ -29,14 +30,19 @@ interface GoalSectionProps {
   headerExtra?: React.ReactNode;
 }
 
+type OperationType = "deposit" | "withdraw";
+
 export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
   const [data, setData] = useState<GoalData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editGoalId, setEditGoalId] = useState<string | null>(null);
   const [deleteGoalId, setDeleteGoalId] = useState<string | null>(null);
+  const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
+  const [operationType, setOperationType] = useState<OperationType>("deposit");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isContributing, setIsContributing] = useState(false);
   const { formatCurrency } = useCurrency();
   const { privacy, general } = usePreferences();
   const feedback = useFeedback();
@@ -161,6 +167,38 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
     }
   };
 
+  const handleOpenContribute = (goalId: string, type: OperationType) => {
+    setContributeGoalId(goalId);
+    setOperationType(type);
+  };
+
+  const handleContribute = async (value: number, notes?: string) => {
+    if (!contributeGoalId) return;
+    setIsContributing(true);
+    try {
+      const response = await fetch(`/api/goals/${contributeGoalId}/contribute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          value: operationType === "withdraw" ? -value : value,
+          notes,
+          operationType,
+        }),
+      });
+
+      if (response.ok) {
+        feedback.success();
+        await fetchGoals();
+        setContributeGoalId(null);
+        onGoalUpdated?.();
+      }
+    } catch (error) {
+      console.error("Erro ao contribuir:", error);
+    } finally {
+      setIsContributing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="bg-[var(--bg-secondary)] rounded-xl sm:rounded-2xl border border-[var(--border-color)] p-4 sm:p-6">
@@ -182,6 +220,7 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
   const activeGoals = data?.goals.filter((g) => !g.isCompleted) || [];
   const completedGoals = data?.goals.filter((g) => g.isCompleted) || [];
   const editGoal = data?.goals.find((g) => g.id === editGoalId);
+  const contributeGoal = data?.goals.find((g) => g.id === contributeGoalId);
 
   return (
     <>
@@ -278,6 +317,8 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
                       goal={goal}
                       onEdit={() => setEditGoalId(goal.id)}
                       onDelete={() => handleDeleteGoal(goal.id)}
+                      onDeposit={() => handleOpenContribute(goal.id, "deposit")}
+                      onWithdraw={() => handleOpenContribute(goal.id, "withdraw")}
                     />
                   ))}
                 </div>
@@ -296,6 +337,7 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
                       goal={goal}
                       onEdit={() => setEditGoalId(goal.id)}
                       onDelete={() => handleDeleteGoal(goal.id)}
+                      onWithdraw={() => handleOpenContribute(goal.id, "withdraw")}
                     />
                   ))}
                 </div>
@@ -328,6 +370,17 @@ export function GoalSection({ onGoalUpdated, headerExtra }: GoalSectionProps) {
         message={t("removeGoalConfirm")}
         confirmText={tc("remove")}
         isLoading={isDeleting}
+      />
+
+      <ContributeModal
+        isOpen={!!contributeGoalId}
+        onClose={() => setContributeGoalId(null)}
+        onSave={handleContribute}
+        isSubmitting={isContributing}
+        goalName={contributeGoal?.name || ""}
+        remaining={contributeGoal?.remaining || 0}
+        currentValue={contributeGoal?.currentValue || 0}
+        operationType={operationType}
       />
     </>
   );
