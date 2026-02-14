@@ -11,18 +11,16 @@ interface ExchangeRates {
 const CACHE_KEY = "global:exchange-rates";
 
 async function fetchExchangeRates(): Promise<ExchangeRates | null> {
-  // Try Open Exchange Rates (free tier with app_id)
-  // Fallback: use exchangerate.host or Banco Central do Brasil
+  // Try frankfurter.app (free, no key required, maintained by European Central Bank)
   try {
-    // Using exchangerate.host (free, no key required)
     const response = await fetch(
-      "https://api.exchangerate.host/latest?base=BRL&symbols=USD,EUR,GBP",
+      "https://api.frankfurter.app/latest?from=BRL&to=USD,EUR,GBP",
       { cache: "no-store" }
     );
 
     if (response.ok) {
       const data = await response.json();
-      if (data.success !== false && data.rates) {
+      if (data.rates) {
         return {
           USD: data.rates.USD,
           EUR: data.rates.EUR,
@@ -31,30 +29,36 @@ async function fetchExchangeRates(): Promise<ExchangeRates | null> {
       }
     }
   } catch (error) {
-    console.error("[Exchange] exchangerate.host failed:", error);
+    console.error("[Exchange] frankfurter.app failed:", error);
   }
 
-  // Fallback: Banco Central do Brasil PTAX
+  // Fallback: Banco Central do Brasil PTAX (try last 7 days for weekends/holidays)
   try {
     const today = new Date();
-    const dateStr = `${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}-${today.getFullYear()}`;
 
-    const usdResponse = await fetch(
-      `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@dataCotacao)?@dataCotacao='${dateStr}'&$format=json`,
-      { cache: "no-store" }
-    );
+    // Try the last 7 days to handle weekends and holidays
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}-${date.getFullYear()}`;
 
-    if (usdResponse.ok) {
-      const usdData = await usdResponse.json();
-      if (usdData.value && usdData.value.length > 0) {
-        const usdRate = usdData.value[usdData.value.length - 1].cotacaoVenda;
-        // Approximate EUR and GBP from USD
-        // These are rough estimates; in production you'd fetch each individually
-        return {
-          USD: 1 / usdRate,
-          EUR: 1 / (usdRate * 1.08), // approximate EUR/USD
-          GBP: 1 / (usdRate * 0.79), // approximate GBP/USD
-        };
+      const usdResponse = await fetch(
+        `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@dataCotacao)?@dataCotacao='${dateStr}'&$format=json`,
+        { cache: "no-store" }
+      );
+
+      if (usdResponse.ok) {
+        const usdData = await usdResponse.json();
+        if (usdData.value && usdData.value.length > 0) {
+          const usdRate = usdData.value[usdData.value.length - 1].cotacaoVenda;
+          // Convert to BRL -> foreign currency format
+          // Approximate EUR and GBP from USD using typical cross rates
+          return {
+            USD: 1 / usdRate,
+            EUR: 1 / (usdRate * 1.08), // approximate EUR/USD
+            GBP: 1 / (usdRate * 0.79), // approximate GBP/USD
+          };
+        }
       }
     }
   } catch (error) {
