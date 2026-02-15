@@ -279,7 +279,7 @@ export function InvestmentModal({
                           setIndexer(newIndexer);
                           if (newIndexer === "NA") setInterestRate("");
                         }}
-                        className="indexer-select w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 pr-10 text-[var(--text-primary)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all appearance-none cursor-pointer"
+                        className="indexer-select select-icon-manual w-full bg-[var(--bg-hover)] border border-[var(--border-color-strong)] rounded-xl py-3 px-4 pr-10 text-[var(--text-primary)] focus:outline-none focus:border-primary-color focus:ring-1 focus:ring-[var(--color-primary)] transition-all appearance-none cursor-pointer"
                       >
                         {INDEXER_TYPES.map((idx) => (
                           <option key={idx.value} value={idx.value}>

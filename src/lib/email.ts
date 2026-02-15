@@ -92,8 +92,8 @@ export function generatePasswordResetEmail(resetUrl: string, userName?: string) 
               <!-- Logo -->
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto;">
                 <tr>
-                  <td style="background-color: rgba(255,255,255,0.2); border-radius: 16px; padding: 12px 16px;">
-                    <span style="font-size: 32px;">💰</span>
+                  <td style="background-color: rgba(255,255,255,0.2); border-radius: 16px; padding: 12px 20px;">
+                    <span style="font-size: 32px; font-weight: 700; color: #ffffff;">$</span>
                   </td>
                 </tr>
               </table>

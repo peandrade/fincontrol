@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useTheme, useUser, useSidebar } from "@/contexts";
 import { useTranslations } from "next-intl";
+import { Logo } from "@/components/ui/logo";
 
 const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
 
@@ -81,9 +82,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className={`flex items-center h-16 border-b ${isCollapsed ? "justify-center px-2" : "px-4"}`} style={{ borderColor: "var(--border-color)" }}>
         <Link href="/" className={`flex items-center ${isCollapsed ? "" : "gap-3"}`}>
-          <div className="w-9 h-9 rounded-xl bg-primary-gradient flex items-center justify-center shadow-lg shadow-primary shrink-0">
-            <span className="text-lg">💰</span>
-          </div>
+          <Logo size="md" />
           {!isCollapsed && (
             <span
               className="text-xl font-bold bg-clip-text text-transparent"

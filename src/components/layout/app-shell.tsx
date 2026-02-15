@@ -10,6 +10,7 @@ import { Sidebar } from "./sidebar";
 import { BottomTabs } from "./bottom-tabs";
 import { FeedbackButton } from "@/components/feedback";
 import { NotificationButton } from "@/components/notifications";
+import { Logo } from "@/components/ui/logo";
 
 const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
 
@@ -40,9 +41,7 @@ function MobileHeader() {
     >
       <div className="flex items-center justify-between h-14 px-4">
         <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary-gradient flex items-center justify-center shadow-lg shadow-primary">
-            <span className="text-sm">💰</span>
-          </div>
+          <Logo size="sm" />
           <span
             className="text-lg font-bold bg-clip-text text-transparent"
             style={{

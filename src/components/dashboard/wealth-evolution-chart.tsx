@@ -213,7 +213,7 @@ export function WealthEvolutionChart({ refreshTrigger = 0 }: WealthEvolutionChar
             <select
               value={period}
               onChange={(e) => setPeriod(e.target.value as EvolutionPeriod)}
-              className="appearance-none cursor-pointer px-2 sm:px-3 py-1 sm:py-1.5 pr-6 sm:pr-8 rounded-lg text-xs sm:text-sm font-medium transition-colors"
+              className="appearance-none select-icon-manual cursor-pointer px-2 sm:px-3 py-1 sm:py-1.5 pr-6 sm:pr-8 rounded-lg text-xs sm:text-sm font-medium transition-colors"
               style={{
                 backgroundColor: "var(--bg-hover)",
                 color: "var(--text-primary)",

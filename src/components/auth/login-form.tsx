@@ -6,6 +6,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { LogIn, Mail, Lock, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { Logo } from "@/components/ui/logo";
 
 export function LoginForm() {
   const router = useRouter();
@@ -76,9 +77,7 @@ export function LoginForm() {
     >
       {/* Header */}
       <div className="text-center mb-8">
-        <div className="w-16 h-16 rounded-2xl bg-primary-gradient flex items-center justify-center mx-auto shadow-lg shadow-primary mb-4">
-          <span className="text-3xl">💰</span>
-        </div>
+        <Logo size="xl" className="mx-auto mb-4" />
         <h1
           className="text-2xl font-bold"
           style={{ color: "var(--text-primary)" }}
