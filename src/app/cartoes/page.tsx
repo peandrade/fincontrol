@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus, RefreshCw, ShoppingCart, CreditCard, Layers, AlertTriangle } from "lucide-react";
-import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useCardStore } from "@/store/card-store";
 import { useFeedback } from "@/hooks";
@@ -24,12 +23,6 @@ import type {
   CreatePurchaseInput,
   Invoice,
 } from "@/types/credit-card";
-
-const pageVariants = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
-};
 
 function CartoesContent() {
   const t = useTranslations("cards");
@@ -185,12 +178,7 @@ function CartoesContent() {
   }
 
   return (
-    <motion.div
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      variants={pageVariants}
-      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+    <div
       className="min-h-screen"
       style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}
     >
@@ -362,7 +350,7 @@ function CartoesContent() {
         onSave={handleAddPurchase}
         isSubmitting={isSubmitting}
       />
-    </motion.div>
+    </div>
   );
 }
 

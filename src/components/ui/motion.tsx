@@ -1,7 +1,9 @@
 "use client";
 
 import { motion, AnimatePresence, Variants } from "framer-motion";
-import { ReactNode } from "react";
+import { LayoutRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { usePathname } from "next/navigation";
+import { ReactNode, useContext, useRef } from "react";
 
 // Animation variants
 export const fadeIn: Variants = {
@@ -244,6 +246,46 @@ export function Counter({
         {formatter(value)}
       </motion.span>
     </motion.span>
+  );
+}
+
+// Frozen Router - prevents content from updating during exit animations
+// This fixes the bug where clicking navigation twice causes content to disappear
+function FrozenRouter({ children }: { children: ReactNode }) {
+  const context = useContext(LayoutRouterContext);
+  const frozen = useRef(context).current;
+
+  return (
+    <LayoutRouterContext.Provider value={frozen}>
+      {children}
+    </LayoutRouterContext.Provider>
+  );
+}
+
+// Route transition wrapper for page-level animations
+interface RouteTransitionProps {
+  children: ReactNode;
+  className?: string;
+}
+
+export function RouteTransition({ children, className }: RouteTransitionProps) {
+  const pathname = usePathname();
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={pathname}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        variants={fadeInUp}
+        transition={smoothTransition}
+        className={className}
+        style={{ width: "100%" }}
+      >
+        <FrozenRouter>{children}</FrozenRouter>
+      </motion.div>
+    </AnimatePresence>
   );
 }
 

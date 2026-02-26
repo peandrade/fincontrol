@@ -389,6 +389,7 @@ export function invalidateTransactionCache(userId: string): void {
   serverCache.invalidateByTag(CacheTags.ANALYTICS, userId);
   serverCache.invalidateByTag(CacheTags.WEALTH, userId);
   serverCache.invalidateByTag(CacheTags.HEALTH_SCORE, userId);
+  serverCache.invalidateByTag(CacheTags.CASH_FLOW, userId);
 }
 
 /**
@@ -410,6 +411,7 @@ export function invalidateCardCache(userId: string): void {
   serverCache.invalidateByTag(CacheTags.DASHBOARD, userId);
   serverCache.invalidateByTag(CacheTags.WEALTH, userId);
   serverCache.invalidateByTag(CacheTags.HEALTH_SCORE, userId);
+  serverCache.invalidateByTag(CacheTags.CASH_FLOW, userId);
 }
 
 /**
@@ -450,6 +452,14 @@ export function invalidateTemplateCache(userId: string): void {
 export function invalidateRecurringCache(userId: string): void {
   serverCache.invalidateByTag(CacheTags.RECURRING, userId);
   serverCache.invalidateByTag(CacheTags.DASHBOARD, userId);
+  serverCache.invalidateByTag(CacheTags.CASH_FLOW, userId);
+}
+
+/**
+ * Invalidate cache for cash flow forecast data
+ */
+export function invalidateCashFlowCache(userId: string): void {
+  serverCache.invalidateByTag(CacheTags.CASH_FLOW, userId);
 }
 
 /**

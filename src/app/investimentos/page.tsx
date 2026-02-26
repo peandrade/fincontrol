@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Plus, RefreshCw, TrendingUp, Check, AlertCircle, Percent, Lightbulb } from "lucide-react";
-import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import {
   InvestmentSummaryCards,
@@ -25,12 +24,6 @@ import type { Investment, CreateInvestmentInput, CreateOperationInput, UpdateInv
 import { useInvestmentStore } from "@/store/investments-store";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { SkeletonInvestmentsPage } from "@/components/ui/skeleton";
-
-const pageVariants = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
-};
 
 export default function InvestmentsPage() {
   const t = useTranslations("investments");
@@ -242,12 +235,7 @@ export default function InvestmentsPage() {
     goalAnalyticsData.insights.length > 0;
 
   return (
-    <motion.div
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      variants={pageVariants}
-      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+    <div
       className="min-h-screen"
       style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}
     >
@@ -474,6 +462,6 @@ export default function InvestmentsPage() {
         onSave={handleUpdateInvestment}
         isSubmitting={isSubmitting}
       />
-    </motion.div>
+    </div>
   );
 }

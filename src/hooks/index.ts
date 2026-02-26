@@ -11,6 +11,7 @@ export { useCardsAnalytics } from "./use-cards-analytics";
 export { useWealthEvolution } from "./use-wealth-evolution";
 export { useFinancialHealth } from "./use-financial-health";
 export { useDashboardSummary } from "./use-dashboard-summary";
+export { useCashFlowForecast } from "./use-cash-flow-forecast";
 
 // Re-export types from centralized location
 export type {
@@ -34,6 +35,11 @@ export type {
   FinancialHealthDetails,
   ComponentScores,
   DashboardSummaryData,
+  CashFlowForecastData,
+  CashFlowDataPoint,
+  CashFlowAlert,
+  CashFlowSummary,
+  ForecastPeriod,
 } from "@/types/api-responses";
 
 // Utility hooks

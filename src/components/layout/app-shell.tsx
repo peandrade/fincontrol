@@ -11,6 +11,7 @@ import { BottomTabs } from "./bottom-tabs";
 import { FeedbackButton } from "@/components/feedback";
 import { NotificationButton } from "@/components/notifications";
 import { Logo } from "@/components/ui/logo";
+import { RouteTransition } from "@/components/ui/motion";
 
 const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
 
@@ -113,7 +114,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           }`}
         >
           <MobileHeader />
-          <main className="flex-1 pb-20 md:pb-0 overflow-x-hidden w-full">{children}</main>
+          <main className="flex-1 pb-20 md:pb-0 overflow-x-hidden w-full">
+            <RouteTransition>{children}</RouteTransition>
+          </main>
         </div>
       </div>
       <BottomTabs />

@@ -335,6 +335,7 @@ export const CacheTags = {
   ANALYTICS: "analytics",
   WEALTH: "wealth",
   HEALTH_SCORE: "health-score",
+  CASH_FLOW: "cash-flow",
 } as const;
 
 /**

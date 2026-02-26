@@ -2,20 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import { FileBarChart, Calendar, Download, Filter, RefreshCw, Lightbulb, TrendingUp } from "lucide-react";
-import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useAnalytics } from "@/hooks";
 import { CategoryReport, MonthlyComparison, AdvancedAnalytics, InsightsContent, SpendingVelocityContent } from "@/components/reports";
+import { CashFlowForecastChart } from "@/components/dashboard";
 import { generateReportPDF } from "@/lib/pdf-generator";
 import { SkeletonReportsPage } from "@/components/ui/skeleton";
-
-const pageVariants = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
-};
 
 const MONTH_KEYS = [
   "january", "february", "march", "april", "may", "june",
@@ -107,12 +101,7 @@ export default function RelatoriosPage() {
   }
 
   return (
-    <motion.div
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      variants={pageVariants}
-      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+    <div
       className="min-h-screen"
       style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}
     >
@@ -331,8 +320,13 @@ export default function RelatoriosPage() {
           <div className="mt-6">
             <AdvancedAnalytics />
           </div>
+
+          {/* Cash Flow Forecast */}
+          <div className="mt-6">
+            <CashFlowForecastChart />
+          </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

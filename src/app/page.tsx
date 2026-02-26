@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { Calendar, CalendarDays } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, staggerContainer, fadeInUp } from "@/components/ui/motion";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useFeedback } from "@/hooks/use-feedback";
 import { useTemplateStore } from "@/store/template-store";
@@ -19,26 +19,6 @@ import { QuickActionButtons } from "@/components/quick-transaction";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { SkeletonDashboard } from "@/components/ui/skeleton";
 import type { CreateTransactionInput, EvolutionPeriod, Transaction, TransactionType, TransactionTemplate } from "@/types";
-
-// Page animation variants
-const pageVariants = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
-};
-
-const staggerContainer = {
-  animate: {
-    transition: {
-      staggerChildren: 0.05,
-    },
-  },
-};
-
-const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-};
 
 const MONTH_KEYS = [
   "january", "february", "march", "april", "may", "june",
@@ -205,12 +185,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <motion.div
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      variants={pageVariants}
-      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+    <div
       className="min-h-screen overflow-x-hidden"
       style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}
     >
@@ -345,6 +320,6 @@ export default function DashboardPage() {
         template={selectedTemplate}
         editTransaction={editingTransaction}
       />
-    </motion.div>
+    </div>
   );
 }

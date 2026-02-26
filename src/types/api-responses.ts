@@ -233,3 +233,43 @@ export interface DashboardSummaryData {
   totalGoalsTarget: number;
   goalsProgress: number;
 }
+
+// ============================================
+// Cash Flow Forecast API Response Types
+// ============================================
+
+export type ForecastPeriod = 30 | 60 | 90;
+
+export interface CashFlowDataPoint {
+  date: string;
+  label: string;
+  balance: number;
+  income: number;
+  expenses: number;
+  isNegative: boolean;
+}
+
+export interface CashFlowAlert {
+  type: "negative_balance" | "low_balance" | "high_expense_day";
+  date: string;
+  projectedBalance: number;
+  message: string;
+  severity: "warning" | "danger";
+}
+
+export interface CashFlowSummary {
+  currentBalance: number;
+  projectedEndBalance: number;
+  lowestBalance: number;
+  lowestBalanceDate: string;
+  totalExpectedIncome: number;
+  totalExpectedExpenses: number;
+  daysUntilNegative: number | null;
+}
+
+export interface CashFlowForecastData {
+  forecast: CashFlowDataPoint[];
+  alerts: CashFlowAlert[];
+  summary: CashFlowSummary;
+  period: ForecastPeriod;
+}
